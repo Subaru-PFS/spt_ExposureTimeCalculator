@@ -18,6 +18,8 @@ if __name__ == '__main__':
     DIFFUSE_STRAY  = 0.02
     ###############################################
     start = time.time()
+    if os.path.exists('bin') == False:
+        os.mkdir('bin')
     os.system('gcc ./src/%s.c -lm -O3 -DHGCDTE_SUTR -DMOONLIGHT_ -o ./bin/%s.x'%(ETC,ETC))
     print "ETC ready..."
     param_name=['SKYMODELS','SKY_SUB_FLOOR','DIFFUSE_STRAY','OFFSET_FIB']
@@ -76,6 +78,8 @@ if __name__ == '__main__':
     ## make continuum magnitude file ##
     try:
         mag = float(param_value['MAG_FILE'])
+        if os.path.exists('tmp') == False:
+            os.mkdir('tmp')
         file = open('tmp/mag.dat','w')
         file.write('300.0 %.2f\n 1300. %.2f\n'%(mag,mag))
         file.close()
