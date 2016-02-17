@@ -29,6 +29,11 @@ Requirements
 * pyfits (3.3 and higher) see http://www.stsci.edu/institute/software_hardware/pyfits
  Note: These two python modules are required for using gen_sim_spec.py. If you don't have these modules, please install them from the above website.
 
+------------
+Installation
+------------
+To install the script, just download the source code from the following URL:
+
 -----
 Usage
 -----
