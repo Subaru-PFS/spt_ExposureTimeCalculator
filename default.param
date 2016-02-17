@@ -1,0 +1,32 @@
+########################
+## PFS ETC Parameters ##
+########################
+SEEING           0.80               #  Seeing FWHM size             [arcsec]
+ZENITH_ANG       45.00              #  Zenith angle                 [deg.]
+GALACTIC_EXT     0.00               #  Galactic extinction          [ABmag.]
+MOON_ZENITH_ANG  30.0               #  Moon zenith angle            [deg.]
+MOON_TARGET_ANG  60.0               #  Moon-target separation       [deg.]
+MOON_PHASE       0                  #  Moon phase                   [0=New,0.25=quarter,0.5=full]
+EXP_TIME         450                #  Single exposure time         [sec.]
+EXP_NUM          8                  #  The number of exposures
+FIELD_ANG        0.675              #  Field angle                  [deg.; center=0, edge=0.675]
+
+MAG_FILE         22.5               #  Magnitude or input spectrum  [ABmag] or <filename>
+REFF             0.3                #  Effective radius             [arcsec]
+LINE_FLUX        1.0e-17            #  Emission line flux           [erg/s/cm^2]
+LINE_WIDTH       70                 #  Emission line width sigma    [km/s]
+
+NOISE_REUSED     N                  #  Noise Vector Reused?               [Y/N] (If Y, please specify file name used in OUTFILE_NOISE)
+OUTFILE_NOISE    out/ref.noise.dat  #  Output file for noise vector       <filename>
+OUTFILE_SNC      out/ref.snc.dat    #  Output file for continuum S/N      <filename>
+OUTFILE_SNL      out/ref.snl.dat    #  Output file for emission line S/N  <filename>
+MR_MODE          N                  #  Medium resolution mode switch      [Y/N]
+OVERWRITE        Y                  #  Overwrite switch                   [Y/N]
+
+#########################
+## Spectral Simulation ##
+#########################
+INFILE_SNC      out/ref.snc.dat     #  Input file of continuum S/N for the simulator
+OUTFILE_SIM     out/sim.test.dat    #  Output file name for simulated spectra
+FILE_TYPE_SIM   ASCII               #  Output file type for simulated spectra [ASCII/FITS]
+
