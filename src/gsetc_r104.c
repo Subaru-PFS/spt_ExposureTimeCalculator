@@ -1757,14 +1757,12 @@ int main(void) {
     fprintf(stderr, "Error: Failed to read name of output file.\n");
     exit(1); 
   } 
-  if (strcmp("-",OutFileSNR2)!=0) {
-    //printf("Enter flux of the emission line [erg cm-2 s-1]: ");
-    if(scanf("%lg", &flux_emi)==EOF)
-      flux_emi=1.0e-7;
-    //printf("Enter velocity width of the emission line [km s-1]: ");
-    if(scanf("%lg", &sigma_emi)==EOF)
-      sigma_emi=70.;
-  }
+  //printf("Enter flux of the emission line [erg cm-2 s-1]: ");
+  if(scanf("%lg", &flux_emi)==EOF)
+    flux_emi=1.0e-7;
+  //printf("Enter velocity width of the emission line [km s-1]: ");
+  if(scanf("%lg", &sigma_emi)==EOF)
+    sigma_emi=70.;
   /* Added by Y.Moritani for line SNR. file: 20150427 : end */
 
   //printf("Enter output file for continuum curve: [- for no continuum S/N curve output] ");
@@ -1900,7 +1898,7 @@ int main(void) {
       for(ia=0;ia<spectro.N_arms;ia++) {
         snr[ia] = 0.;
         if (spectro.lmin[ia]<373.8*(1+z) && 371.8*(1+z)<spectro.lmax[ia])
-          snr[ia] = gsGetSNR_OII(&spectro,&obs,ia,z,1e-16,70.,ref_input,0.,1.,decent,fieldang,spNoise[ia],t,0x0,snrType)
+          snr[ia] = gsGetSNR_OII(&spectro,&obs,ia,z,flux_emi,sigma_emi,ref_input,0.,1.,decent,fieldang,spNoise[ia],t,0x0,snrType)
                     *sqrt((double)n_exp);
         snrtot += snr[ia]*snr[ia];
       }

@@ -20,6 +20,7 @@ NOISE_REUSED     N                  #  Noise Vector Reused?               [Y/N] 
 OUTFILE_NOISE    out/ref.noise.dat  #  Output file for noise vector       <filename>
 OUTFILE_SNC      out/ref.snc.dat    #  Output file for continuum S/N      <filename>
 OUTFILE_SNL      out/ref.snl.dat    #  Output file for emission line S/N  <filename>
+OUTFILE_OII      -                  #  Output file for [OII] doublet S/N  <filename>
 MR_MODE          N                  #  Medium resolution mode switch      [Y/N]
 OVERWRITE        Y                  #  Overwrite switch                   [Y/N]
 

@@ -9,7 +9,7 @@ if __name__ == '__main__':
     ### CAUTION: ##################################
     ### CHANGE BELOW ON YOUR OWN RESPONSIBILITY ###
     ###############################################
-    ETC            = 'gsetc_r103'
+    ETC            = 'gsetc_r104'
     INSTR_SETUP    = './config/PFS-v5.0.dat'
     INSTR_SETUP_MR = './config/PFS-v5.0.redMR.dat'
     SKYMODELS      = '11005'
@@ -43,6 +43,7 @@ if __name__ == '__main__':
     parser.add_argument("--OUTFILE_NOISE", type=str, help="noise vector output file")
     parser.add_argument("--OUTFILE_SNC", type=str, help="continuum results output file")
     parser.add_argument("--OUTFILE_SNL", type=str, help="emission line results output file")
+    parser.add_argument("--OUTFILE_OII", type=str, help="[OII] emission line results output file")
     parser.add_argument("--MR_MODE", type=str, help="medium resolution mode on-off")
     parser.add_argument("--OVERWRITE", type=str, help="overwrite on-off")
     parser.add_argument("-s","--show", help="Show parameter set")
@@ -109,8 +110,7 @@ if __name__ == '__main__':
     ## run ETC ##
     print param_value['INSTR_SETUP']
     if C == 0:
-        if param_value['OUTFILE_SNL'] != "-":
-            os.system('''./bin/%s.x <<EOF
+        os.system('''./bin/%s.x <<EOF
 %s
 %s
 %s
@@ -127,41 +127,16 @@ if __name__ == '__main__':
 %s
 %s
 %s 
--
 %s
 %s
 %s
-%s
--
-%s
-%s
-EOF
-'''%(ETC,param_value['INSTR_SETUP'],param_value['SKYMODELS'],param_value['SEEING'],param_value['ZENITH_ANG'],param_value['GALACTIC_EXT'],param_value['FIELD_ANG'],param_value['OFFSET_FIB'],param_value['MOON_ZENITH_ANG'],param_value['MOON_TARGET_ANG'],param_value['MOON_PHASE'],param_value['EXP_TIME'],param_value['EXP_NUM'],param_value['SKY_SUB_FLOOR'],param_value['DIFFUSE_STRAY'],param_value['NOISE_REUSED'],param_value['OUTFILE_NOISE'],param_value['OUTFILE_SNL'],param_value['LINE_FLUX'],param_value['LINE_WIDTH'],param_value['OUTFILE_SNC'],mag_file,param_value['REFF']))
-        else:
-            os.system('''./bin/%s.x <<EOF
-%s
-%s
-%s
-%s
-%s
-%s
-%s
-%s
-%s
-%s
-%s
-%s
-%s
-%s
-%s
-%s 
--
 %s
 %s
 -
 %s
 %s
 EOF
-'''%(ETC,param_value['INSTR_SETUP'],param_value['SKYMODELS'],param_value['SEEING'],param_value['ZENITH_ANG'],param_value['GALACTIC_EXT'],param_value['FIELD_ANG'],param_value['OFFSET_FIB'],param_value['MOON_ZENITH_ANG'],param_value['MOON_TARGET_ANG'],param_value['MOON_PHASE'],param_value['EXP_TIME'],param_value['EXP_NUM'],param_value['SKY_SUB_FLOOR'],param_value['DIFFUSE_STRAY'],param_value['NOISE_REUSED'].lower(),param_value['OUTFILE_NOISE'],param_value['OUTFILE_SNL'],param_value['OUTFILE_SNC'],mag_file,param_value['REFF']))
+'''%(ETC,param_value['INSTR_SETUP'],param_value['SKYMODELS'],param_value['SEEING'],param_value['ZENITH_ANG'],param_value['GALACTIC_EXT'],param_value['FIELD_ANG'],param_value['OFFSET_FIB'],param_value['MOON_ZENITH_ANG'],param_value['MOON_TARGET_ANG'],param_value['MOON_PHASE'],param_value['EXP_TIME'],param_value['EXP_NUM'],param_value['SKY_SUB_FLOOR'],param_value['DIFFUSE_STRAY'],param_value['NOISE_REUSED'],param_value['OUTFILE_NOISE'],param_value['OUTFILE_OII'],param_value['OUTFILE_SNL'],param_value['LINE_FLUX'],param_value['LINE_WIDTH'],param_value['OUTFILE_SNC'],mag_file,param_value['REFF']))
+## end of the script ##
     elapsed_time = time.time() - start
     print "elapsed_time:{0}".format(elapsed_time) + "[sec]"
