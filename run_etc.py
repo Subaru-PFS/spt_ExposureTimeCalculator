@@ -10,8 +10,8 @@ if __name__ == '__main__':
     ### CHANGE BELOW ON YOUR OWN RESPONSIBILITY ###
     ###############################################
     ETC            = 'gsetc_r104'
-    INSTR_SETUP    = './config/PFS-v5.0.dat'
-    INSTR_SETUP_MR = './config/PFS-v5.0.redMR.dat'
+    INSTR_SETUP    = './config/PFS-v5.1.dat'
+    INSTR_SETUP_MR = './config/PFS-v5.1.redMR.dat'
     SKYMODELS      = '11005'
     OFFSET_FIB     = 0.00
     SKY_SUB_FLOOR  = 0.01
