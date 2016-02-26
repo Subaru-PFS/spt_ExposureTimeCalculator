@@ -46,6 +46,7 @@ if __name__ == '__main__':
     parser.add_argument("--OUTFILE_NOISE", type=str, help="noise vector output file")
     parser.add_argument("--OUTFILE_SNC", type=str, help="continuum results output file")
     parser.add_argument("--OUTFILE_SNL", type=str, help="emission line results output file")
+    parser.add_argument("--OUTFILE_OII", type=str, help="[OII] emission line results output file")
     parser.add_argument("--MR_MODE", type=str, help="medium resolution mode on-off")
     parser.add_argument("--OVERWRITE", type=str, help="overwrite on-off")
     parser.add_argument("-s","--show", help="Show parameter set")

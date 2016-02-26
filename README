@@ -12,14 +12,13 @@
 ------------
 Release Note
 ------------
- Version 1.0  Feb. 09, 2016
- Version 1.1  Feb. 17, 2016 (version controlled under GitHub)
+ Version 1.0  Feb. 26, 2016
 
 ------------
 Requirements
 ------------
 * Standard C compiler (e.g., GCC)
-* Python (2.6 and higher)
+* Python2 (2.6 and higher; Python3 is not supported)
 * Sufficient computing power
  Note1: Standard unix system including Linux and Mac OSX is recommended. There has been reported that this code does not work properly on a Linux system mounted on a Windows drive. This codes are tested under Mac OSX 10.9.5 on 2.8GHz Quad-Core Intel Xeon machine and Fedora Core 20 on Intel Core i5-4690 3.50GHz machine. 
  Note2: Depending on the machine power, it takes <<several minutes>> if you run all the standard process. We recommend sufficient computing power at least similar to that we have tested. With our testing machine above, it takes about ~450 sec. (~200 sec. for noise calculation, ~155 sec. for emission line S/N calculation, and ~95 sec. for continuum S/N calculation).
@@ -37,7 +36,7 @@ To install the script, get the git repository by typing the following command on
    git clone https://github.com/Subaru-PFS/spt_ExposureTimeCalculator.git
    cd spt_ExposureTimeCalculator
    
-If you don't have git installed, please download the zip file from the following URL:
+If you don't have git installed, please download the zip file from the following URL and unzip it:
    https://github.com/Subaru-PFS/spt_ExposureTimeCalculator/archive/master.zip
 
 -----
@@ -169,7 +168,7 @@ c. INFILE_SNL: S/N of emission line
 This should be the same as OUTFILE_SNL above.
 
 d. OUTFILE_SIM: Simulated spectrum
-The file defined here contains the following items, which will be the similar information on the future PFS database (TBD).
+The file defined here contains the following items:
 
   (1)  FLUX        [FLOAT] [10^-17 erg/s/cm^2/A]
   (2)  COVAR       [FLOAT] [10^-17 erg/s/cm^2/A]^2
@@ -179,6 +178,8 @@ The file defined here contains the following items, which will be the similar in
   (6)  SKY         [FLOAT] [10^-17 erg/s/cm^2/A]
   (7)  XPOSITION   [FLOAT] [---]
   (8)  CONFIG      [---]   [---]
+
+Note: Currently, the format of data table described above is not necessarily the same as the expected one in the future PFS database, the format of the simulated spectra will be changed in the coming release of this package.
 
 ---------------------------
 Example (under development)
@@ -222,7 +223,7 @@ Other notes
 2. The fraction of light covered by fiber aperture may be overestimated by up to 10% depending on the field angle compared to the ray-tracing calculation by using the PFS optical model including the telescope and the wide-field corrector.
 3. We assumed no fiber central position offset, additional 1% systematic sky subtraction error (on each 1D pixel), and additional 2% diffuse stray light (the entire 2D detector surface) for the noise model calculation.
 4. As a fiducial sky continuum model, we use the recent sky model provided by Jim Gunn, which is basically in consistent with the observations in the SDSS/BOSS in optical and the result obtained the MOSFIRE engineering runs. We use the sky emission line model taken from UVES visible line atlas and theoretical model (Rousselot et al. 2000, A&A, 354, 1134) in NIR. As a fiducial atmospheric transmission model, we use Kitt Peak model for <900nm and a simulated ATRAN model with 3 mm PWV at longer wavelengths.
-5. The original code (gsetc_rxxx.c) provided by Chris Hirata, which is partially modified by people in Kavli IPMU, can be found in the src directory. The manual for the code (Manual_v5.pdf) may be useful for understanding some assumptions in the noise calculation.
+5. The original code (gsetc.c) provided by Chris Hirata, which is partially modified by people in Kavli IPMU, can be found in the src directory. The manual for the code (Manual_v5.pdf) may be useful for understanding some assumptions in the noise calculation.
 
 --------------------------------------------------
 Have fun! and your feedback is highly appreciated!
