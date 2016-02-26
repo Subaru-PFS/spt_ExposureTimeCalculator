@@ -13,6 +13,7 @@
 Release Note
 ------------
  Version 1.0  Feb. 26, 2016
+ Version 1.1  Mar. xx, 2016
 
 ------------
 Requirements
@@ -37,7 +38,10 @@ To install the script, get the git repository by typing the following command on
    cd spt_ExposureTimeCalculator
    
 If you don't have git installed, please download the zip file from the following URL and unzip it:
-   https://github.com/Subaru-PFS/spt_ExposureTimeCalculator/archive/master.zip
+
+   https://github.com/Subaru-PFS/spt_ExposureTimeCalculator/archive/1.1.zip
+or 
+   https://github.com/Subaru-PFS/spt_ExposureTimeCalculator/archive/1.1.tar.gz
 
 -----
 Usage
