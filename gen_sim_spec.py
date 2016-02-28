@@ -6,14 +6,14 @@ import time
 
 try:
     import pyfits as pf
-    PYFITS_FLG=1
+    PYFITS_FLG = 1
 except:
-    PYFITS_FLG=0
+    PYFITS_FLG = 0
 try:
     import numpy as np
-    NUMPY_FLG=1
+    NUMPY_FLG = 1
 except:
-    NUMPY_FLG=0
+    NUMPY_FLG = 0
 # print PYFITS_FLG,NUMPY_FLG
 #######################
 offset = 0.01
@@ -67,6 +67,7 @@ if __name__ == '__main__':
                     else:
                         param_value[a[0]] = vars(args)[a[0]]
     ## read input file ##
+    arm_list = []
     arm = []
     wav = []
     dsp = []
@@ -75,89 +76,106 @@ if __name__ == '__main__':
     for line in open(param_value['INFILE_SNC'],'r'):
         a=line.split()
         if a[0][0] != "#":
+            if int(a[0]) not in arm_list:
+                arm_list.append(int(a[0]))
             arm.append(int(a[0]))
             wav.append(float(a[2]))
             mag.append(float(a[6]))
             snc.append(float(a[3]))
             if param_value['MR_MODE'].lower() == 'yes':
                 if int(a[0]) == 0:
-                    dsp.append((float(a[2])/R0)**2)
+                    dsp.append(float(a[2])/R0)
                 elif int(a[0]) == 1:
-                    dsp.append((float(a[2])/R3)**2)
+                    dsp.append(float(a[2])/R3)
                 else:
-                    dsp.append((float(a[2])/R2)**2)
+                    dsp.append(float(a[2])/R2)
             else:
                 if int(a[0]) == 0:
-                    dsp.append((float(a[2])/R0)**2)
+                    dsp.append(float(a[2])/R0)
                 elif int(a[0]) == 1:
-                    dsp.append((float(a[2])/R1)**2)
+                    dsp.append(float(a[2])/R1)
                 else:
-                    dsp.append((float(a[2])/R2)**2)
-    ## data output ##
-    if PYFITS_FLG == 1 and NUMPY_FLG == 1:
-        if param_value['FILE_TYPE_SIM'].lower()=='fits':
+                    dsp.append(float(a[2])/R2)
+## data output ##
+## FITS mode ##
+    if param_value['FILE_TYPE_SIM'].lower() == 'fits':
+        if PYFITS_FLG == 1 and NUMPY_FLG == 1:
             print "FITS table mode"
-            flx = []
-            var  = []
-            for i in range(len(wav)):
-                fnu   = 10**(-0.4*(mag[i]+48.6))
-                flam  = 3.0e18*fnu/(10*wav[i])**2/1e-17
-                sigma = flam/(snc[i]+offset)
-                flx.append(flam+rn.gauss(0.0,sigma))
-                var.append(sigma**2)
-            msk = np.zeros(len(wav))
-            sky = np.zeros(len(wav))
-            xps = np.zeros(len(wav))
-            cfg = np.zeros(len(wav))
-            col1 = pf.Column(name='FLUX', format='E', array=np.array(flx)) 
-            col2 = pf.Column(name='COVAR', format='E', array=np.array(var)) 
-            col3 = pf.Column(name='MASK', format='J', array=msk) 
-            col4 = pf.Column(name='WAVELENGTH', format='E', array=np.array(wav)) 
-            col5 = pf.Column(name='WAVEDISP', format='E', array=np.array(dsp)) 
-            col6 = pf.Column(name='SKY', format='E', array=sky)
-            col7 = pf.Column(name='XPOSITION', format='E', array=xps)
-            col8 = pf.Column(name='CONFIG', format='E', array=cfg)
-            cols = pf.ColDefs([col1,col2,col3,col4,col5,col6,col7,col8])
-            tbhdu = pf.BinTableHDU.from_columns(cols)
-            os.system('rm -f %s'%(param_value['OUTFILE_SIM']))
-            tbhdu.writeto(param_value['OUTFILE_SIM'])
-        else:    
-            print "ASCII table mode"
-            file=open(param_value['OUTFILE_SIM'],'w')
-            file.write('''#  NUM  CONTENT  [TYPE]  [UNIT]
-#  1  FLUX       [FLOAT] [10^-17 erg/s/cm^2/A]
-#  2  COVAR      [FLOAT] [10^-17 erg/s/cm^2/A]^2
-#  3  MASK       [INT32] [---]
-#  4  WAVELENGTH [FLOAT] [nm]
-#  5  WAVEDISP   [FLOAT] [nm]
-#  6  SKY        [FLOAT] [10^-17 erg/s/cm^2/A]
-#  7  XPOSITION  [FLOAT] [---]
-#  8  CONFIG     [---]   [---]
-''')
-            for i in range(len(wav)):
-                fnu   = 10**(-0.4*(mag[i]+48.6))
-                flam  = 3.0e18*fnu/(10*wav[i])**2/1e-17
-                sigma = flam/(snc[i]+offset)
-                flx = flam+rn.gauss(0.0,sigma)
-                var = sigma**2
-                msk = 0.0
-                sky = 0.0
-                xps = 0.0
-                cfg = 0.0
-                file.write('%12.4e %12.4e %2d %8.3f %6.3f %12.4e %.2f %d\n'%(flx,var,msk,wav[i],dsp[i],sky,xps,cfg))
-            file.close()
-    else:    
+            for arm_num in arm_list:
+                wav_a = []
+                dsp_a = []
+                flx = []
+                var  = []
+                for i in range(len(wav)):
+                    if arm[i] == arm_num:
+                        fnu   = 10**(-0.4*(mag[i]+48.6))
+                        flam  = 3.0e18*fnu/(10*wav[i])**2/1e-17
+                        sigma = flam/(snc[i]+offset)
+                        wav_a.append(wav[i])
+                        dsp_a.append(dsp[i])
+                        flx.append(flam+rn.gauss(0.0,sigma))
+                        var.append(sigma**2)
+                Npix = len(wav_a)
+                msk = np.zeros(len(wav_a))
+                sky = np.zeros(len(wav_a))
+                xps = np.zeros(len(wav_a))
+                cfg = 'TBD'
+                col1 = pf.Column(name = 'FLUX', format = '%dE' % (Npix), array = np.array([np.array(flx)]))
+                col2 = pf.Column(name = 'COVAR', format = '%dE' % (Npix), array = np.array([np.array(var)]))
+                col3 = pf.Column(name = 'COVAR2', format = '3A', array = np.array(['N/A']))
+                col4 = pf.Column(name = 'MASK', format = '%dJ' % (Npix), array = np.array([msk]))
+                col5 = pf.Column(name = 'WAVEDISP', format = '%dE' % (Npix), array = np.array([np.array(dsp_a)]))
+                col6 = pf.Column(name = 'SKY', format = '%dE' % (Npix), array = np.array([sky]))
+                col7 = pf.Column(name = 'CONFIG', format = '3A', array = np.array(['TBD']))
+                tbhdu1 = pf.BinTableHDU.from_columns([col1])
+                tbhdu2 = pf.BinTableHDU.from_columns([col2])
+                tbhdu3 = pf.BinTableHDU.from_columns([col3])
+                tbhdu4 = pf.BinTableHDU.from_columns([col4])
+                tbhdu5 = pf.BinTableHDU.from_columns([col5])
+                tbhdu6 = pf.BinTableHDU.from_columns([col6])
+                tbhdu7 = pf.BinTableHDU.from_columns([col7])
+                hdu = pf.PrimaryHDU()
+                hdulist = pf.HDUList([hdu])
+                hdulist.append(tbhdu1)
+                hdulist.append(tbhdu2)
+                hdulist.append(tbhdu3)
+                hdulist.append(tbhdu4)
+                hdulist.append(tbhdu5)
+                hdulist.append(tbhdu6)
+                hdulist.append(tbhdu7)
+                hdulist[1].header['TUNIT1'] = '1e^-17 erg/s/cm^2/A'
+                hdulist[1].header['EXTNAME'] = 'FLUX'
+                hdulist[2].header['TUNIT1'] = '(1e^-17 erg/s/cm^2/A)^2'
+                hdulist[2].header['EXTNAME'] = 'COVAR'
+                hdulist[3].header['TUNIT1'] = ''
+                hdulist[3].header['EXTNAME'] = 'COVAR2'
+                hdulist[4].header['TUNIT1'] = ''
+                hdulist[4].header['EXTNAME'] = 'MASK'
+                hdulist[5].header['TUNIT1'] = 'nm'
+                hdulist[5].header['EXTNAME'] = 'WAVEDISP'
+                hdulist[6].header['TUNIT1'] = '1e^-17 erg/s/cm^2/A'
+                hdulist[6].header['EXTNAME'] = 'SKY'
+                hdulist[7].header['TUNIT1'] = ''
+                hdulist[7].header['EXTNAME'] = 'CONFIG'
+                for i in range(7):
+                    hdulist[i+1].header['CRPIX'] = 1
+                    hdulist[i+1].header['CRVAL'] = min(wav_a)
+                    hdulist[i+1].header['CDELT'] = (max(wav_a)-min(wav_a))/(len(wav_a)*1.0)
+                os.system('rm -f %s' % (param_value['OUTFILE_SIM']+'_%1d.fits' % (arm_num)))
+                hdulist.writeto(param_value['OUTFILE_SIM']+'_%1d.fits' % (arm_num))
+        else:
+            print "Error: Install pyfits and numpy to use this mode"    
+## ASCII mode ##
+    elif param_value['FILE_TYPE_SIM'].lower() == 'ascii':
         print "ASCII table mode"
-        file=open(param_value['OUTFILE_SIM'],'w')
-        file.write('''#  NUM  CONTENT  [TYPE]  [UNIT]
-#  1  FLUX       [FLOAT] [10^-17 erg/s/cm^2/A]
-#  2  COVAR      [FLOAT] [10^-17 erg/s/cm^2/A]^2
-#  3  MASK       [INT32] [---]
-#  4  WAVELENGTH [FLOAT] [nm]
-#  5  WAVEDISP   [FLOAT] [nm]
-#  6  SKY        [FLOAT] [10^-17 erg/s/cm^2/A]
-#  7  XPOSITION  [FLOAT] [---]
-#  8  CONFIG     [---]   [---]
+
+        file=open(param_value['OUTFILE_SIM']+'.dat','w')
+        file.write('''#  1  WAVELENGTH  [nm]
+#  2  FLUX        [10^-17 erg/s/cm^2/A]
+#  3  ERROR       [10^-17 erg/s/cm^2/A]
+#  4  MASK        
+#  5  WAVEDISP    [nm]^2
+#  6  SKY         [10^-17 erg/s/cm^2/A]
 ''')
         for i in range(len(wav)):
             fnu   = 10**(-0.4*(mag[i]+48.6))
@@ -169,5 +187,8 @@ if __name__ == '__main__':
             sky = 0.0
             xps = 0.0
             cfg = 0.0
-            file.write('%12.4e %12.4e %2d %8.3f %6.3f %12.4e %.2f %d\n'%(flx,var,msk,wav[i],dsp[i],sky,xps,cfg))
+            file.write('%8.3f %12.4e %12.4e %2d %6.3f %12.4e\n' % (wav[i],flx,sigma,msk,dsp[i],sky))
         file.close()
+    else:
+        print "Error: specify proper file type (ASCII or FITS)"
+
