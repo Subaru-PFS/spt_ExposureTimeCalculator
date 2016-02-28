@@ -166,7 +166,7 @@ a. INFILE_SNC: S/N of continuum per pixel
 This may be the same as OUTFILE_SNC above.
 
 b. OUTFILE_SIM: Simulated spectrum
-DO NOT include EXTENSION (e.g., .dat, .fits). '.dat' ('.fits') is automatically added if you choose ASCII (FITS) mode in the FILE_TYPE_SIM parameter. The file defined here contains the following items:
+DO NOT include EXTENSION (e.g., .dat, .fits). '.dat' ('.fits') is automatically added if you choose ASCII (FITS) mode in the FILE_TYPE_SIM parameter. In the FITS mode, result in each arm is saved in an independent file, which is indicated by '_arm<arm number>.fits'. The file defined here contains the following items:
 
 For ASCII:
 

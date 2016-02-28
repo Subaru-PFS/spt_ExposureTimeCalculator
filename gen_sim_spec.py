@@ -161,8 +161,8 @@ if __name__ == '__main__':
                     hdulist[i+1].header['CRPIX'] = 1
                     hdulist[i+1].header['CRVAL'] = min(wav_a)
                     hdulist[i+1].header['CDELT'] = (max(wav_a)-min(wav_a))/(len(wav_a)*1.0)
-                os.system('rm -f %s' % (param_value['OUTFILE_SIM']+'_%1d.fits' % (arm_num)))
-                hdulist.writeto(param_value['OUTFILE_SIM']+'_%1d.fits' % (arm_num))
+                os.system('rm -f %s' % (param_value['OUTFILE_SIM']+'_arm%1d.fits' % (arm_num)))
+                hdulist.writeto(param_value['OUTFILE_SIM']+'_arm%1d.fits' % (arm_num))
         else:
             print "Error: Install pyfits and numpy to use this mode"    
 ## ASCII mode ##
