@@ -187,7 +187,8 @@ For FITS (there are multiple HDUs):
   HDU #6 SKY         Sky flux in same units as HDU1                 [FLOAT]             NROW
   HDU #7 CONFIG      Information about the PFI, targetting, etc.    [BINARY FITS TABLE]
 
-Note: Currently, the format of data table described above may not be necessarily the same as the expected one in the future PFS database, the format of the simulated spectra will be changed in the coming release of this package.
+Note1: The wavelength is defined by keywords in the fits header: lambda [nm] = CRVAL + CDELT * (pix - CRPIX)
+Note2: Currently, the format of data table described above may not be necessarily the same as the expected one in the future PFS database, the format of the simulated spectra will be changed in the coming release of this package.
 
 ---------------------------
 Example (under development)
