@@ -158,15 +158,14 @@ You can use the same .param file as that in the ETC code. The parameters are wri
 
 INFILE_SNC      out/ref.snc.dat     #  Input file of continuum S/N for the simulator
 OUTFILE_SIM     out/sim.test        #  Output file name for simulated spectra <<< NO EXTENSION (e.g., .dat, .fits) >>>
-FILE_TYPE_SIM   ASCII               #  Output file type for simulated spectra [ASCII/FITS]
 
-The type of the output file (ASCII or FITS) can be selected from FILE_TYPE_SIM parameter. Here are some descriptions:
+Here are some descriptions:
 
 a. INFILE_SNC: S/N of continuum per pixel
 This may be the same as OUTFILE_SNC above.
 
 b. OUTFILE_SIM: Simulated spectrum
-DO NOT include EXTENSION (e.g., .dat, .fits). '.dat' ('.fits') is automatically added if you choose ASCII (FITS) mode in the FILE_TYPE_SIM parameter. In the FITS mode, result in each arm is saved in an independent file, which is indicated by '_arm<arm number>.fits'. The file defined here contains the following items:
+DO NOT include EXTENSION (e.g., .dat, .fits). '.dat' and '.fits' are automatically added when you run the code. In the FITS mode, result in each arm is saved in an independent file, which is indicated by '_arm<arm number>.fits'. The file defined here contains the following items:
 
 For ASCII:
 

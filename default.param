@@ -29,4 +29,3 @@ OVERWRITE        Y                  #  Overwrite switch                   [Y/N]
 #########################
 INFILE_SNC      out/ref.snc.dat     #  Input file of continuum S/N for the simulator
 OUTFILE_SIM     out/sim.test        #  Output file name for simulated spectra <<< NO EXTENSION (e.g., .dat, .fits) >>>
-FILE_TYPE_SIM   ASCII               #  Output file type for simulated spectra [ASCII/FITS]

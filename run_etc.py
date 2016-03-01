@@ -49,7 +49,7 @@ if __name__ == '__main__':
     parser.add_argument("-s","--show", help="Show parameter set")
     parser.add_argument("--INFILE_SNC", type=str, help="continuum results input file")
     parser.add_argument("--OUTFILE_SIM", type=str, help="simulated spectrum output file")
-    parser.add_argument("--FILE_TYPE_SIM", type=str, help="simulated spectrum output file type")
+#    parser.add_argument("--FILE_TYPE_SIM", type=str, help="simulated spectrum output file type")
     args = parser.parse_args()
     ## read parameter file ##
     if os.path.exists(args.params):
