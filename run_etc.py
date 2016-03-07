@@ -52,24 +52,19 @@ if __name__ == '__main__':
     parser.add_argument("--FILE_TYPE_SIM", type=str, help="simulated spectrum output file type")
     args = parser.parse_args()
     ## read parameter file ##
-    if os.path.exists(args.params):
-#        try:
-#            os.system('tr \\\\r \\\\n \<default.param \>default2.param')
-#        except:
-#            print "warning!"
-#        dat=open(args.params,'r')
-#        print dir(dat)
-#        print dat.read()
-        for line in open(args.params,'r'):
-            line.replace('\r','\n')
-            if line[0]!="#" and line!="\n":
-                a=line.split()
-                if len(a)>0:
-                    param_name.append(a[0])
-                    if vars(args)[a[0]] is None:
-                        param_value[a[0]] = a[1]
-                    else:
-                        param_value[a[0]] = vars(args)[a[0]]
+    try:
+        paramfile = open(args.params, 'rU')
+    except:
+        exit('''Parameter file "%s" not found.''' % args.params)
+    for line in paramfile:
+        if line[0] != "#" and line[0] != "\n":
+            a=line.split()
+            if len(a)>0:
+                param_name.append(a[0])
+                if vars(args)[a[0]] is None:
+                    param_value[a[0]] = a[1]
+                else:
+                    param_value[a[0]] = vars(args)[a[0]]
  
     ## Medium Resolution Mode ? ##
     if param_value['MR_MODE'].lower() == 'yes' or param_value['MR_MODE'].lower() == 'y':
