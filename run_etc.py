@@ -94,6 +94,7 @@ if __name__ == '__main__':
     except:
         mag_file = param_value['MAG_FILE']
     ## reuse noise data ? ##
+    flag = '0'
     if param_value['NOISE_REUSED'].lower()=='y':
         flag='1'
     elif param_value['NOISE_REUSED'].lower()=='n':
