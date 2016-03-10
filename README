@@ -181,7 +181,7 @@ OUTFILE_OBJID   499602D2            #  Object ID in hexadecimal
 OUTFILE_NVISIT  01                  #  Visit number
 OUTFILE_CONFIG  00000001            #  pfsConfigId in hexadecimal
 
-These are based on the format in the 2D and 1D pipeline. "pfsObject-0000-0,0-000-499602D2-01-0x00000001_arm%1d.fits" will be generated, which has multiple HDUs:
+These are based on the format in the 2D and 1D pipeline. "pfsObject-0000-0,0-000-499602D2-01-0x00000001.fits" will be generated, which has multiple HDUs:
 
 HDU #1 FLUX        Flux in units of TBD                          [FLOAT]              NROW
 HDU #2 FLUXTBL     Binary table                                  [FITS BINARY TABLE]  NROW
@@ -197,8 +197,9 @@ HDU #6 SKY         Sky flux in same units as HDU1                [FLOAT]        
 HDU #7 CONFIG      Information about the PFI, targetting, etc.   [BINARY FITS TABLE]
 
 Note1: "pyfits" and "numpy" python modules are required to use this option.
-Note2: Currently, the format of data table described above is still discussed in the DRP team and may be changed in the future release.
-Note3: PFS configuration will be saved in pfsConfig file (e.g., "pfsConfig-0x00000001.fits").
+Note2: The wavelength information on HDU #1,3,4,5,6 is described in the header by using CRPIX1, CRVAL1, and CD1_1. The wavelength (lambda [nm]) corresponding to the pixel (X [pix]) is as follows: lambda = CRVAL1 + CD1_1 * (X - CRPIX1). Note that in these HDU are resampled from the original data so that the pixel scale is 0.8 A (TBD).
+Note3: Currently, the format of data table described above is still discussed in the DRP team and may be changed in the future release.
+Note4: PFS configuration information, including catalogue ID, object ID, coordinate (dummy value is used), fiber flux (flux density of the input magnitude), MPS centroid parameter (dummy value is used), will be saved in "pfsConfig" file (e.g., "pfsConfig-0x00000001.fits").
 
 ---------------------------
 Example (under development)
