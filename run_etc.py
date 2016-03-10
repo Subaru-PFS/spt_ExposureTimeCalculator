@@ -21,6 +21,8 @@ if __name__ == '__main__':
     start = time.time()
     if os.path.exists('bin') == False:
         os.mkdir('bin')
+    if os.path.exists('out') == False:
+        os.mkdir('out')
     try:
         p_gcc = subprocess.call(shlex.split("gcc ./src/%s.c -lm -O3 -DHGCDTE_SUTR -DMOONLIGHT_ -o ./bin/%s.x" % (ETC, ETC)))
         if p_gcc != 0:
