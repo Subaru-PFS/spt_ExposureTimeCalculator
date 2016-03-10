@@ -3,6 +3,7 @@ import math,os,sys
 import re
 import argparse
 import time
+import subprocess, shlex
 
 if __name__ == '__main__':
     ### Some parameters ###########################
@@ -20,10 +21,15 @@ if __name__ == '__main__':
     start = time.time()
     if os.path.exists('bin') == False:
         os.mkdir('bin')
-    os.system('gcc ./src/%s.c -lm -O3 -DHGCDTE_SUTR -DMOONLIGHT_ -o ./bin/%s.x'%(ETC,ETC))
+    try:
+        p_gcc = subprocess.call(shlex.split("gcc ./src/%s.c -lm -O3 -DHGCDTE_SUTR -DMOONLIGHT_ -o ./bin/%s.x" % (ETC, ETC)))
+        if p_gcc != 0:
+            exit("Compile error: %d" % p_gcc)
+    except OSError, e:
+        exit("Compile error: %s (%s)" % ETC, e)
     print "ETC ready..."
     param_name=['SKYMODELS','SKY_SUB_FLOOR','DIFFUSE_STRAY','OFFSET_FIB']
-    param_value={'SKYMODELS':SKYMODELS,'SKY_SUB_FLOOR':SKY_SUB_FLOOR,'DIFFUSE_STRAY':DIFFUSE_STRAY,'OFFSET_FIB':OFFSET_FIB}
+    param_value={'SKYMODELS':SKYMODELS,'SKY_SUB_FLOOR':str(SKY_SUB_FLOOR),'DIFFUSE_STRAY':str(DIFFUSE_STRAY),'OFFSET_FIB':str(OFFSET_FIB)}
     parser = argparse.ArgumentParser(description='PFS ETC developed by Chris Hirata, modified by Kiyoto Yabe and Yuki Moritani')
     parser.add_argument("params", type=str, help="parameter file")
     parser.add_argument("--SEEING", type=str, help="seeing")
@@ -116,34 +122,38 @@ if __name__ == '__main__':
             C = 0
     ## run ETC ##
     print param_value['INSTR_SETUP']
-    if C == 0:
-        os.system('''./bin/%s.x <<EOF
-%s
-%s
-%s
-%s
-%s
-%s
-%s
-%s
-%s
-%s
-%s
-%s
-%s
-%s
-%s
-%s 
-%s
-%s
-%s
-%s
-%s
--
-%s
-%s
-EOF
-'''%(ETC,param_value['INSTR_SETUP'],param_value['SKYMODELS'],param_value['SEEING'],param_value['ZENITH_ANG'],param_value['GALACTIC_EXT'],param_value['FIELD_ANG'],param_value['OFFSET_FIB'],param_value['MOON_ZENITH_ANG'],param_value['MOON_TARGET_ANG'],param_value['MOON_PHASE'],param_value['EXP_TIME'],param_value['EXP_NUM'],param_value['SKY_SUB_FLOOR'],param_value['DIFFUSE_STRAY'],param_value['NOISE_REUSED'],param_value['OUTFILE_NOISE'],param_value['OUTFILE_OII'],param_value['OUTFILE_SNL'],param_value['LINE_FLUX'],param_value['LINE_WIDTH'],param_value['OUTFILE_SNC'],mag_file,param_value['REFF']))
+    if C != 0:
+        exit('No execution of ETC')
+    try:
+        p_etc = subprocess.Popen(['./bin/%s.x' % ETC], stdin = subprocess.PIPE)
+        p_etc.communicate("\n".join([
+                    param_value['INSTR_SETUP'],
+                    param_value['SKYMODELS'],
+                    param_value['SEEING'],
+                    param_value['ZENITH_ANG'],
+                    param_value['GALACTIC_EXT'],
+                    param_value['FIELD_ANG'],
+                    param_value['OFFSET_FIB'],
+                    param_value['MOON_ZENITH_ANG'],
+                    param_value['MOON_TARGET_ANG'],
+                    param_value['MOON_PHASE'],
+                    param_value['EXP_TIME'],
+                    param_value['EXP_NUM'],
+                    param_value['SKY_SUB_FLOOR'],
+                    param_value['DIFFUSE_STRAY'],
+                    param_value['NOISE_REUSED'],
+                    param_value['OUTFILE_NOISE'],
+                    param_value['OUTFILE_OII'],
+                    param_value['OUTFILE_SNL'],
+                    param_value['LINE_FLUX'],
+                    param_value['LINE_WIDTH'],
+                    param_value['OUTFILE_SNC'],
+                    '-',
+                    mag_file,
+                    param_value['REFF']
+                ]))
+    except OSError, e:
+        exit('Execution error of "%s" (%s)' % ETC, e)
 ## end of the script ##
     elapsed_time = time.time() - start
     print "elapsed_time:{0}".format(elapsed_time) + "[sec]"
