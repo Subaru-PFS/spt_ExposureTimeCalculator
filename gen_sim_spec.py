@@ -77,8 +77,10 @@ if __name__ == '__main__':
     arm = []
     wav = []
     dsp = []
-    mag = []
+    nsv = []
     snc = []
+    trn = []
+    smp = []
     for line in open(param_value['INFILE_SNC'],'r'):
         a=line.split()
         if a[0][0] != "#":
@@ -86,8 +88,10 @@ if __name__ == '__main__':
                 arm_list.append(int(a[0]))
             arm.append(int(a[0]))
             wav.append(float(a[2]))
-            mag.append(float(a[6]))
+            nsv.append(float(a[5]))
             snc.append(float(a[3]))
+            trn.append(float(a[8]))
+            smp.append(float(a[9]))
             if param_value['MR_MODE'].lower() == 'yes' or param_value['MR_MODE'].lower() == 'y':
                 if int(a[0]) == 0:
                     dsp.append(float(a[2])/R0)
@@ -102,6 +106,15 @@ if __name__ == '__main__':
                     dsp.append(float(a[2])/R1)
                 else:
                     dsp.append(float(a[2])/R2)
+## load magnitude or filename ##
+    try:
+        input_mag = float(param_value['MAG_FILE'])
+        mag = np.ones(len(wav))*input_mag
+    except:
+        tmp1,tmp2 = np.loadtxt(param_value['MAG_FILE'],usecols=(0,1),unpack=True)
+        mag = np.interp(wav,tmp1,tmp2)
+## load exposure number ##
+    nexp = float(param_value['EXP_NUM'])
 ## data output ##
 ## ASCII mode ##
     file=open(param_value['OUTFILE_SIM'],'w')
@@ -111,6 +124,7 @@ if __name__ == '__main__':
 #  4  MASK        [1=masked]
 #  5  SKY         [10^-17 erg/s/cm^2/A]
 #  6  ARM         [0=blue,1=red,2=NIR,3=redMR]
+#  7  Signal-to-Noise Ratio
 ''')
     flx_o = []
     err_o = []
@@ -118,9 +132,11 @@ if __name__ == '__main__':
     msk_o = []
     sky_o = []
     for i in range(len(wav)):
+        counts = 3.631e-20 * 10**(-0.4*mag[i]) * trn[i]
+        snr = counts/np.sqrt(smp[i]*counts + nsv[i])*np.sqrt(nexp)
         fnu   = 10**(-0.4*(mag[i]+48.6))
         flam  = 3.0e18*fnu/(10*wav[i])**2/1e-17
-        sigma = flam/(snc[i]+offset)
+        sigma = flam/(snr+offset)
         flx = flam+rn.gauss(0.0,sigma)
         var = sigma**2
         msk = 0.0
@@ -130,7 +146,7 @@ if __name__ == '__main__':
         var_o.append(var)
         msk_o.append(msk)
         sky_o.append(sky)
-        file.write('%8.3f %12.4e %12.4e %2d %12.4e %1d\n' % (wav[i],flx,sigma,msk,sky,arm[i]))
+        file.write('%8.3f %12.4e %12.4e %2d %12.4e %1d %12.4e\n' % (wav[i],flx,sigma,msk,sky,arm[i],snr))
     file.close()
     print "ASCII table was generated"
 ## FITS mode ##

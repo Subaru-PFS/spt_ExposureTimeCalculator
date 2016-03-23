@@ -1304,7 +1304,7 @@ double gsGetSNR_OII(SPECTRO_ATTRIB *spectro, OBS_ATTRIB *obs, int i_arm, double 
 /* Modified by Y.Moritani for input mag. file: 20150422 :*/
 void gsGetSNR_Continuum(SPECTRO_ATTRIB *spectro, OBS_ATTRIB *obs, int i_arm, double mag,
   double r_eff, double decent, double fieldang, double *Noise, double t_exp, unsigned long flags,
-  double *out_SNR_curve, double *out_count_curve, double *out_noise_curve, double *out_mag_curve) {
+  double *out_SNR_curve, double *out_count_curve, double *out_noise_curve, double *out_mag_curve, double *out_trans_curve, double *out_sample_factor_curve) {
 
   int j;
   long Npix, ipix;
@@ -1377,6 +1377,8 @@ void gsGetSNR_Continuum(SPECTRO_ATTRIB *spectro, OBS_ATTRIB *obs, int i_arm, dou
       out_count_curve[ipix] = counts;
       out_noise_curve[ipix] = sample_factor*counts + Noise[ipix];
       out_mag_curve[ipix] = mag;
+      out_trans_curve[ipix] = counts / src_cont;
+      out_sample_factor_curve[ipix] = sample_factor;
   }
   return;
 }
@@ -1618,6 +1620,8 @@ int main(void) {
   double snrcontcount[MAXPIX];
   double snrcontnoise[MAXPIX];
   double magcont[MAXPIX];
+  double snctrans[MAXPIX];
+  double samplefac[MAXPIX];
   int arm;
   long pix;
   double wav, innoise;
@@ -1968,9 +1972,9 @@ int main(void) {
       /* Modified by Y. Moritani for input mag. file: 20150422 :*/
       /* Modified by K. Yabe for counts output: 20150525 :*/
       //gsGetSNR_Continuum(&spectro,&obs,ia,22.5,0.0,decent,fieldang,spNoise[ia],t,0x0,snrcont);
-      gsGetSNR_Continuum(&spectro,&obs,ia,mag,ref_input,decent,fieldang,spNoise[ia],t,0x0,snrcont,snrcontcount,snrcontnoise,magcont);
+      gsGetSNR_Continuum(&spectro,&obs,ia,mag,ref_input,decent,fieldang,spNoise[ia],t,0x0,snrcont,snrcontcount,snrcontnoise,magcont,snctrans,samplefac);
       for(j=0;j<spectro.npix[ia];j++) {
-        fprintf(fp, "%1d %4ld %9.3lf %8.4lf %11.5lE %11.5lE %11.5lE\n", ia, j, spectro.lmin[ia]+spectro.dl[ia]*j,snrcont[j]*sqrt((double)n_exp),snrcontcount[j],snrcontnoise[j],magcont[j]);
+        fprintf(fp, "%1d %4ld %9.3lf %8.4lf %11.5lE %11.5lE %11.5lE %11.5lE %11.5lE %11.5lE\n", ia, j, spectro.lmin[ia]+spectro.dl[ia]*j,snrcont[j]*sqrt((double)n_exp),snrcontcount[j],spNoise[ia][j],snrcontnoise[j],magcont[j],snctrans[j],samplefac[j]);
       }
     }
     fprintf(stderr, "\n");
