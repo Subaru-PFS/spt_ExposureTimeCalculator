@@ -704,7 +704,7 @@ double gsFracTrace(SPECTRO_ATTRIB *spectro, OBS_ATTRIB *obs, int i_arm, double l
  *      fieldang = field angle in degrees
  */
 void gsGetNoise(SPECTRO_ATTRIB *spectro, OBS_ATTRIB *obs, int i_arm, double fieldang,
-  double *Noise, double t_exp, unsigned long flags) {
+  double *Noise, double *SkyMod, double t_exp, unsigned long flags) {
 
   int i;
   double EFL;
@@ -755,6 +755,7 @@ void gsGetNoise(SPECTRO_ATTRIB *spectro, OBS_ATTRIB *obs, int i_arm, double fiel
   }
   rad = spectro->fiber_ent_rad/EFL * ARCSEC_PER_URAD;
 
+  for(ipix=0;ipix<Npix;ipix++) SkyMod[ipix] = 0.;
   for(ipix=0;ipix<Npix;ipix++) Noise[ipix] = 0.;
   printf("  --> Computing Sky Lines Contribution ...\n");
   /* Sky line contributions -- uses VLT/UVES sky model. */
@@ -964,8 +965,10 @@ void gsGetNoise(SPECTRO_ATTRIB *spectro, OBS_ATTRIB *obs, int i_arm, double fiel
   }
 
   /* Compute the sky, and add systematic error contribution */
-  for(ipix=0;ipix<Npix;ipix++)
+  for(ipix=0;ipix<Npix;ipix++) {
     sky[ipix]=Noise[ipix]/sample_factor;
+    SkyMod[ipix]=Noise[ipix]/sample_factor;
+  }
 
   fprintf(stderr, "  --> Computing Sky Systematic Error Contribution ...\n");
   /* Add the systematic sky subtraction error */
@@ -1304,7 +1307,7 @@ double gsGetSNR_OII(SPECTRO_ATTRIB *spectro, OBS_ATTRIB *obs, int i_arm, double 
 /* Modified by Y.Moritani for input mag. file: 20150422 :*/
 void gsGetSNR_Continuum(SPECTRO_ATTRIB *spectro, OBS_ATTRIB *obs, int i_arm, double mag,
   double r_eff, double decent, double fieldang, double *Noise, double t_exp, unsigned long flags,
-  double *out_SNR_curve, double *out_count_curve, double *out_noise_curve, double *out_mag_curve) {
+  double *out_SNR_curve, double *out_count_curve, double *out_noise_curve, double *out_mag_curve, double *out_trans_curve, double *out_sample_factor_curve) {
 
   int j;
   long Npix, ipix;
@@ -1377,6 +1380,8 @@ void gsGetSNR_Continuum(SPECTRO_ATTRIB *spectro, OBS_ATTRIB *obs, int i_arm, dou
       out_count_curve[ipix] = counts;
       out_noise_curve[ipix] = sample_factor*counts + Noise[ipix];
       out_mag_curve[ipix] = mag;
+      out_trans_curve[ipix] = counts / src_cont;
+      out_sample_factor_curve[ipix] = sample_factor;
   }
   return;
 }
@@ -1608,6 +1613,7 @@ int main(void) {
   double lambda, z, t, fieldang, decent;
   double snr[MAXARM], snrtot, Aeff;
   double **spNoise;
+  double **spSky;
   long id;
   double r_eff, ROII, FOII, contOII, sigma;
   double min_SNR = 0.;
@@ -1618,9 +1624,11 @@ int main(void) {
   double snrcontcount[MAXPIX];
   double snrcontnoise[MAXPIX];
   double magcont[MAXPIX];
+  double snctrans[MAXPIX];
+  double samplefac[MAXPIX];
   int arm;
   long pix;
-  double wav, innoise;
+  double wav, innoise, inskymod;
   int proc, proc_tot;
 
   /* Added by Y.Moritani for input mag. file: 20150422*/
@@ -1668,6 +1676,8 @@ int main(void) {
   /* Allocate noise vectors */
   spNoise=(double**)malloc((size_t)(spectro.N_arms*sizeof(double*)));
   for(ia=0; ia<spectro.N_arms; ia++) spNoise[ia] = (double*)malloc((size_t)(spectro.npix[ia]*sizeof(double)));
+  spSky=(double**)malloc((size_t)(spectro.N_arms*sizeof(double*)));
+  for(ia=0; ia<spectro.N_arms; ia++) spSky[ia] = (double*)malloc((size_t)(spectro.npix[ia]*sizeof(double)));
 
   /* Get observational conditions */
   /* Modified by Y.Moritnani -- 2016.02.16 */
@@ -1851,15 +1861,18 @@ int main(void) {
     fp=fopen(OutFileNoise,"r");
     while(fgets(buf, 256, fp) != NULL){
       if(strncmp(buf,"\n",1) == 0) continue;
-      sscanf(buf, "%d %ld %lf %le", &arm, &pix, &wav, &innoise);
+      sscanf(buf, "%d %ld %lf %le %le", &arm, &pix, &wav, &innoise, &inskymod);
       if (k>=spectro.npix[0]+spectro.npix[1]) {
         spNoise[2][k-spectro.npix[0]-spectro.npix[1]]=innoise;
+        spSky[2][k-spectro.npix[0]-spectro.npix[1]]=inskymod;
       }
       else if (k>=spectro.npix[1]) {
         spNoise[1][k-spectro.npix[0]]=innoise;
+        spSky[1][k-spectro.npix[0]]=inskymod;
       }
       else {
         spNoise[0][k]=innoise;
+        spSky[0][k]=inskymod;
       }
       k++;
     }
@@ -1868,11 +1881,11 @@ int main(void) {
       proc+=1;
       printf("(%d/%d) Computing noise vector ...\n",proc, proc_tot);
     for(ia=0;ia<spectro.N_arms;ia++)
-      gsGetNoise(&spectro,&obs,ia,fieldang,spNoise[ia],t,0x0);
+      gsGetNoise(&spectro,&obs,ia,fieldang,spNoise[ia],spSky[ia],t,0x0);
     fp = fopen(OutFileNoise, "w");
     for(ia=0;ia<spectro.N_arms;ia++) {
       for(i=0;i<spectro.npix[ia];i++) {
-        fprintf(fp, "%1d %4ld %7.4lf %11.5le\n", ia, i, lambda=spectro.lmin[ia]+spectro.dl[ia]*(i+0.5), spNoise[ia][i]);
+        fprintf(fp, "%1d %4ld %7.4lf %11.5le %11.5le\n", ia, i, lambda=spectro.lmin[ia]+spectro.dl[ia]*(i+0.5), spNoise[ia][i], spSky[ia][i]);
       }
       fprintf(fp, "\n");
     }
@@ -1968,9 +1981,9 @@ int main(void) {
       /* Modified by Y. Moritani for input mag. file: 20150422 :*/
       /* Modified by K. Yabe for counts output: 20150525 :*/
       //gsGetSNR_Continuum(&spectro,&obs,ia,22.5,0.0,decent,fieldang,spNoise[ia],t,0x0,snrcont);
-      gsGetSNR_Continuum(&spectro,&obs,ia,mag,ref_input,decent,fieldang,spNoise[ia],t,0x0,snrcont,snrcontcount,snrcontnoise,magcont);
+      gsGetSNR_Continuum(&spectro,&obs,ia,mag,ref_input,decent,fieldang,spNoise[ia],t,0x0,snrcont,snrcontcount,snrcontnoise,magcont,snctrans,samplefac);
       for(j=0;j<spectro.npix[ia];j++) {
-        fprintf(fp, "%1d %4ld %9.3lf %8.4lf %11.5lE %11.5lE %11.5lE\n", ia, j, spectro.lmin[ia]+spectro.dl[ia]*j,snrcont[j]*sqrt((double)n_exp),snrcontcount[j],snrcontnoise[j],magcont[j]);
+        fprintf(fp, "%1d %4ld %9.3lf %8.4lf %11.5lE %11.5lE %11.5lE %11.5lE %11.5lE %11.5lE  %11.5lE\n", ia, j, spectro.lmin[ia]+spectro.dl[ia]*j,snrcont[j]*sqrt((double)n_exp),snrcontcount[j],spNoise[ia][j],snrcontnoise[j],magcont[j],snctrans[j],samplefac[j],spSky[ia][j]);
       }
     }
     fprintf(stderr, "\n");
@@ -2042,5 +2055,7 @@ int main(void) {
   /* De-allocate noise vectors */
   for(ia=0; ia<spectro.N_arms; ia++) free((char*)(spNoise[ia]));
   free((char*)spNoise);
+  for(ia=0; ia<spectro.N_arms; ia++) free((char*)(spSky[ia]));
+  free((char*)spSky);
   return(0);
 }

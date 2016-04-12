@@ -21,6 +21,8 @@ if __name__ == '__main__':
     start = time.time()
     if os.path.exists('bin') == False:
         os.mkdir('bin')
+    if os.path.exists('out') == False:
+        os.mkdir('out')
     try:
         p_gcc = subprocess.call(shlex.split("gcc ./src/%s.c -lm -O3 -DHGCDTE_SUTR -DMOONLIGHT_ -o ./bin/%s.x" % (ETC, ETC)))
         if p_gcc != 0:
@@ -54,14 +56,12 @@ if __name__ == '__main__':
     parser.add_argument("--OVERWRITE", type=str, help="overwrite on-off")
     parser.add_argument("-s","--show", help="Show parameter set")
     parser.add_argument("--INFILE_SNC", type=str, help="continuum results input file")
+    parser.add_argument("--NREALIZE", type=str, help="the number of realization")
     parser.add_argument("--OUTFILE_SIM", type=str, help="simulated spectrum output ASCII file")
     parser.add_argument("--OUTFILE_TRACT", type=str, help="tract")
     parser.add_argument("--OUTFILE_PATCH", type=str, help="patch")
     parser.add_argument("--OUTFILE_CATID", type=str, help="catalogue id")
-    parser.add_argument("--OUTFILE_OBJID", type=str, help="object id in hexadecimal")
-    parser.add_argument("--OUTFILE_NVISIT", type=str, help="visit number")
-    parser.add_argument("--OUTFILE_CONFIG", type=str, help="pfsConfigId in hexadecimal")
-#    parser.add_argument("--FILE_TYPE_SIM", type=str, help="simulated spectrum output file type")
+    parser.add_argument("--OUTFILE_VISIT", type=str, help="visit number")
     args = parser.parse_args()
     ## read parameter file ##
     try:
