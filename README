@@ -110,6 +110,7 @@ a. OUTFILE_NOISE: noise variance per pixel
  (2) the pixel number
  (3) the vacuum wavelength in [nm]
  (4) the noise variance in [e^2/pix] (without contribution from object continuum)
+ (5) the sky background in [count]
 Note: (4) the noise variance in this table does not include the contribution from the object continuum.
 
 b. OUTFILE_SNC: S/N of continuum per pixel
@@ -121,9 +122,10 @@ b. OUTFILE_SNC: S/N of continuum per pixel
  (6)  the noise variance in [e^2/pix] (without contribution from object continuum)
  (7)  the noise variance in [e^2/pix] (with contribution from object continuum)
  (8)  the input spectra in [ABmag]
- (9)  the conversion factor from flux density to count
+ (9)  the conversion factor from flux density [erg/s/cm2/Hz] to [count]
  (10) the sampling factor
-Note: (6) the noise variance in this table does include the contribution from the object continuum.
+ (11) the sky background in [count]
+Note: (6) the noise variance in this table includes the contribution from the object continuum.
 
 c. OUTFILE_SNL: S/N of emission line
  (1) the vacuum wavelength in [nm]
@@ -162,6 +164,7 @@ python gen_sim_spec.py default.param --INFILE_SNC=out/ref.snc.dat --OUTFILE_SIM=
 You can use the same .param file as that in the ETC code. The parameters are written like this:
 
 INFILE_SNC      out/ref.snc.dat     #  Input file of continuum S/N for the simulator
+NREALIZE        1                   #  The number of realization
 OUTFILE_SIM     out/test.sim.dat    #  Output ASCII table
 
 Here are some descriptions:
@@ -169,7 +172,9 @@ Here are some descriptions:
 a. INFILE_SNC: S/N of continuum per pixel
 This may be the same as OUTFILE_SNC above.
 
-b. OUTFILE_SIM: The file name of the output ASCII table of the simulated spectrum
+b. NREALIZE: The number of the realization 
+
+c. OUTFILE_SIM: The file name of the output ASCII table of the simulated spectrum
 The table includes the following items::
 
   (1)  WAVELENGTH  [nm]
@@ -186,8 +191,7 @@ OUTFILE_TRACT   0000                #  Tract
 OUTFILE_PATCH   0,0                 #  Patch
 OUTFILE_CATID   000                 #  Catalogue ID
 OUTFILE_OBJID   499602D2            #  Object ID in hexadecimal
-OUTFILE_NVISIT  01                  #  Visit number
-OUTFILE_CONFIG  00000001            #  pfsConfigId in hexadecimal
+OUTFILE_VISIT   1                   #  Visit number
 
 These are based on the format in the 2D and 1D pipeline. "pfsObject-0000-0,0-000-499602D2-01-0x00000001.fits" will be generated, which has multiple HDUs:
 

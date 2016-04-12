@@ -28,10 +28,10 @@ OVERWRITE        Y                  #  Overwrite switch                   [Y/N]
 ## Spectral Simulation ##
 #########################
 INFILE_SNC      out/ref.snc.dat     #  Input file of continuum S/N for the simulator
+NREALIZE        10                   #  The number of realization
 OUTFILE_SIM     out/test.sim.dat    #  Output ASCII table
 OUTFILE_TRACT   0000                #  Tract
 OUTFILE_PATCH   0,0                 #  Patch
 OUTFILE_CATID   000                 #  Catalogue ID
-OUTFILE_OBJID   499602D2            #  Object ID in hexadecimal
-OUTFILE_NVISIT  01                  #  Visit number
-OUTFILE_CONFIG  00000001            #  pfsConfigId in hexadecimal
+OUTFILE_VISIT   1                   #  Visit number
+
