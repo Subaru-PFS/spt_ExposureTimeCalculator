@@ -10,7 +10,7 @@ if __name__ == '__main__':
     ### CAUTION: ##################################
     ### CHANGE BELOW ON YOUR OWN RESPONSIBILITY ###
     ###############################################
-    ETC            = 'gsetc'
+    ETC            = './bin/gsetc.x'
     INSTR_SETUP    = './config/PFS.dat'
     INSTR_SETUP_MR = './config/PFS.redMR.dat'
     SKYMODELS      = '11005'
@@ -19,17 +19,14 @@ if __name__ == '__main__':
     DIFFUSE_STRAY  = 0.02
     ###############################################
     start = time.time()
-    if os.path.exists('bin') == False:
+    if not os.path.exists('bin'):
         os.mkdir('bin')
-    if os.path.exists('out') == False:
+    if not os.path.exists('out'):
         os.mkdir('out')
-    try:
-        p_gcc = subprocess.call(shlex.split("gcc ./src/%s.c -lm -O3 -DHGCDTE_SUTR -DMOONLIGHT_ -o ./bin/%s.x" % (ETC, ETC)))
-        if p_gcc != 0:
-            exit("Compile error: %d" % p_gcc)
-    except OSError, e:
-        exit("Compile error: %s (%s)" % ETC, e)
-    print "ETC ready..."
+
+    if not os.path.exists(ETC):
+        exit("Unable to find %s; please run make and try again" % ETC)
+
     param_name=['SKYMODELS','SKY_SUB_FLOOR','DIFFUSE_STRAY','OFFSET_FIB']
     param_value={'SKYMODELS':SKYMODELS,'SKY_SUB_FLOOR':str(SKY_SUB_FLOOR),'DIFFUSE_STRAY':str(DIFFUSE_STRAY),'OFFSET_FIB':str(OFFSET_FIB)}
     parser = argparse.ArgumentParser(description='PFS ETC developed by Chris Hirata, modified by Kiyoto Yabe and Yuki Moritani')
@@ -120,7 +117,7 @@ if __name__ == '__main__':
     if C != 0:
         exit('No execution of ETC')
     try:
-        p_etc = subprocess.Popen(['./bin/%s.x' % ETC], stdin = subprocess.PIPE)
+        p_etc = subprocess.Popen([ETC], stdin = subprocess.PIPE)
         p_etc.communicate("\n".join([
                     param_value['INSTR_SETUP'],
                     param_value['SKYMODELS'],
@@ -151,4 +148,4 @@ if __name__ == '__main__':
         exit('Execution error of "%s" (%s)' % ETC, e)
 ## end of the script ##
     elapsed_time = time.time() - start
-    print "elapsed_time:{0}".format(elapsed_time) + "[sec]"
+    print "elapsed_time: %.1f[sec]" % (elapsed_time)

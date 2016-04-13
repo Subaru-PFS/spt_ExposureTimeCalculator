@@ -36,6 +36,7 @@ To install the script, get the git repository by typing the following command on
   
    git clone https://github.com/Subaru-PFS/spt_ExposureTimeCalculator.git
    cd spt_ExposureTimeCalculator
+   make
    
 If you don't have git installed, please download the zip file from the following URL and unzip it:
 
