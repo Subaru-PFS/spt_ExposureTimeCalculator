@@ -235,7 +235,7 @@ filenames are defined by the datamodel, using values:
 	  catId   0			#  Catalogue ID
 
 The format is defined by the datamodel, which may be found at
-     https://github.com/Subaru-PFS/configuration/datamodel/datamodel.txt
+     https://github.com/Subaru-PFS/datamodel/blob/master/datamodel.txt
 
 Note 1: The wavelength information on HDU #1,3,4,5,6 is described in the header by using CRPIX1, CRVAL1, and
 CD1_1. The wavelength (lambda [nm]) corresponding to the pixel (X [pix]) is as follows:
