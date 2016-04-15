@@ -5,7 +5,13 @@ import argparse
 
 import numpy as np
 
-from pfs.datamodel.pfsConfig import PfsConfig
+for i in range(2):
+    try:
+        from pfs.datamodel.pfsConfig import PfsConfig
+    except ImportError as e:
+        if i == 0:
+            sys.path.append("datamodel/python")
+
 from pfs.datamodel.pfsArm import PfsArmSet
 from pfs.datamodel.pfsObject import PfsObject, makePfsObject
 
