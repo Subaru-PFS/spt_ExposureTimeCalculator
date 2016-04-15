@@ -42,6 +42,7 @@ typedef struct {
   double rms_spot[5];         /* RMS spot size per axis: 5 values from center to edge (microns) */
   double vignette[5];         /* Vignetting factor: 5 values from center to edge */
   int N_arms;                 /* Number of arms */
+  int MR;                     /* True iff we are configured to use the medium resolution grating */
 
   double lmin[MAXARM];        /* Min wavelength in nm */
   double lmax[MAXARM];        /* Max wavelength in nm */
@@ -70,6 +71,16 @@ typedef struct {
   double diffuse_stray;       /* Diffuse stray light amplitude */
 
 } SPECTRO_ATTRIB;
+
+static int
+spectro_arm(const SPECTRO_ATTRIB *spectro, int ia)
+{
+   if (!spectro->MR) {
+      return ia;
+   } else {
+      return (ia == 1) ? 3 : ia;
+   }
+}
 
 /* Observing condition attributes structure */
 typedef struct {
@@ -1466,6 +1477,16 @@ void gsReadSpectrographConfig(char FileName[], SPECTRO_ATTRIB *spectro) {
             /* Effective number of lines might as well be infinite; this is changed later by NLINES keyword */
         }
       }
+      if (memcmp(InfoLine, "MEDIUM_RESOLUTION", (size_t)17)==0) {
+	 args = sscanf(InfoLine+17, "%d", &spectro->MR);
+	 if (args!=1) {
+          fprintf(stderr, "Error: gsReadSpectrographConfig: Failed to read MEDIUM_RESOLUTION keyword\n");
+          exit(1);
+	 } else if(spectro->MR != 0 && spectro->MR != 1) {
+	    fprintf(stderr, "Error: gsReadSpectrographConfig: invalid value of MEDIUM_RESOLUTION %d (use 0/1)\n", spectro->MR);
+          exit(1);
+	 }
+      }
       if (memcmp(InfoLine, "PARAM", (size_t)5)==0) {
         args = sscanf(InfoLine+6, "%d %lg %lg %ld %ld", &i, &lmin, &lmax, &npix, &width);
         if (args!=5) {
@@ -1885,7 +1906,8 @@ int main(void) {
     fp = fopen(OutFileNoise, "w");
     for(ia=0;ia<spectro.N_arms;ia++) {
       for(i=0;i<spectro.npix[ia];i++) {
-        fprintf(fp, "%1d %4ld %7.4lf %11.5le %11.5le\n", ia, i, lambda=spectro.lmin[ia]+spectro.dl[ia]*(i+0.5), spNoise[ia][i], spSky[ia][i]);
+	 fprintf(fp, "%1d %4ld %7.4lf %11.5le %11.5le\n", spectro_arm(&spectro, ia),
+		 i, lambda=spectro.lmin[ia]+spectro.dl[ia]*(i+0.5), spNoise[ia][i], spSky[ia][i]);
       }
       fprintf(fp, "\n");
     }
@@ -1983,7 +2005,8 @@ int main(void) {
       //gsGetSNR_Continuum(&spectro,&obs,ia,22.5,0.0,decent,fieldang,spNoise[ia],t,0x0,snrcont);
       gsGetSNR_Continuum(&spectro,&obs,ia,mag,ref_input,decent,fieldang,spNoise[ia],t,0x0,snrcont,snrcontcount,snrcontnoise,magcont,snctrans,samplefac);
       for(j=0;j<spectro.npix[ia];j++) {
-        fprintf(fp, "%1d %4ld %9.3lf %8.4lf %11.5lE %11.5lE %11.5lE %11.5lE %11.5lE %11.5lE  %11.5lE\n", ia, j, spectro.lmin[ia]+spectro.dl[ia]*j,snrcont[j]*sqrt((double)n_exp),snrcontcount[j],spNoise[ia][j],snrcontnoise[j],magcont[j],snctrans[j],samplefac[j],spSky[ia][j]);
+        fprintf(fp, "%1d %4ld %9.3lf %8.4lf %11.5lE %11.5lE %11.5lE %11.5lE %11.5lE %11.5lE  %11.5lE\n",
+		spectro_arm(&spectro, ia), j, spectro.lmin[ia]+spectro.dl[ia]*j,snrcont[j]*sqrt((double)n_exp),snrcontcount[j],spNoise[ia][j],snrcontnoise[j],magcont[j],snctrans[j],samplefac[j],spSky[ia][j]);
       }
     }
     fprintf(stderr, "\n");
