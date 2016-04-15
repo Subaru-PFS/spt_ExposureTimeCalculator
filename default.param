@@ -23,15 +23,3 @@ OUTFILE_SNL      out/ref.snl.dat    #  Output file for emission line S/N  <filen
 OUTFILE_OII      -                  #  Output file for [OII] doublet S/N  <filename>
 MR_MODE          N                  #  Medium resolution mode switch      [Y/N]
 OVERWRITE        Y                  #  Overwrite switch                   [Y/N]
-
-#########################
-## Spectral Simulation ##
-#########################
-INFILE_SNC      out/ref.snc.dat     #  Input file of continuum S/N for the simulator
-NREALIZE        10                   #  The number of realization
-OUTFILE_SIM     out/test.sim.dat    #  Output ASCII table
-OUTFILE_TRACT   0000                #  Tract
-OUTFILE_PATCH   0,0                 #  Patch
-OUTFILE_CATID   000                 #  Catalogue ID
-OUTFILE_VISIT   1                   #  Visit number
-
