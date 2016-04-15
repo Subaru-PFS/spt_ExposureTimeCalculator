@@ -151,31 +151,72 @@ d. OUTFILE_OII: S/N of [OII] emission lines (here we assume line ratio is 1:1)
 --------------------------------------
 Simulated spectrum (under development)
 --------------------------------------
-Usage: python gen_sim_spec.py <parameter file> [--param1=param1] [--param2=param2] ...
+(N.b. you will need the python module numpy to run the simulator.  To write FITS files you'll also
+need pyfits, and to use the plotting options you'll need matplotlib)
 
-The simulated spectrum of the input spectrum defined in MAG_FILE parameter can be realized by adding random noise based on the calculation derived with run_etc.py. Run the gen_sim_spec.py like this:
 
-python gen_sim_spec.py default.param --INFILE_SNC=out/ref.snc.dat --OUTFILE_SIM=out/test.sim.dat
+We can generate simulated outputs for use by the 1-D pipeline using a subset of the outputs from Chris
+Hirata's simulator and then running gen_sim_spec.py.  The only output that we use is "OUTFILE_SNC",
+and we only use a subset of the informatin in that file.  In particular, we the settings
+    --EXP_NUM  (the number of exposures)
+    --MAG_FILE (the input spectrum)
+have *no* effect upon the simulator!
 
-If you want to realize for many objects with various input spectra, we recommend to generate the fiducial noise and S/N curve (e.g., out/ref.snc.dat) for a certain input spectra first, and then use the file for --INFILE_SNC and change magnitude or input spectra by using --MAG_FILE option for gen_sim_spec.py to generate the simulated spectrum (This will reduce the calculation time dramatically). Otherwise, please note that the value in the MAG_FILE argument is the same as that used when you generate the S/N curve.
+One parameters that does matter is
+    --MR_MODE  (use low/medium resolution grating in the R arm)
+and of course things to do with observing such as the exposure time, seeing, moon, ...
+    --EXP_TIME
+    --SEEING
+    --MOON_PHASE ...
+The settings used when running run_etc.py are the ones that will be used to generate an output spectrum. There
+is a default value (N, i.e. the low resolution grating), but we'll be explicit when preparing files for the
+simulator.
 
-python gen_sim_spec.py default.param --INFILE_SNC=out/ref.snc.dat --OUTFILE_SIM=out/test.sim.dat --MAG_FILE=20.0
+So, before running gen_sim_spec.py, you need to prepare input files with commands like:
 
-1. Setup of the input and output files 
-You can use the same .param file as that in the ETC code. The parameters are written like this:
+   python run_etc.py default.param --MR_MODE no  --EXP_TIME 450 --OUTFILE_SNC etc-t450-lr.dat
+   python run_etc.py default.param --MR_MODE yes --EXP_TIME 450 --OUTFILE_SNC etc-t450-mr.dat
 
-INFILE_SNC      out/ref.snc.dat     #  Input file of continuum S/N for the simulator
-NREALIZE        1                   #  The number of realization
-OUTFILE_SIM     out/test.sim.dat    #  Output ASCII table
+These do more work than you actually need (e.g. calculating propertied of ELGs), and write output files
+that you don't care about, but you can clean up by saying:
+   rm -rf ./out
+
+You are now ready to generate simulated spectra.  The input spectrum is given by the MAG_FILE parameter and
+may be either a file (with columns of wavelength and AB magnitude) or a floating point number (the AB
+magnitude of a flat-spectrum source).  The simulator will add appropriate noise, taking into account the
+number of integrations requested.  Run the gen_sim_spec.py like this:
+
+  python gen_sim_spec.py --etcFile etc-t450-lr.dat
+
+
+You can either specify options on the command line (use --help to list them), or by providing a file
+of overrides by adding e.g. "@sim_spec.defaults" to the command line (the @ means that this is an
+input file).  The provided sim_spec.defaults has all its options commented out.  If you want to plot
+the spectra, try --plotObject or --plotArm.
+
+So a more complete example is:
+
+   python gen_sim_spec.py @sim_spec.defaults --outDir out --etcFile ref.snc.dat \
+   	  		  --ascii=out/test.sim.dat --writeFits False --MAG_FILE=20.0
+
+to write the ascii file (out/test.sim.dat) instead of the fits files, simulating a 20th magnitude flat
+spectrum source.  The noise is taken from the output of run_etc.py, used without specifying --OUTFILE_SNC
+(which we do not recommend!)  Note that, as usual, arguments such as --asciiTable may be abbreviated.
+
+
+
+1. The input file (e.g. sim_spec.defaults) has the same format as the input to the ETC, e.g.
+etcFile       out/ref.snc.dat     #  Information about the noise per pixel; output of ETC
+nrealize      1                   #  The number of realizations of the object
+asciiTable    out/test.sim.dat    #  Output ASCII table
 
 Here are some descriptions:
 
-a. INFILE_SNC: S/N of continuum per pixel
-This may be the same as OUTFILE_SNC above.
+a. etcFile: Information about the background+instrumental noise per pixel; the ETC's --OUTFILE_SNC file
 
-b. NREALIZE: The number of the realization 
+b. nrealize: The number of realizations of the noise, incrementing the objId for each
 
-c. OUTFILE_SIM: The file name of the output ASCII table of the simulated spectrum
+c. asciiTable: The file name of the output ASCII table of the simulated spectrum
 The table includes the following items::
 
   (1)  WAVELENGTH  [nm]
@@ -184,35 +225,29 @@ The table includes the following items::
   (4)  MASK        [1=masked]
   (5)  SKY         [10^-17 erg/s/cm^2/A]
   (6)  ARM         [0=blue,1=red,2=NIR,3=redMR]
-  (7)  Signal-to-Noise Ratio
 
-The FITS format output will be automatically generated by specifying the following items:
+The FITS format output will be automatically generated unless you specify "--writeFits False". The
+filenames are defined by the datamodel, using values:
+	  tract   0   	     		#  Tract
+	  patch   0,0			#  Patch
+	  visit   1			#  Visit number
+	  objId   1			#  Object ID
+	  catId   0			#  Catalogue ID
 
-OUTFILE_TRACT   0000                #  Tract
-OUTFILE_PATCH   0,0                 #  Patch
-OUTFILE_CATID   000                 #  Catalogue ID
-OUTFILE_OBJID   499602D2            #  Object ID in hexadecimal
-OUTFILE_VISIT   1                   #  Visit number
+The format is defined by the datamodel, which may be found at
+     https://github.com/Subaru-PFS/configuration/datamodel/datamodel.txt
 
-These are based on the format in the 2D and 1D pipeline. "pfsObject-0000-0,0-000-499602D2-01-0x00000001.fits" will be generated, which has multiple HDUs:
+Note 1: The wavelength information on HDU #1,3,4,5,6 is described in the header by using CRPIX1, CRVAL1, and
+CD1_1. The wavelength (lambda [nm]) corresponding to the pixel (X [pix]) is as follows:
+       lambda = CRVAL1 + CD1_1*(X - CRPIX1)
+Note that in these HDU are resampled from the original data so that the pixel scale is 0.8 A (TBD).
 
-HDU #1 FLUX        Flux in units of TBD                          [FLOAT]              NROW
-HDU #2 FLUXTBL     Binary table                                  [FITS BINARY TABLE]  NROW
-           Columns for:
-                wavelength in units of nm (vacuum)               [FLOAT]
-                intensity in units of TBD                        [FLOAT]
-                intensity error same units as intensity          [FLOAT]
-                mask                                             [32-bit INT]
-HDU #3 COVAR       Near-diagonal part of HDU 2's covariance      [FLOAT]              5*NROW
-HDU #4 COVAR2      Low-resolution non-sparse estimate covariance [FLOAT]              NCOARSE*NCOARSE
-HDU #5 MASK        Pixel mask                                    [32-bit INT]         NROW
-HDU #6 SKY         Sky flux in same units as HDU1                [FLOAT]              NROW
-HDU #7 CONFIG      Information about the PFI, targetting, etc.   [BINARY FITS TABLE]
+Note 2: Currently, the format of data table described above is still discussed in the DRP team and may be
+changed in the future release.
 
-Note1: "pyfits" and "numpy" python modules are required to use this option.
-Note2: The wavelength information on HDU #1,3,4,5,6 is described in the header by using CRPIX1, CRVAL1, and CD1_1. The wavelength (lambda [nm]) corresponding to the pixel (X [pix]) is as follows: lambda = CRVAL1 + CD1_1 * (X - CRPIX1). Note that in these HDU are resampled from the original data so that the pixel scale is 0.8 A (TBD).
-Note3: Currently, the format of data table described above is still discussed in the DRP team and may be changed in the future release.
-Note4: PFS configuration information, including catalogue ID, object ID, coordinate (dummy value is used), fiber flux (flux density of the input magnitude), MPS centroid parameter (dummy value is used), will be saved in "pfsConfig" file (e.g., "pfsConfig-0x00000001.fits").
+Note 3: PFS configuration information, including catalogue ID, object ID, coordinate (dummy value is used),
+fiber flux (flux density of the input magnitude), MPS centroid parameter (dummy value is used), will be saved
+in "pfsConfig" file (e.g., "pfsConfig-0x00000001.fits").
 
 ---------------------------
 Example (under development)
@@ -221,42 +256,77 @@ Example (under development)
 /// Input spectra ///
 /////////////////////
 
-There are some examples of input spectra for the ETC. If you make additional example in your own calculation, let the contact person described below know please.
+There are some examples of input spectra for the ETC. If you make additional example in your own calculation,
+let the contact person described below know please.
 
 1. An observation of a star-forming galaxy with a continuum and emission lines:
- This example is a SDSS galaxy classified as GALAXY, whose spectra is redshifted to z=0.8 and scaled to mag=21 ABmag at 1000 nm. For this object with 1 hour exposure time under the seeing of 0.7 arcsec and gray lunar-phase condition, assuming that the object in a fiber on the FoV center and the elevation angle is 60 deg., type the following command:
 
- python run_etc.py default.param --MAG_FILE=./example/spec/ex_gal_sf.dat --EXP_TIME=900 --EXP_NUM=4 --REFF=0.30 --OUTFILE_NOISE=./out/ex_gal_sf.noise.dat --OUTFILE_SNC=./out/ex_gal_sf.snc.dat --OUTFILE_SNL=- --NOISE_REUSED=N --MR_MODE=N --OVERWRITE=Y --SEEING=0.70 --ZENITH_ANG=30.0 --FIELD_ANG=0.00 --MOON_PHASE=0.25 --MOON_ZENITH_ANG=30.0 --MOON_TARGET_ANG=60.0
+This example is a SDSS galaxy classified as GALAXY, whose spectra is redshifted to z=0.8 and scaled to mag=21
+ABmag at 1000 nm. For this object with 1 hour exposure time under the seeing of 0.7 arcsec and gray
+lunar-phase condition, assuming that the object in a fiber on the FoV center and the elevation angle is 60
+deg., type the following command:
 
- python gen_sim_spec.py default.param --INFILE_SNC=./out/ex_gal_sf.snc.dat --OUTFILE_SIM=./out/sim.ex_gal_sf.dat
+   python run_etc.py default.param --MAG_FILE=./example/spec/ex_gal_sf.dat --EXP_TIME=900 --EXP_NUM=4 --REFF=0.30 --OUTFILE_NOISE=./out/ex_gal_sf.noise.dat --OUTFILE_SNC=./out/ex_gal_sf.snc.dat --OUTFILE_SNL=- --NOISE_REUSED=N --MR_MODE=N --OVERWRITE=Y --SEEING=0.70 --ZENITH_ANG=30.0 --FIELD_ANG=0.00 --MOON_PHASE=0.25 --MOON_ZENITH_ANG=30.0 --MOON_TARGET_ANG=60.0
+
+   python gen_sim_spec.py default.param --etcFile ./out/ex_gal_sf.snc.dat --asciiTable ./out/sim.ex_gal_sf.dat
 
 2. An observation of a star-burst galaxy with (mostly) only emission lines:
- This example is a SDSS galaxy classified as GALAXY STARBUSRT, whose spectra is redshifted to z=0.8 and scaled to mag=26 ABmag at 1000 nm. For this object with 0.5 hour exposure time under the seeing of 0.5 arcsec and bright lunar-phase condition, assuming that the object in a fiber on the FoV center and the elevation angle is 50 deg., type the following command:
 
- python run_etc.py default.param --MAG_FILE=./example/spec/ex_gal_sb.dat --EXP_TIME=900 --EXP_NUM=2 --REFF=0.30 --OUTFILE_NOISE=./out/ex_gal_sb.noise.dat --OUTFILE_SNC=./out/ex_gal_sb.snc.dat --OUTFILE_SNL=- --NOISE_REUSED=N --MR_MODE=N --OVERWRITE=Y --SEEING=0.50 --ZENITH_ANG=40.0 --FIELD_ANG=0.00 --MOON_PHASE=0.5 --MOON_ZENITH_ANG=30.0 --MOON_TARGET_ANG=60.0
+This example is a SDSS galaxy classified as GALAXY STARBUSRT, whose spectra is redshifted to z=0.8 and scaled
+to mag=26 ABmag at 1000 nm. For this object with 0.5 hour exposure time under the seeing of 0.5 arcsec and
+bright lunar-phase condition, assuming that the object in a fiber on the FoV center and the elevation angle is
+50 deg., type the following command:
 
- python gen_sim_spec.py default.param --INFILE_SNC=./out/ex_gal_sb.snc.dat --OUTFILE_SIM=./out/sim.ex_gal_sb.dat
+   python run_etc.py default.param --MAG_FILE=./example/spec/ex_gal_sb.dat --EXP_TIME=900 --EXP_NUM=2 --REFF=0.30 --OUTFILE_NOISE=./out/ex_gal_sb.noise.dat --OUTFILE_SNC=./out/ex_gal_sb.snc.dat --OUTFILE_SNL=- --NOISE_REUSED=N --MR_MODE=N --OVERWRITE=Y --SEEING=0.50 --ZENITH_ANG=40.0 --FIELD_ANG=0.00 --MOON_PHASE=0.5 --MOON_ZENITH_ANG=30.0 --MOON_TARGET_ANG=60.0
+
+   python gen_sim_spec.py default.param --etcFile ./out/ex_gal_sb.snc.dat --asciiTable ./out/sim.ex_gal_sb.dat
 
 3. An observation of a passive galaxy with a continuum and absorption lines:
- This example is generated by using a CB07 stellar population synthesis model with Chabrier IMF, solar abundance, and single burst. The stellar age of the the galaxy is ~5 Gyr and with no dust extinction. The intrinsic spectra is redshifted to z=1.2 and scaled to mag=21 ABmag at 1000 nm. For this object with 5 hour exposure time under the seeing of 0.5 arcsec and bright lunar-phase condition, assuming that the object in a fiber on the FoV center and the elevation angle is 60 deg., type the following command:
 
- python run_etc.py default.param --MAG_FILE=./example/spec/ex_gal_pv.dat --EXP_TIME=900 --EXP_NUM=20 --REFF=0.30 --OUTFILE_NOISE=./out/ex_gal_pv.noise.dat --OUTFILE_SNC=./out/ex_gal_pv.snc.dat --OUTFILE_SNL=- --NOISE_REUSED=N --MR_MODE=N --OVERWRITE=Y --SEEING=0.50 --ZENITH_ANG=30.0 --FIELD_ANG=0.00 --MOON_PHASE=0.5 --MOON_ZENITH_ANG=30.0 --MOON_TARGET_ANG=60.0
+This example is generated by using a CB07 stellar population synthesis model with Chabrier IMF, solar
+abundance, and single burst. The stellar age of the the galaxy is ~5 Gyr and with no dust extinction. The
+intrinsic spectra is redshifted to z=1.2 and scaled to mag=21 ABmag at 1000 nm. For this object with 5 hour
+exposure time under the seeing of 0.5 arcsec and bright lunar-phase condition, assuming that the object in a
+fiber on the FoV center and the elevation angle is 60 deg., type the following command:
 
- python gen_sim_spec.py default.param --INFILE_SNC=./out/ex_gal_pv.snc.dat --OUTFILE_SIM=./out/sim.ex_gal_pv.dat
+   python run_etc.py default.param --MAG_FILE=./example/spec/ex_gal_pv.dat --EXP_TIME=900 --EXP_NUM=20 --REFF=0.30 --OUTFILE_NOISE=./out/ex_gal_pv.noise.dat --OUTFILE_SNC=./out/ex_gal_pv.snc.dat --OUTFILE_SNL=- --NOISE_REUSED=N --MR_MODE=N --OVERWRITE=Y --SEEING=0.50 --ZENITH_ANG=30.0 --FIELD_ANG=0.00 --MOON_PHASE=0.5 --MOON_ZENITH_ANG=30.0 --MOON_TARGET_ANG=60.0
+
+   python gen_sim_spec.py default.param --etcFile ./out/ex_gal_pv.snc.dat --asciiTable ./out/sim.ex_gal_pv.dat
 
 ///////////////////
 /// Noise model ///
 ///////////////////
-Because the calculation of noise models is very time consuming, we prepared some examples of noise model for some cases. In ./example/noise/ directory, there are noise models varying zenith angle from 0 to 70 deg. and field angle from 0.0 to 0.7 deg. for the dark moon phase and 8 exposures of 450 sec.  (e.g., ref.noise.drk.z30.f04.t450.dat).
+
+Because the calculation of noise models is very time consuming, we prepared some examples of noise model for
+some cases. In ./example/noise/ directory, there are noise models varying zenith angle from 0 to 70 deg. and
+field angle from 0.0 to 0.7 deg. for the dark moon phase and 8 exposures of 450 sec.  (e.g.,
+ref.noise.drk.z30.f04.t450.dat).
 
 -----------
 Other notes
 -----------
-1. The other parameters that are implemented in the Chris Hirata's ETC are indicated in the run_etc.py including instrument setups and sky subtraction floor. Users can change these parameters on your own responsibility.
-2. The fraction of light covered by fiber aperture may be overestimated by up to 10% depending on the field angle compared to the ray-tracing calculation by using the PFS optical model including the telescope and the wide-field corrector.
-3. We assumed no fiber central position offset, additional 1% systematic sky subtraction error (on each 1D pixel), and additional 2% diffuse stray light (the entire 2D detector surface) for the noise model calculation.
-4. As a fiducial sky continuum model, we use the recent sky model provided by Jim Gunn, which is basically in consistent with the observations in the SDSS/BOSS in optical and the result obtained the MOSFIRE engineering runs. We use the sky emission line model taken from UVES visible line atlas and theoretical model (Rousselot et al. 2000, A&A, 354, 1134) in NIR. As a fiducial atmospheric transmission model, we use Kitt Peak model for <900nm and a simulated ATRAN model with 3 mm PWV at longer wavelengths.
-5. The original code (gsetc.c) provided by Chris Hirata, which is partially modified by people in Kavli IPMU, can be found in the src directory. The manual for the code (Manual_v5.pdf) may be useful for understanding some assumptions in the noise calculation.
+
+1. The other parameters that are implemented in the Chris Hirata's ETC are indicated in the run_etc.py
+including instrument setups and sky subtraction floor. Users can change these parameters on your own
+responsibility.
+
+2. The fraction of light covered by fiber aperture may be overestimated by up to 10% depending on the field
+angle compared to the ray-tracing calculation by using the PFS optical model including the telescope and the
+wide-field corrector.
+
+3. We assumed no fiber central position offset, additional 1% systematic sky subtraction error (on each 1D
+pixel), and additional 2% diffuse stray light (the entire 2D detector surface) for the noise model
+calculation.
+
+4. As a fiducial sky continuum model, we use the recent sky model provided by Jim Gunn, which is basically in
+consistent with the observations in the SDSS/BOSS in optical and the result obtained the MOSFIRE engineering
+runs. We use the sky emission line model taken from UVES visible line atlas and theoretical model (Rousselot
+et al. 2000, A&A, 354, 1134) in NIR. As a fiducial atmospheric transmission model, we use Kitt Peak model for
+<900nm and a simulated ATRAN model with 3 mm PWV at longer wavelengths.
+
+5. The original code (gsetc.c) provided by Chris Hirata, which is partially modified by people in Kavli IPMU,
+can be found in the src directory. The manual for the code (Manual_v5.pdf) may be useful for understanding
+some assumptions in the noise calculation.
 
 --------------------------------------------------
 Have fun! and your feedback is highly appreciated!
@@ -267,5 +337,3 @@ Contact
 -------
 Kiyoto Yabe (Kavli IPMU)
 e-mail: kiyoto.yabe@ipmu.jp
-
-
