@@ -6,6 +6,16 @@ import time
 import subprocess, shlex
 
 if __name__ == '__main__':
+    def convert_arg_line_to_args(arg_line):
+        """Make argparse handle Hirata-style parameter files"""
+        for i, arg in enumerate(arg_line.split()):
+            if not arg.strip():
+                continue
+            if arg[0] == '#':
+                return
+            if i == 0:
+                arg = "--%s" % arg
+            yield arg
     ### Some parameters ###########################
     ### CAUTION: ##################################
     ### CHANGE BELOW ON YOUR OWN RESPONSIBILITY ###
@@ -14,9 +24,9 @@ if __name__ == '__main__':
     INSTR_SETUP    = './config/PFS.dat'
     INSTR_SETUP_MR = './config/PFS.redMR.dat'
     SKYMODELS      = '11005'
-    OFFSET_FIB     = 0.00
-    SKY_SUB_FLOOR  = 0.01
-    DIFFUSE_STRAY  = 0.02
+    OFFSET_FIB     = '0.00'
+    SKY_SUB_FLOOR  = '0.01'
+    DIFFUSE_STRAY  = '0.02'
     ###############################################
     start = time.time()
     if not os.path.exists('bin'):
@@ -27,55 +37,38 @@ if __name__ == '__main__':
     if not os.path.exists(ETC):
         exit("Unable to find %s; please run make and try again" % ETC)
 
-    param_name=['SKYMODELS','SKY_SUB_FLOOR','DIFFUSE_STRAY','OFFSET_FIB']
-    param_value={'SKYMODELS':SKYMODELS,'SKY_SUB_FLOOR':str(SKY_SUB_FLOOR),'DIFFUSE_STRAY':str(DIFFUSE_STRAY),'OFFSET_FIB':str(OFFSET_FIB)}
-    parser = argparse.ArgumentParser(description='PFS ETC developed by Chris Hirata, modified by Kiyoto Yabe and Yuki Moritani')
-    parser.add_argument("params", type=str, help="parameter file")
-    parser.add_argument("--SEEING", type=str, help="seeing")
-    parser.add_argument("--ZENITH_ANG", type=str, help="zenith angle")
-    parser.add_argument("--GALACTIC_EXT", type=str, help="galactic extinction")
-    parser.add_argument("--MOON_ZENITH_ANG", type=str, help="moon-zenith angle")
-    parser.add_argument("--MOON_TARGET_ANG", type=str, help="moon-target angle")
-    parser.add_argument("--MOON_PHASE", type=str, help="moon phase")
-    parser.add_argument("--EXP_TIME", type=str, help="exposure time")
-    parser.add_argument("--EXP_NUM", type=str, help="exposure number")
-    parser.add_argument("--FIELD_ANG", type=str, help="field angle")
-    parser.add_argument("--MAG_FILE", type=str, help="magnitude input file")
-    parser.add_argument("--REFF", type=str, help="effective radius")
-    parser.add_argument("--LINE_FLUX", type=str, help="emission line flux")
-    parser.add_argument("--LINE_WIDTH", type=str, help="emission line width (sigma)")
-    parser.add_argument("--NOISE_REUSED", type=str, help="noise vector reused flag")
-    parser.add_argument("--OUTFILE_NOISE", type=str, help="noise vector output file")
-    parser.add_argument("--OUTFILE_SNC", type=str, help="continuum results output file")
-    parser.add_argument("--OUTFILE_SNL", type=str, help="emission line results output file")
-    parser.add_argument("--OUTFILE_OII", type=str, help="[OII] emission line results output file")
-    parser.add_argument("--MR_MODE", type=str, help="medium resolution mode on-off")
-    parser.add_argument("--OVERWRITE", type=str, help="overwrite on-off")
+    parser = argparse.ArgumentParser(description='PFS ETC developed by Chris Hirata, modified by Kiyoto Yabe and Yuki Moritani', fromfile_prefix_chars='@')
+    parser.convert_arg_line_to_args = convert_arg_line_to_args
+    parser.add_argument("--SEEING", type=str, help="seeing", default=0.80)
+    parser.add_argument("--ZENITH_ANG", type=str, help="zenith angle", default=45.00)
+    parser.add_argument("--GALACTIC_EXT", type=str, help="galactic extinction", default=0.00)
+    parser.add_argument("--MOON_ZENITH_ANG", type=str, help="moon-zenith angle", default=30.0)
+    parser.add_argument("--MOON_TARGET_ANG", type=str, help="moon-target angle", default=60.0)
+    parser.add_argument("--MOON_PHASE", type=str, help="moon phase", default=0)
+    parser.add_argument("--EXP_TIME", type=str, help="exposure time", default=450)
+    parser.add_argument("--EXP_NUM", type=str, help="exposure number", default=8)
+    parser.add_argument("--FIELD_ANG", type=str, help="field angle", default=0.675)
+    parser.add_argument("--MAG_FILE", type=str, help="magnitude input file", default=22.5)
+    parser.add_argument("--REFF", type=str, help="effective radius", default=0.3)
+    parser.add_argument("--LINE_FLUX", type=str, help="emission line flux", default=1.0e-17)
+    parser.add_argument("--LINE_WIDTH", type=str, help="emission line width (sigma)", default=70)
+    parser.add_argument("--NOISE_REUSED", type=str, help="noise vector reused flag", default="N")
+    parser.add_argument("--OUTFILE_NOISE", type=str, help="noise vector output file", default="out/ref.noise.dat")
+    parser.add_argument("--OUTFILE_SNC", type=str, help="continuum results output file", default="out/ref.snc.dat")
+    parser.add_argument("--OUTFILE_SNL", type=str, help="emission line results output file", default="out/ref.snl.dat")
+    parser.add_argument("--OUTFILE_OII", type=str, help="[OII] emission line results output file", default="-")
+    parser.add_argument("--MR_MODE", type=str, help="medium resolution mode on-off", default="N")
+    parser.add_argument("--OVERWRITE", type=str, help="overwrite on-off", default="Y")
     parser.add_argument("-s","--show", help="Show parameter set")
     args = parser.parse_args()
-    ## read parameter file ##
-    try:
-        paramfile = open(args.params, 'rU')
-    except:
-        exit('''Parameter file "%s" not found.''' % args.params)
-    for line in paramfile:
-        if line[0] != "#" and line[0] != "\n":
-            a=line.split()
-            if len(a)>0:
-                param_name.append(a[0])
-                if vars(args)[a[0]] is None:
-                    param_value[a[0]] = a[1]
-                else:
-                    param_value[a[0]] = vars(args)[a[0]]
- 
     ## Medium Resolution Mode ? ##
-    if param_value['MR_MODE'].lower() == 'yes' or param_value['MR_MODE'].lower() == 'y':
-        param_value['INSTR_SETUP'] = INSTR_SETUP_MR
+    if args.MR_MODE.lower() == 'yes' or args.MR_MODE.lower() == 'y':
+        INSTR_SETUP = INSTR_SETUP_MR
     else:
-        param_value['INSTR_SETUP'] = INSTR_SETUP
+        INSTR_SETUP = INSTR_SETUP
     ## make continuum magnitude file ##
     try:
-        mag = float(param_value['MAG_FILE'])
+        mag = float(args.MAG_FILE)
         if os.path.exists('tmp') == False:
             os.mkdir('tmp')
         file = open('tmp/mag.dat','w')
@@ -83,59 +76,59 @@ if __name__ == '__main__':
         file.close()
         mag_file = 'tmp/mag.dat'
     except:
-        mag_file = param_value['MAG_FILE']
+        mag_file = args.MAG_FILE
     ## reuse noise data ? ##
     flag = '0'
-    if param_value['NOISE_REUSED'].lower()=='y':
+    if args.NOISE_REUSED.lower()=='y':
         flag='1'
-    elif param_value['NOISE_REUSED'].lower()=='n':
+    elif args.NOISE_REUSED.lower()=='n':
         flag='0'
-    param_value['NOISE_REUSED']=flag
+    args.NOISE_REUSED=flag
     ## check file overwritten ##
     C = 0
-    if param_value['OVERWRITE'].lower() == 'no' or param_value['OVERWRITE'].lower() == 'n':
-        if os.path.exists(param_value['OUTFILE_NOISE']):
-            print "Error: %s already exists... "%(param_value['OUTFILE_NOISE'])
+    if args.OVERWRITE.lower() == 'no' or args.OVERWRITE.lower() == 'n':
+        if os.path.exists(args.OUTFILE_NOISE):
+            print "Error: %s already exists... "%(args.OUTFILE_NOISE)
             C += 1
-        if os.path.exists(param_value['OUTFILE_SNC']):
-            print "Error: %s already exists... "%(param_value['OUTFILE_SNC'])
+        if os.path.exists(args.OUTFILE_SNC):
+            print "Error: %s already exists... "%(args.OUTFILE_SNC)
             C += 1
-        if os.path.exists(param_value['OUTFILE_SNL']):
-            print "Error: %s already exists... "%(param_value['OUTFILE_SNL'])
+        if os.path.exists(args.OUTFILE_SNL):
+            print "Error: %s already exists... "%(args.OUTFILE_SNL)
             C += 1
-    if param_value['OVERWRITE'].lower() == 'yes' or param_value['OVERWRITE'].lower() == 'y':
+    if args.OVERWRITE.lower() == 'yes' or args.OVERWRITE.lower() == 'y':
             C = 0
     ## run ETC ##
-    print param_value['INSTR_SETUP']
+    print INSTR_SETUP
     if C != 0:
         exit('No execution of ETC')
     try:
         p_etc = subprocess.Popen([ETC], stdin = subprocess.PIPE)
         p_etc.communicate("\n".join([
-                    param_value['INSTR_SETUP'],
-                    param_value['SKYMODELS'],
-                    param_value['SEEING'],
-                    param_value['ZENITH_ANG'],
-                    param_value['GALACTIC_EXT'],
-                    param_value['FIELD_ANG'],
-                    param_value['OFFSET_FIB'],
-                    param_value['MOON_ZENITH_ANG'],
-                    param_value['MOON_TARGET_ANG'],
-                    param_value['MOON_PHASE'],
-                    param_value['EXP_TIME'],
-                    param_value['EXP_NUM'],
-                    param_value['SKY_SUB_FLOOR'],
-                    param_value['DIFFUSE_STRAY'],
-                    param_value['NOISE_REUSED'],
-                    param_value['OUTFILE_NOISE'],
-                    param_value['OUTFILE_OII'],
-                    param_value['OUTFILE_SNL'],
-                    param_value['LINE_FLUX'],
-                    param_value['LINE_WIDTH'],
-                    param_value['OUTFILE_SNC'],
+                    INSTR_SETUP,
+                    SKYMODELS,
+                    args.SEEING,
+                    args.ZENITH_ANG,
+                    args.GALACTIC_EXT,
+                    args.FIELD_ANG,
+                    OFFSET_FIB,
+                    args.MOON_ZENITH_ANG,
+                    args.MOON_TARGET_ANG,
+                    args.MOON_PHASE,
+                    args.EXP_TIME,
+                    args.EXP_NUM,
+                    SKY_SUB_FLOOR,
+                    DIFFUSE_STRAY,
+                    args.NOISE_REUSED,
+                    args.OUTFILE_NOISE,
+                    args.OUTFILE_OII,
+                    args.OUTFILE_SNL,
+                    args.LINE_FLUX,
+                    args.LINE_WIDTH,
+                    args.OUTFILE_SNC,
                     '-',
                     mag_file,
-                    param_value['REFF']
+                    args.REFF
                 ]))
     except OSError, e:
         exit('Execution error of "%s" (%s)' % ETC, e)
