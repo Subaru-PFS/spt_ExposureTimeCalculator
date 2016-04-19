@@ -1,12 +1,13 @@
 ###############################################################
-##  PFS Exposure Time Calculator                             ##
+##  PFS Exposure Time Calculator and Spectrum Simulator      ##
 ##                                                           ##
-##  Developed by Christopher Hirata (Ohio State University)  ##
-##  and Modified by Kiyoto Yabe, Yuki Moritani (Kavli IPMU)  ##
+##  Developed by Christopher Hirata (Ohio State University), ##
+##  Kiyoto Yabe, Yuki Moritani (Kavli IPMU),                 ##
+##  and Robert Lupton (Princeton University)                 ##
 ##                                                           ##
-##  This code is based on the ETC originally developed for   ## 
-##  WFIRST (C. Hirata; arXiv:1204.5151) and altered for use  ##
-##  in PFS project.                                          ##
+##  The ETC is based on the package originally developed     ##
+##  for WFIRST (C. Hirata; arXiv:1204.5151) and altered for  ##
+##  use in PFS project.                                      ##
 ###############################################################
 
 ------------
@@ -25,9 +26,11 @@ Requirements
  Note2: Depending on the machine power, it takes <<several minutes>> if you run all the standard process. We recommend sufficient computing power at least similar to that we have tested. With our testing machine above, it takes about ~450 sec. (~200 sec. for noise calculation, ~155 sec. for emission line S/N calculation, and ~95 sec. for continuum S/N calculation).
 
 <<Optional>>
-* numpy (1.8 and higher)  see http://www.numpy.org
-* pyfits (3.3 and higher) see http://www.stsci.edu/institute/software_hardware/pyfits
- Note: These two python modules are required for using gen_sim_spec.py. If you don't have these modules, please install them from the above website.
+* numpy  (1.8 and higher)  see http://www.numpy.org
+* scipy (0.12 and higher)  see http://www.scipy.org
+* pyfits (3.3 and higher)  see http://www.stsci.edu/institute/software_hardware/pyfits
+* matplotlib (if you use the plotting options)
+ Note: These three python modules are required for using gen_sim_spec.py and the PFS datamodel package. If you don't have these modules, please install them from the above website.
 
 ------------
 Installation
@@ -49,23 +52,24 @@ Usage
 -----
  python run_etc.py <parameter file> [--param1=value1] [--param2=value2] ...
 
-In the default setting, the code can be run by typing the following command at your terminal:
+In the default setting, the code can be run by typing the following command at your terminal (the @ means that this is an
+input file):
 
- python run_etc.py default.param
+ python run_etc.py @run_etc.defaults
 
-Or using arguments as follows:
+Or using some arguments as follows:
 
- python run_etc.py default.param --MAG_FILE=23.0 --LINE_FLUX=5.0e-17 --LINE_WIDTH=100
+ python run_etc.py @run_etc.defaults --MAG_FILE=23.0 --LINE_FLUX=5.0e-17 --LINE_WIDTH=100
 
 -------
 Caution
 -------
-1. NOISE_REUSED option is only valid for the same condition (zenith angle, field angle, lunar condition, and exposure time). Please be careful when you use this option and DO NOT use the different values from those used when the noise file was created.
+1. NOISE_REUSED option is only valid for the same condition (zenith angle, field angle, lunar condition, and exposure time) but magnitude and line flux of the object. Please be careful when you use this option and DO NOT use the different values from those used when the noise file was created.
 2. You can input your own spectra by using MAG_FILE option, but please note that the wavelength sampling should be larger than the pixel sampling of the PFS detector (~0.7A, ~0.8A, and ~0.8A for blue, red, and NIR arm, respectively).
 
------------
-Description
------------
+------------------------
+Exposure Time Calculator
+------------------------
 All parameters can be specified in a .param file or passed as arguments. Here are a list and the description of parameters that users can manage.
 
 1. Setup of the observation condition 
@@ -86,7 +90,7 @@ FIELD_ANG        0.675              #  Field angle                  [deg.; cente
 2. Setup of the target information
 In this section, users can describe the target information including target magnitude, effective radius, emission line flux and width. If you want to calculate the S/N for a flat continuum with 22.5 ABmag and an emission line with line flux of 1.0x10^-17 erg/s/cm^2, line width of sigma=70 km/s, and effective radius of 0.3 arcsec, the parameters are as follows:
 
-MAG_FILE         22.5               #  Magnitude or input spectrum  [ABmag] or <filename> 
+MAG_FILE         22.5               #  Magnitude or input spectrum  [ABmag] or <filename>
 REFF             0.3                #  Effective radius             [arcsec]
 LINE_FLUX        1.0e-17            #  Emission line flux           [erg/s/cm^2]
 LINE_WIDTH       70                 #  Emission line width sigma    [km/s]
@@ -110,7 +114,7 @@ a. OUTFILE_NOISE: noise variance per pixel
  (1) the spectrograph arm number
  (2) the pixel number
  (3) the vacuum wavelength in [nm]
- (4) the noise variance in [e^2/pix] (without contribution from object continuum)
+ (4) the noise variance in [e^2/pix] (per one exposure without contribution from object continuum)
  (5) the sky background in [count]
 Note: (4) the noise variance in this table does not include the contribution from the object continuum.
 
@@ -120,8 +124,8 @@ b. OUTFILE_SNC: S/N of continuum per pixel
  (3)  the vacuum wavelength in [nm]
  (4)  the continuum S/N per pixel
  (5)  the signal in one exposure in [count]
- (6)  the noise variance in [e^2/pix] (without contribution from object continuum)
- (7)  the noise variance in [e^2/pix] (with contribution from object continuum)
+ (6)  the noise variance in [e^2/pix] (per one exposure without contribution from object continuum)
+ (7)  the noise variance in [e^2/pix] (per one exposure with contribution from object continuum)
  (8)  the input spectra in [ABmag]
  (9)  the conversion factor from flux density [erg/s/cm2/Hz] to [count]
  (10) the sampling factor
@@ -148,16 +152,16 @@ d. OUTFILE_OII: S/N of [OII] emission lines (here we assume line ratio is 1:1)
  (8) the emission line S/N in  NIR arm
  (9) the emission line S/N in total
 
---------------------------------------
-Simulated spectrum (under development)
---------------------------------------
+------------------
+Simulated spectrum 
+------------------
 (N.b. you will need the python module numpy to run the simulator.  To write FITS files you'll also
 need pyfits, and to use the plotting options you'll need matplotlib)
 
 
 We can generate simulated outputs for use by the 1-D pipeline using a subset of the outputs from Chris
 Hirata's simulator and then running gen_sim_spec.py.  The only output that we use is "OUTFILE_SNC",
-and we only use a subset of the informatin in that file.  In particular, we the settings
+and we only use a subset of the information in that file.  In particular, we the settings
     --EXP_NUM  (the number of exposures)
     --MAG_FILE (the input spectrum)
 have *no* effect upon the simulator!
@@ -168,14 +172,14 @@ and of course things to do with observing such as the exposure time, seeing, moo
     --EXP_TIME
     --SEEING
     --MOON_PHASE ...
-The settings used when running run_etc.py are the ones that will be used to generate an output spectrum. There
-is a default value (N, i.e. the low resolution grating), but we'll be explicit when preparing files for the
+The settings used when running run_etc.py are the ones that will be used to generate an output spectrum. 
+There is a default value (N, i.e. the low resolution grating), but we'll be explicit when preparing files for the
 simulator.
 
 So, before running gen_sim_spec.py, you need to prepare input files with commands like:
 
-   python run_etc.py default.param --MR_MODE no  --EXP_TIME 450 --OUTFILE_SNC etc-t450-lr.dat
-   python run_etc.py default.param --MR_MODE yes --EXP_TIME 450 --OUTFILE_SNC etc-t450-mr.dat
+   python run_etc.py @run_etc.defaults --MR_MODE no  --EXP_TIME 450 --OUTFILE_SNC etc-t450-lr.dat
+   python run_etc.py @run_etc.defaults --MR_MODE yes --EXP_TIME 450 --OUTFILE_SNC etc-t450-mr.dat
 
 These do more work than you actually need (e.g. calculating propertied of ELGs), and write output files
 that you don't care about, but you can clean up by saying:
@@ -196,8 +200,8 @@ the spectra, try --plotObject or --plotArm.
 
 So a more complete example is:
 
-   python gen_sim_spec.py @sim_spec.defaults --outDir out --etcFile ref.snc.dat \
-   	  		  --ascii=out/test.sim.dat --writeFits False --MAG_FILE=20.0
+   python gen_sim_spec.py @sim_spec.defaults --outDir out --etcFile out/ref.snc.dat \
+   	  		  --ascii=test.sim.dat --writeFits False --MAG_FILE=20.0
 
 to write the ascii file (out/test.sim.dat) instead of the fits files, simulating a 20th magnitude flat
 spectrum source.  The noise is taken from the output of run_etc.py, used without specifying --OUTFILE_SNC
@@ -267,9 +271,9 @@ ABmag at 1000 nm. For this object with 1 hour exposure time under the seeing of 
 lunar-phase condition, assuming that the object in a fiber on the FoV center and the elevation angle is 60
 deg., type the following command:
 
-   python run_etc.py default.param --MAG_FILE=./example/spec/ex_gal_sf.dat --EXP_TIME=900 --EXP_NUM=4 --REFF=0.30 --OUTFILE_NOISE=./out/ex_gal_sf.noise.dat --OUTFILE_SNC=./out/ex_gal_sf.snc.dat --OUTFILE_SNL=- --NOISE_REUSED=N --MR_MODE=N --OVERWRITE=Y --SEEING=0.70 --ZENITH_ANG=30.0 --FIELD_ANG=0.00 --MOON_PHASE=0.25 --MOON_ZENITH_ANG=30.0 --MOON_TARGET_ANG=60.0
+   python run_etc.py @run_etc.defaults --MAG_FILE=./example/spec/ex_gal_sf.dat --EXP_TIME=900 --EXP_NUM=4 --REFF=0.30 --OUTFILE_NOISE=./out/ex_gal_sf.noise.dat --OUTFILE_SNC=./out/ex_gal_sf.snc.dat --OUTFILE_SNL=- --NOISE_REUSED=N --MR_MODE=N --OVERWRITE=Y --SEEING=0.70 --ZENITH_ANG=30.0 --FIELD_ANG=0.00 --MOON_PHASE=0.25 --MOON_ZENITH_ANG=30.0 --MOON_TARGET_ANG=60.0
 
-   python gen_sim_spec.py default.param --etcFile ./out/ex_gal_sf.snc.dat --asciiTable ./out/sim.ex_gal_sf.dat
+   python gen_sim_spec.py @run_etc.defaults --etcFile ./out/ex_gal_sf.snc.dat --asciiTable ./out/sim.ex_gal_sf.dat
 
 2. An observation of a star-burst galaxy with (mostly) only emission lines:
 
@@ -278,9 +282,9 @@ to mag=26 ABmag at 1000 nm. For this object with 0.5 hour exposure time under th
 bright lunar-phase condition, assuming that the object in a fiber on the FoV center and the elevation angle is
 50 deg., type the following command:
 
-   python run_etc.py default.param --MAG_FILE=./example/spec/ex_gal_sb.dat --EXP_TIME=900 --EXP_NUM=2 --REFF=0.30 --OUTFILE_NOISE=./out/ex_gal_sb.noise.dat --OUTFILE_SNC=./out/ex_gal_sb.snc.dat --OUTFILE_SNL=- --NOISE_REUSED=N --MR_MODE=N --OVERWRITE=Y --SEEING=0.50 --ZENITH_ANG=40.0 --FIELD_ANG=0.00 --MOON_PHASE=0.5 --MOON_ZENITH_ANG=30.0 --MOON_TARGET_ANG=60.0
+   python run_etc.py @run_etc.defaults --MAG_FILE=./example/spec/ex_gal_sb.dat --EXP_TIME=900 --EXP_NUM=2 --REFF=0.30 --OUTFILE_NOISE=./out/ex_gal_sb.noise.dat --OUTFILE_SNC=./out/ex_gal_sb.snc.dat --OUTFILE_SNL=- --NOISE_REUSED=N --MR_MODE=N --OVERWRITE=Y --SEEING=0.50 --ZENITH_ANG=40.0 --FIELD_ANG=0.00 --MOON_PHASE=0.5 --MOON_ZENITH_ANG=30.0 --MOON_TARGET_ANG=60.0
 
-   python gen_sim_spec.py default.param --etcFile ./out/ex_gal_sb.snc.dat --asciiTable ./out/sim.ex_gal_sb.dat
+   python gen_sim_spec.py @run_etc.defaults --etcFile ./out/ex_gal_sb.snc.dat --asciiTable ./out/sim.ex_gal_sb.dat
 
 3. An observation of a passive galaxy with a continuum and absorption lines:
 
@@ -290,9 +294,9 @@ intrinsic spectra is redshifted to z=1.2 and scaled to mag=21 ABmag at 1000 nm. 
 exposure time under the seeing of 0.5 arcsec and bright lunar-phase condition, assuming that the object in a
 fiber on the FoV center and the elevation angle is 60 deg., type the following command:
 
-   python run_etc.py default.param --MAG_FILE=./example/spec/ex_gal_pv.dat --EXP_TIME=900 --EXP_NUM=20 --REFF=0.30 --OUTFILE_NOISE=./out/ex_gal_pv.noise.dat --OUTFILE_SNC=./out/ex_gal_pv.snc.dat --OUTFILE_SNL=- --NOISE_REUSED=N --MR_MODE=N --OVERWRITE=Y --SEEING=0.50 --ZENITH_ANG=30.0 --FIELD_ANG=0.00 --MOON_PHASE=0.5 --MOON_ZENITH_ANG=30.0 --MOON_TARGET_ANG=60.0
+   python run_etc.py @run_etc.defaults --MAG_FILE=./example/spec/ex_gal_pv.dat --EXP_TIME=900 --EXP_NUM=20 --REFF=0.30 --OUTFILE_NOISE=./out/ex_gal_pv.noise.dat --OUTFILE_SNC=./out/ex_gal_pv.snc.dat --OUTFILE_SNL=- --NOISE_REUSED=N --MR_MODE=N --OVERWRITE=Y --SEEING=0.50 --ZENITH_ANG=30.0 --FIELD_ANG=0.00 --MOON_PHASE=0.5 --MOON_ZENITH_ANG=30.0 --MOON_TARGET_ANG=60.0
 
-   python gen_sim_spec.py default.param --etcFile ./out/ex_gal_pv.snc.dat --asciiTable ./out/sim.ex_gal_pv.dat
+   python gen_sim_spec.py @run_etc.defaults --etcFile ./out/ex_gal_pv.snc.dat --asciiTable ./out/sim.ex_gal_pv.dat
 
 ///////////////////
 /// Noise model ///
@@ -306,7 +310,6 @@ ref.noise.drk.z30.f04.t450.dat).
 -----------
 Other notes
 -----------
-
 1. The other parameters that are implemented in the Chris Hirata's ETC are indicated in the run_etc.py
 including instrument setups and sky subtraction floor. Users can change these parameters on your own
 responsibility.
