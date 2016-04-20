@@ -203,7 +203,8 @@ to write the ascii file (out/test.sim.dat) instead of the fits files, simulating
 spectrum source.  The noise is taken from the output of run_etc.py, used without specifying --OUTFILE_SNC
 (which we do not recommend!)  Note that, as usual, arguments such as --asciiTable may be abbreviated.
 
-
+If you specify a value of --nrealize > 1 then multiple realizations of the noise are generated, each
+with its own objId, and the corresponding number of pfsObject files are written.
 
 1. The input file (e.g. sim_spec.defaults) has the same format as the input to the ETC, e.g.
 etcFile       out/ref.snc.dat     #  Information about the noise per pixel; output of ETC

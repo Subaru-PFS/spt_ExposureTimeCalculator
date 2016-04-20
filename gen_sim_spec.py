@@ -29,10 +29,10 @@ def arm_name(arm_num):
 def arm_number(armStr):
     return dict(b=0, r=1, n=2, m=3)[armStr]
 
-def makeFakePfsConfig(tract, patch, ra, dec, catId, objId, objectMags, nFiber=1):
+def makeFakePfsConfig(tract, patch, ra, dec, catId, startingObjId, objectMags, nFiber=1):
     """Make and return a PfsConfig with nFiber entries referring to the same object
 
-    Successive objIds are applied to the successive fibers
+    Successive fibres are given object IDs that increase by one, starting with objId
     """
     fiberId = np.arange(1, nFiber+1, dtype=np.int32)
 
@@ -52,7 +52,7 @@ def makeFakePfsConfig(tract, patch, ra, dec, catId, objId, objectMags, nFiber=1)
     patch.fill(tmp)
     patch = nFiber*[tmp]
 
-    objIds = objId + np.arange(nFiber, dtype=np.int64)
+    objIds = startingObjId + np.arange(nFiber, dtype=np.int64)
 
     fiberMag = np.empty((nFiber, 5))
     for i in range(nFiber):
@@ -116,7 +116,7 @@ def main(inFile,
          visit=1,
          spectrograph=1,
          catId=0,
-         objId=1,
+         objIds=[1],
          nRealize=1,
          nExposure=1,
          countsMin=0.1,
@@ -169,7 +169,7 @@ def main(inFile,
     # First the parameters describing the observation, in PfsConfig
     objectMags = [calculateFiberMagnitude(wav, mag, b) for b in "grizy"]
     pfsConfig = makeFakePfsConfig(tract, patch,
-                                  150.0, 2.0, catId, objId, objectMags, nFiber=nRealize)
+                                  150.0, 2.0, catId, objIds[0], objectMags, nFiber=nRealize)
     #
     # Create the PfsArmSet;  we'll put each realisation into a different fibre
     #
@@ -194,29 +194,30 @@ def main(inFile,
     #
     # Now make the PfsObject from the PfsArmSet
     #
-    pfsObject = makePfsObject(objId, [pfsArmSet])
+    for objId in objIds:
+        pfsObject = makePfsObject(objId, [pfsArmSet])
 
-    if plotObject:
-        pfsObject.plot()
-    #
-    # Time for I/O
-    #
-    # Ascii
-    #
-    if asciiTable:
-        write_ascii(pfsArmSet, asciiTable, outDir)
-        print "ASCII table %s was generated" % asciiTable
-    #
-    # Fits
-    #
-    if writeFits:
-        pfsConfig.write(outDir)         # pfsConfig file
+        if plotObject:
+            pfsObject.plot()
+        #
+        # Time for I/O
+        #
+        # Ascii
+        #
+        if asciiTable:
+            write_ascii(pfsArmSet, asciiTable, outDir)
+            print "ASCII table %s was generated" % asciiTable
+        #
+        # Fits
+        #
+        if writeFits:
+            pfsConfig.write(outDir)         # pfsConfig file
 
-        if writePfsArm:                 # write pfsArm files
-            for data in pfsArmSet.data.values():
-                data.write(outDir)      
+            if writePfsArm:                 # write pfsArm files
+                for data in pfsArmSet.data.values():
+                    data.write(outDir)      
 
-        pfsObject.write(outDir)         # pfsObject file
+            pfsObject.write(outDir)         # pfsObject file
     
 def strToBool(val):
     if val.lower()   in ("1", "t", "true"):
@@ -251,7 +252,7 @@ if __name__ == '__main__':
     parser.add_argument("--tract", type=int, help="tract", default=0)
     parser.add_argument("--patch", type=str, help="patch", default='0,0')
     parser.add_argument("--visit", type=int, help="visit number", default=1)
-    parser.add_argument("--objId", type=int, help="object id", default=1)
+    parser.add_argument("--objId", type=int, help="object id of first realisation ", default=1)
     parser.add_argument("--catId", type=int, help="catalogue id", default=0)
     parser.add_argument("--spectrograph", type=int, help="spectrograph number", default=1)
     parser.add_argument("--countsMin", type=float, help="Minimum counts per pixel for noise", default=0.1)
@@ -278,6 +279,11 @@ if __name__ == '__main__':
         except OSError as e:
             exit("Unable to create args.OutDir: %s" % e)
 
+    if args.nrealize <= 0:
+        exit("Please specify at least one realization")
+
+    objIds = range(args.objId, args.objId + args.nrealize)
+            
     main(inFile=args.etcFile,
          magFile=args.MAG_FILE,
          outDir=args.outDir,
@@ -286,7 +292,7 @@ if __name__ == '__main__':
          visit=args.visit,
          spectrograph=args.spectrograph,
          catId=args.catId,
-         objId=args.objId,
+         objIds=objIds,
          nRealize=args.nrealize,
          nExposure=args.EXP_NUM,
          countsMin=args.countsMin,
