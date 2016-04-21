@@ -240,15 +240,15 @@ if __name__ == '__main__':
                 arg = "--%s" % arg
             yield arg
     
-    parser = argparse.ArgumentParser(description='PFS Spectral Simulator developed by Kiyoto Yabe',
+    parser = argparse.ArgumentParser(description='PFS Spectral Simulator developed by Kiyoto Yabe and Robert Lupton',
                                      fromfile_prefix_chars='@')
     parser.convert_arg_line_to_args = convert_arg_line_to_args
     
-    parser.add_argument("--EXP_NUM", type=int, help="Number of exposures", default=1)
+    parser.add_argument("--EXP_NUM", type=int, help="Number of exposures", default=8)
     parser.add_argument("--MAG_FILE", type=str, help="magnitude input file", default="22.5")
-    parser.add_argument("--etcFile", type=str, help="continuum results input file", default="etc-lr.dat")
+    parser.add_argument("--etcFile", type=str, help="continuum results input file", default="out/ref.snc.dat")
     parser.add_argument("--nrealize", type=int, help="the number of realization", default=1)
-    parser.add_argument("--outDir", type=str, help="Directory for outputs", default=".")
+    parser.add_argument("--outDir", type=str, help="Directory for outputs", default="out")
     parser.add_argument("--tract", type=int, help="tract", default=0)
     parser.add_argument("--patch", type=str, help="patch", default='0,0')
     parser.add_argument("--visit", type=int, help="visit number", default=1)
@@ -269,7 +269,7 @@ if __name__ == '__main__':
         args.asciiTable = None
 
     args.writeFits = strToBool(args.writeFits)
-        
+
     if not args.writeFits and not args.asciiTable:
         exit("Please specify --asciiTable or omit --writeFits (or say --writeFits true)")
 
