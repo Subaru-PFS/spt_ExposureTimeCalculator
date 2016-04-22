@@ -41,6 +41,13 @@ To install the package, get the git repository by typing the following command o
    cd spt_ExposureTimeCalculator
    make
    
+Once you clone the repository, you can pull updates from the next time on the directory like this:
+
+   git pull
+   git submodule update --recursive --remote
+   make
+
+
 If you don't have git installed, please download the zip file from the following URL and unzip it:
 
    https://github.com/Subaru-PFS/spt_ExposureTimeCalculator/archive/1.1.zip
