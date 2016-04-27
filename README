@@ -47,11 +47,9 @@ Once you clone the repository, you can pull updates from the next time on the di
    git submodule update --init
    make
 
-If you don't have git installed, please download the zip file from the following URL and unzip it:
+You also can get the zip or tar ball from the following page:
 
-   https://github.com/Subaru-PFS/spt_ExposureTimeCalculator/archive/1.1.zip
-or 
-   https://github.com/Subaru-PFS/spt_ExposureTimeCalculator/archive/1.1.tar.gz
+   http://sumire.pbworks.com/w/page/107534730/PFS%20ETC
 
 -----------
 Description
