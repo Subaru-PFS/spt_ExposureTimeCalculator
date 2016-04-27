@@ -20,7 +20,7 @@ Release Note
 Requirements
 ------------
 * Standard C compiler (e.g., GCC)
-* Python2 (2.6 and higher; Python3 is not supported)
+* Python2 (2.6 and higher; Python3 is NOT supported)
 * Sufficient computing power
  Note1: Standard unix system including Linux and Mac OSX is recommended. There has been reported that this code does not work properly on a Linux system mounted on a Windows drive. This codes are tested under Mac OSX 10.9.5 on 2.8GHz Quad-Core Intel Xeon machine and Fedora Core 20 on Intel Core i5-4690 3.50GHz machine. 
  Note2: Depending on the machine power, it takes <<several minutes>> if you run all the standard process. We recommend sufficient computing power at least similar to that we have tested. With our testing machine above, it takes about ~450 sec. (~200 sec. for noise calculation, ~155 sec. for emission line S/N calculation, and ~95 sec. for continuum S/N calculation).
@@ -155,7 +155,6 @@ d. OUTFILE_OII: S/N of [OII] emission lines (here we assume line ratio is 1:1)
  (7) the emission line S/N in  red arm
  (8) the emission line S/N in  NIR arm
  (9) the emission line S/N in total
-
 
 Some caution again:
 
