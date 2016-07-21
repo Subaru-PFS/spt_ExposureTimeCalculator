@@ -96,7 +96,9 @@ typedef struct {
 
 /* Added by Y.Moritani for input mag. file: 20150422 */
 double *lambda_inmag, *mag_inmag; 
+double *lambda_inmag2, *mag_inmag2; 
 int num_inmag;
+int num_inmag2;
 /* Added by Y.Moritani for input mag. file: 20150422 : end*/
 
 
@@ -1145,20 +1147,20 @@ double gsGetSNR_Single(SPECTRO_ATTRIB *spectro, OBS_ATTRIB *obs, int i_arm, doub
     /* mag is used as a fllag: -99.9 ... use input file*/
     kk=0;
     if(flag){  
-      if(lambda < lambda_inmag[0]){
+      if(lambda < lambda_inmag2[0]){
         p1=0; p2=1;
-      } else if(lambda > lambda_inmag[num_inmag-1]){
-        p1=num_inmag-2; p2=num_inmag-1;
+      } else if(lambda > lambda_inmag2[num_inmag2-1]){
+        p1=num_inmag2-2; p2=num_inmag2-1;
       } else{
-        for(k=kk; k<num_inmag-1; k++){
-          if(lambda > lambda_inmag[k] && lambda <= lambda_inmag[k+1]){
+        for(k=kk; k<num_inmag2-1; k++){
+          if(lambda > lambda_inmag2[k] && lambda <= lambda_inmag2[k+1]){
             p1=k ; p2 = k+1;
             kk=k;
       //fprintf(stderr, "%lf %lf\n",lambda_inmag[k], lambda_inmag[k+1]);
           }
         } 
       }
-      mag = ((lambda-lambda_inmag[p1])*mag_inmag[p2] + (lambda_inmag[p2]-lambda)*mag_inmag[p1])/(lambda_inmag[p2]-lambda_inmag[p1]);
+      mag = ((lambda-lambda_inmag2[p1])*mag_inmag2[p2] + (lambda_inmag2[p2]-lambda)*mag_inmag2[p1])/(lambda_inmag2[p2]-lambda_inmag2[p1]);
     }
 
   /* Atmospheric transmission */
@@ -1352,19 +1354,19 @@ void gsGetSNR_Continuum(SPECTRO_ATTRIB *spectro, OBS_ATTRIB *obs, int i_arm, dou
 
     kk=0;
     if(flag){  
-      if(lambda < lambda_inmag[0]){
+      if(lambda < lambda_inmag2[0]){
         p1=0; p2=1;
-      } else if(lambda > lambda_inmag[num_inmag-1]){
-	       p1=num_inmag-2; p2=num_inmag-1;
+      } else if(lambda > lambda_inmag2[num_inmag2-1]){
+	       p1=num_inmag2-2; p2=num_inmag2-1;
       } else{
-	       for(k=kk; k<num_inmag-1; k++){
-	         if(lambda > lambda_inmag[k] && lambda <= lambda_inmag[k+1]){
+	       for(k=kk; k<num_inmag2-1; k++){
+	         if(lambda > lambda_inmag2[k] && lambda <= lambda_inmag2[k+1]){
 	           p1=k ; p2 = k+1;
 	           kk=k;
 	         }
 	       }  
         }
-        mag = ((lambda-lambda_inmag[p1])*mag_inmag[p2] + (lambda_inmag[p2]-lambda)*mag_inmag[p1])/(lambda_inmag[p2]-lambda_inmag[p1]);
+        mag = ((lambda-lambda_inmag2[p1])*mag_inmag2[p2] + (lambda_inmag2[p2]-lambda)*mag_inmag2[p1])/(lambda_inmag2[p2]-lambda_inmag2[p1]);
       }
       /* Atmospheric transmission */
       gsSpectroDist(spectro,obs,i_arm,lambda,7.5,0,SP_PSF_LEN,FR);
@@ -1836,7 +1838,6 @@ int main(void) {
 
     lambda_inmag = (double*) malloc(sizeof(double) * num_inmag);
     mag_inmag = (double*) malloc(sizeof(double) * num_inmag);
-
     ia=0;
     fp=fopen(InFileMag,"r");
     while(fgets(buf, 256, fp) != NULL){
@@ -1846,6 +1847,39 @@ int main(void) {
     }
     num_inmag = ia;
     mag=-99.9; /* used as a flag for inputfile*/
+  /* Modified by K.Yabe 20160703 */
+    lambda_inmag2 = (double*) malloc(sizeof(double) * (num_inmag+2));
+    mag_inmag2 = (double*) malloc(sizeof(double) * (num_inmag+2));
+    if (lambda_inmag[0]>300.0){
+      lambda_inmag2[0] = 300.0;
+      mag_inmag2[0] = 99.9;
+    }
+    else {
+      lambda_inmag2[0] = lambda_inmag[0]-1.0;
+      mag_inmag2[0] = mag_inmag[0];
+    }
+    ia=0;
+    while(ia<num_inmag){
+      lambda_inmag2[ia+1] = lambda_inmag[ia];
+      mag_inmag2[ia+1] = mag_inmag[ia];
+      if (mag_inmag[ia]<=0.0){
+        mag_inmag2[ia+1] = 99.9;
+      }
+      else {
+        mag_inmag2[ia+1] = mag_inmag[ia];
+      }
+      ia++;
+    }
+    if (lambda_inmag[ia-1]<1300.0){
+      lambda_inmag2[ia+1] = 1300.0;
+      mag_inmag2[ia+1] = 99.9;
+    }
+    else{
+      lambda_inmag2[ia+1] = lambda_inmag[ia-1]+1.0;
+      mag_inmag2[ia+1] = mag_inmag[ia-1];
+    }
+    num_inmag2 = ia + 2;
+/*    printf("%d %d\n", num_inmag, num_inmag2); */
     fclose(fp);
   }
   /* Added by Y.Moritani for input mag. file: 20150422 : end*/

@@ -191,6 +191,22 @@ def main(inFile,
 
     if plotArmSet:
         pfsArmSet.plot(showFlux=True, showMask=False, showSky=False, showCovar=False)
+
+    #
+    # Time for I/O
+    #
+    # Fits
+    #
+    if writeFits:
+        pfsConfig.write(outDir)         # pfsConfig file
+        if writePfsArm:                 # write pfsArm files
+            for data in pfsArmSet.data.values():
+                data.write(outDir)      
+    # Ascii
+    #
+    if asciiTable:
+        write_ascii(pfsArmSet, asciiTable, outDir)
+        print "ASCII table %s was generated" % asciiTable
     #
     # Now make the PfsObject from the PfsArmSet
     #
@@ -199,24 +215,8 @@ def main(inFile,
 
         if plotObject:
             pfsObject.plot()
-        #
-        # Time for I/O
-        #
-        # Ascii
-        #
-        if asciiTable:
-            write_ascii(pfsArmSet, asciiTable, outDir)
-            print "ASCII table %s was generated" % asciiTable
-        #
-        # Fits
-        #
+
         if writeFits:
-            pfsConfig.write(outDir)         # pfsConfig file
-
-            if writePfsArm:                 # write pfsArm files
-                for data in pfsArmSet.data.values():
-                    data.write(outDir)      
-
             pfsObject.write(outDir)         # pfsObject file
     
 def strToBool(val):
