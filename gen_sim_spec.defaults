@@ -17,3 +17,4 @@ objId            1                  #  Object ID
 spectrograph     1                  #  The spectrograph that we are simulating (1-4)
 
 writeFits        t                  # If present, this keyword suppresses writing fits files
+
