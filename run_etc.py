@@ -5,7 +5,7 @@ import argparse
 import time
 import subprocess, shlex
 
-if __name__ == '__main__':
+def main():
     def convert_arg_line_to_args(arg_line):
         """Make argparse handle Hirata-style parameter files"""
         for i, arg in enumerate(arg_line.split()):
@@ -20,25 +20,15 @@ if __name__ == '__main__':
     ### CAUTION: ##################################
     ### CHANGE BELOW ON YOUR OWN RESPONSIBILITY ###
     ###############################################
-    ETC            = './bin/gsetc.x'
-    INSTR_SETUP    = './config/PFS.dat'
-    INSTR_SETUP_MR = './config/PFS.redMR.dat'
     SKYMODELS      = '11005'
     OFFSET_FIB     = '0.00'
     SKY_SUB_FLOOR  = '0.01'
     DIFFUSE_STRAY  = '0.02'
     ###############################################
     start = time.time()
-    if not os.path.exists('bin'):
-        os.mkdir('bin')
-    if not os.path.exists('out'):
-        os.mkdir('out')
-
-    if not os.path.exists(ETC):
-        exit("Unable to find %s; please run make and try again" % ETC)
-
     parser = argparse.ArgumentParser(description='PFS ETC developed by Chris Hirata, modified by Kiyoto Yabe, Yuki Moritani, and Atsushi Shimono', fromfile_prefix_chars='@')
     parser.convert_arg_line_to_args = convert_arg_line_to_args
+    parser.add_argument("--HOME_DIR", type=str, help="src directory", default="/path-to-src/")
     parser.add_argument("--SEEING", type=str, help="seeing", default="0.80")
     parser.add_argument("--ZENITH_ANG", type=str, help="zenith angle", default="45.00")
     parser.add_argument("--GALACTIC_EXT", type=str, help="galactic extinction", default="0.00")
@@ -61,6 +51,24 @@ if __name__ == '__main__':
     parser.add_argument("--OVERWRITE", type=str, help="overwrite on-off", default="Y")
 
     args = parser.parse_args()
+
+    if not os.path.exists(args.HOME_DIR):
+        exit("Unable to find path; please run make and try again or check HOME_DIR")
+    else:
+        home_path = args.HOME_DIR + '/'
+    print home_path
+
+    ETC            = home_path + 'bin/gsetc.x'
+    INSTR_SETUP    = home_path + 'config/PFS.dat'
+    INSTR_SETUP_MR = home_path + 'config/PFS.redMR.dat'
+
+    if not os.path.exists(home_path + 'bin'):
+        os.mkdir(home_path + 'bin')
+    if not os.path.exists('out'):
+        os.mkdir('out')
+    if not os.path.exists(ETC):
+        exit("Unable to find %s; please run make and try again" % ETC)
+
     ## Medium Resolution Mode ? ##
     if args.MR_MODE.lower() == 'yes' or args.MR_MODE.lower() == 'y':
         INSTR_SETUP = INSTR_SETUP_MR
@@ -69,12 +77,12 @@ if __name__ == '__main__':
     ## make continuum magnitude file ##
     try:
         mag = float(args.MAG_FILE)
-        if os.path.exists('tmp') == False:
-            os.mkdir('tmp')
-        file = open('tmp/mag.dat','w')
+        if os.path.exists(home_path + 'tmp') == False:
+            os.mkdir(home_path + 'tmp')
+        file = open(home_path + 'tmp/mag.dat','w')
         file.write('300.0 %.2f\n 1300. %.2f\n'%(mag,mag))
         file.close()
-        mag_file = 'tmp/mag.dat'
+        mag_file = home_path + 'tmp/mag.dat'
     except:
         mag_file = args.MAG_FILE
     ## reuse noise data ? ##
@@ -135,3 +143,7 @@ if __name__ == '__main__':
 ## end of the script ##
     elapsed_time = time.time() - start
     print "elapsed_time: %.1f[sec]" % (elapsed_time)
+    return 0
+
+if __name__ == '__main__':
+    main()

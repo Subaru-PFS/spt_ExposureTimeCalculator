@@ -5,16 +5,6 @@ import argparse
 
 import numpy as np
 
-for i in range(2):
-    try:
-        from pfs.datamodel.pfsConfig import PfsConfig
-    except ImportError as e:
-        if i == 0:
-            sys.path.append("datamodel/python")
-
-from pfs.datamodel.pfsArm import PfsArmSet
-from pfs.datamodel.pfsObject import PfsObject, makePfsObject
-
 #######################
 offset = 0.01
 #######################
@@ -244,6 +234,7 @@ if __name__ == '__main__':
                                      fromfile_prefix_chars='@')
     parser.convert_arg_line_to_args = convert_arg_line_to_args
     
+    parser.add_argument("--HOME_DIR", type=str, help="src directory", default="/path-to-src/")
     parser.add_argument("--EXP_NUM", type=int, help="Number of exposures", default=8)
     parser.add_argument("--MAG_FILE", type=str, help="magnitude input file", default="22.5")
     parser.add_argument("--etcFile", type=str, help="continuum results input file", default="out/ref.snc.dat")
@@ -264,6 +255,21 @@ if __name__ == '__main__':
     parser.add_argument("--plotObject", action='store_true', help="Plot the pfsObject data", default=False)
 
     args = parser.parse_args()
+
+    if not os.path.exists(args.HOME_DIR):
+        exit("Unable to find path; please run make and try again or check HOME_DIR")
+    else:
+        home_path = args.HOME_DIR + '/'
+
+    for i in range(2):
+        try:
+            from pfs.datamodel.pfsConfig import PfsConfig
+        except ImportError as e:
+            if i == 0:
+                sys.path.append(home_path + "datamodel/python")
+
+    from pfs.datamodel.pfsArm import PfsArmSet
+    from pfs.datamodel.pfsObject import PfsObject, makePfsObject
 
     if args.asciiTable == 'None':
         args.asciiTable = None
