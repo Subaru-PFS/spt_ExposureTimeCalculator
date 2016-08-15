@@ -5,6 +5,11 @@ import argparse
 import time
 import subprocess, shlex
 
+#######################
+offset = 0.01
+HOME_DIR = "path-to-etc"
+#######################
+
 def main():
     def convert_arg_line_to_args(arg_line):
         """Make argparse handle Hirata-style parameter files"""
@@ -28,7 +33,6 @@ def main():
     start = time.time()
     parser = argparse.ArgumentParser(description='PFS ETC developed by Chris Hirata, modified by Kiyoto Yabe, Yuki Moritani, and Atsushi Shimono', fromfile_prefix_chars='@')
     parser.convert_arg_line_to_args = convert_arg_line_to_args
-    parser.add_argument("--HOME_DIR", type=str, help="src directory", default="/path-to-src/")
     parser.add_argument("--SEEING", type=str, help="seeing", default="0.80")
     parser.add_argument("--ZENITH_ANG", type=str, help="zenith angle", default="45.00")
     parser.add_argument("--GALACTIC_EXT", type=str, help="galactic extinction", default="0.00")
@@ -52,18 +56,15 @@ def main():
 
     args = parser.parse_args()
 
-    if not os.path.exists(args.HOME_DIR):
-        exit("Unable to find path; please run make and try again or check HOME_DIR")
-    else:
-        home_path = args.HOME_DIR + '/'
-    print home_path
+    if not os.path.exists(HOME_DIR):
+        exit("Unable to find path; please run make and try again")
 
-    ETC            = home_path + 'bin/gsetc.x'
-    INSTR_SETUP    = home_path + 'config/PFS.dat'
-    INSTR_SETUP_MR = home_path + 'config/PFS.redMR.dat'
+    ETC            = HOME_DIR + 'bin/gsetc.x'
+    INSTR_SETUP    = HOME_DIR + 'config/PFS.dat'
+    INSTR_SETUP_MR = HOME_DIR + 'config/PFS.redMR.dat'
 
-    if not os.path.exists(home_path + 'bin'):
-        os.mkdir(home_path + 'bin')
+    if not os.path.exists(HOME_DIR + 'bin'):
+        os.mkdir(HOME_DIR + 'bin')
     if not os.path.exists('out'):
         os.mkdir('out')
     if not os.path.exists(ETC):
@@ -77,12 +78,12 @@ def main():
     ## make continuum magnitude file ##
     try:
         mag = float(args.MAG_FILE)
-        if os.path.exists(home_path + 'tmp') == False:
-            os.mkdir(home_path + 'tmp')
-        file = open(home_path + 'tmp/mag.dat','w')
+        if os.path.exists(HOME_DIR + 'tmp') == False:
+            os.mkdir(HOME_DIR + 'tmp')
+        file = open(HOME_DIR + 'tmp/mag.dat','w')
         file.write('300.0 %.2f\n 1300. %.2f\n'%(mag,mag))
         file.close()
-        mag_file = home_path + 'tmp/mag.dat'
+        mag_file = HOME_DIR + 'tmp/mag.dat'
     except:
         mag_file = args.MAG_FILE
     ## reuse noise data ? ##

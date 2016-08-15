@@ -1,6 +1,6 @@
 all :
 	cd src; make
-	./set_path.sh
+	./set_path.py
 clean :
 	cd src; make clean
 	cd bin; make clean

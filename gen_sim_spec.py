@@ -7,6 +7,7 @@ import numpy as np
 
 #######################
 offset = 0.01
+HOME_DIR = "path-to-etc"
 #######################
 
 def arm_name(arm_num):
@@ -234,7 +235,6 @@ if __name__ == '__main__':
                                      fromfile_prefix_chars='@')
     parser.convert_arg_line_to_args = convert_arg_line_to_args
     
-    parser.add_argument("--HOME_DIR", type=str, help="src directory", default="/path-to-src/")
     parser.add_argument("--EXP_NUM", type=int, help="Number of exposures", default=8)
     parser.add_argument("--MAG_FILE", type=str, help="magnitude input file", default="22.5")
     parser.add_argument("--etcFile", type=str, help="continuum results input file", default="out/ref.snc.dat")
@@ -256,17 +256,15 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    if not os.path.exists(args.HOME_DIR):
-        exit("Unable to find path; please run make and try again or check HOME_DIR")
-    else:
-        home_path = args.HOME_DIR + '/'
+    if not os.path.exists(HOME_DIR):
+        exit("Unable to find path; please run make and try again")
 
     for i in range(2):
         try:
             from pfs.datamodel.pfsConfig import PfsConfig
         except ImportError as e:
             if i == 0:
-                sys.path.append(home_path + "datamodel/python")
+                sys.path.append(HOME_DIR + "datamodel/python")
 
     from pfs.datamodel.pfsArm import PfsArmSet
     from pfs.datamodel.pfsObject import PfsObject, makePfsObject
