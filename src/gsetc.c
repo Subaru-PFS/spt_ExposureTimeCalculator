@@ -1810,14 +1810,12 @@ int main(void) {
     fprintf(stderr, "Error: Failed to read name of input file.\n");
     exit(1); 
   }  
-  if (strcmp("-",InFileOII)!=0) {
-    //printf("Enter [OII] output catalogue file: ");
-    if (!scanf("%255s", OutFileOII)) {
+  if (!scanf("%255s", OutFileOII)) {
       fprintf(stderr, "Error: Failed to read name of output file.\n");
       exit(1); 
-    }
+  }
     //printf("Enter minimum SNR: ");
-    if(scanf("%lg", &min_SNR)==EOF)
+  if (scanf("%lg", &min_SNR)==EOF)  {
       min_SNR=9.;
   }
 
