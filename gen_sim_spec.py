@@ -5,52 +5,46 @@ import argparse
 
 import numpy as np
 
-for i in range(2):
-    try:
-        from pfs.datamodel.pfsConfig import PfsConfig
-    except ImportError as e:
-        if i == 0:
-            sys.path.append("datamodel/python")
-
-from pfs.datamodel.pfsArm import PfsArmSet
-from pfs.datamodel.pfsObject import PfsObject, makePfsObject
-
 #######################
 offset = 0.01
+HOME_DIR = "path-to-etc"
 #######################
+
 
 def arm_name(arm_num):
     arm_num = np.array(arm_num)
     return np.where(arm_num == 0, 'b',
-                    np.where(arm_num == 1, 'r', 
-                    np.where(arm_num == 2, 'n',
-                    'm')))
+                    np.where(arm_num == 1, 'r',
+                             np.where(arm_num == 2, 'n',
+                                      'm')))
+
 
 def arm_number(armStr):
     return dict(b=0, r=1, n=2, m=3)[armStr]
+
 
 def makeFakePfsConfig(tract, patch, ra, dec, catId, startingObjId, objectMags, nFiber=1):
     """Make and return a PfsConfig with nFiber entries referring to the same object
 
     Successive fibres are given object IDs that increase by one, starting with objId
     """
-    fiberId = np.arange(1, nFiber+1, dtype=np.int32)
+    fiberId = np.arange(1, nFiber + 1, dtype=np.int32)
 
     tmp, ra = ra, np.empty(nFiber)
     ra.fill(tmp)
 
-    tmp, dec = dec, np.empty(nFiber);
+    tmp, dec = dec, np.empty(nFiber)
     dec.fill(tmp)
 
     catIds = np.empty(nFiber)
     catIds.fill(catId)
 
-    tmp, tract = tract, np.empty(nFiber, dtype=np.int32);
+    tmp, tract = tract, np.empty(nFiber, dtype=np.int32)
     tract.fill(tmp)
 
-    tmp, patch = patch, np.empty(nFiber, dtype=str);
+    tmp, patch = patch, np.empty(nFiber, dtype=str)
     patch.fill(tmp)
-    patch = nFiber*[tmp]
+    patch = nFiber * [tmp]
 
     objIds = startingObjId + np.arange(nFiber, dtype=np.int64)
 
@@ -63,12 +57,13 @@ def makeFakePfsConfig(tract, patch, ra, dec, catId, startingObjId, objectMags, n
     return PfsConfig(None, tract, patch, fiberId, ra, dec, catId=catIds,
                      objId=objIds, mpsCen=mpsCen, fiberMag=fiberMag)
 
+
 def calculateFiberMagnitude(wav, mag, filterName):
     """Calculate the average magnitude over the bandpass"""
     #                           50%/nm  50%/nm peak
     filterBandpasses = dict(g=(399.5,  546.5, 0.97),
                             r=(542.5,  696.5, 0.95),
-                            i=(698.5,  853.3, 0.90), # i2
+                            i=(698.5,  853.3, 0.90),  # i2
                             z=(852.5,  932.0, 0.97),
                             y=(943.0, 1072.0, 0.95)
                             )
@@ -76,8 +71,9 @@ def calculateFiberMagnitude(wav, mag, filterName):
 
     counts = np.exp(-mag)
     bandpass = np.where(np.logical_and(wav >= wav0, wav <= wav1), peak, 0)
-    fiberMag = -np.log(np.trapz(bandpass*counts, wav)/np.trapz(bandpass, wav))
+    fiberMag = -np.log(np.trapz(bandpass * counts, wav) / np.trapz(bandpass, wav))
     return fiberMag
+
 
 def write_ascii(aset, asciiTable, outDir):
     """Write an ascii table"""
@@ -94,7 +90,7 @@ def write_ascii(aset, asciiTable, outDir):
 #  5  SKY         [10^-17 erg/s/cm^2/A]
 #  6  ARM         [0=blue,1=red,2=NIR,3=redMR]
 '''
-            )
+                     )
 
             for armStr, arm in aset.data.items():
                 lam = arm.lam[i]
@@ -105,8 +101,9 @@ def write_ascii(aset, asciiTable, outDir):
                 armNum = arm_number(armStr)
 
                 for j in range(len(lam)):
-                    fd.write('%8.3f %12.4e %12.4e %2d %12.4e %1d\n' % \
+                    fd.write('%8.3f %12.4e %12.4e %2d %12.4e %1d\n' %
                              (lam[j], flux[j], sigma[j], mask[j], sky[j], armNum))
+
 
 def main(inFile,
          magFile,
@@ -144,25 +141,25 @@ def main(inFile,
         mag.fill(float(magFile))
 
     ##
-    ## Calculate the flux etc. in observed units
+    # Calculate the flux etc. in observed units
     ##
-    fnu   = 10**(-0.4*(mag + 48.6))
-    flam  = 3.0e18*fnu/(10*wav)**2/1e-17
+    fnu = 10**(-0.4 * (mag + 48.6))
+    flam = 3.0e18 * fnu / (10 * wav)**2 / 1e-17
 
-    counts = trn*fnu
+    counts = trn * fnu
     if (counts == 0).any():
         print >> sys.stderr, "counts == 0 detected in some pixels; setting to %g for variance" % countsMin
-        countsp = np.where(counts == 0, countsMin, counts) # version of counts with zero pixels replaced
+        countsp = np.where(counts == 0, countsMin, counts)  # version of counts with zero pixels replaced
     else:
         countsp = counts
-        
-    snr = countsp/np.sqrt(smp*countsp + nsv)*np.sqrt(nExposure)
-    sigma = flam/snr
+
+    snr = countsp / np.sqrt(smp * countsp + nsv) * np.sqrt(nExposure)
+    sigma = flam / snr
     msk = np.zeros_like(wav, dtype=np.int32)
-    sky = 3.0e18*(skm/trn)/(10*wav)**2/1e-17
+    sky = 3.0e18 * (skm / trn) / (10 * wav)**2 / 1e-17
 
     arm = arm_name(arm)
-    arms = np.array(sorted(set(arm), key=lambda x: dict(b=0, r=1, m=1.5, n=2)[x])) # unique values of arm
+    arms = np.array(sorted(set(arm), key=lambda x: dict(b=0, r=1, m=1.5, n=2)[x]))  # unique values of arm
     #
     # Create and populate the objects corresponding to the datamodel
     #
@@ -185,7 +182,7 @@ def main(inFile,
             data.flux.append(flam[thisArm] + np.random.normal(0.0, sigma[thisArm]))
             data.sky.append(sky[thisArm])
             data.mask.append(msk[thisArm])
-            covar = np.zeros(3*nPt).reshape((3, nPt))
+            covar = np.zeros(3 * nPt).reshape((3, nPt))
             covar[0] = sigma[thisArm]**2
             data.covar.append(covar)
 
@@ -201,7 +198,7 @@ def main(inFile,
         pfsConfig.write(outDir)         # pfsConfig file
         if writePfsArm:                 # write pfsArm files
             for data in pfsArmSet.data.values():
-                data.write(outDir)      
+                data.write(outDir)
     # Ascii
     #
     if asciiTable:
@@ -218,9 +215,10 @@ def main(inFile,
 
         if writeFits:
             pfsObject.write(outDir)         # pfsObject file
-    
+
+
 def strToBool(val):
-    if val.lower()   in ("1", "t", "true"):
+    if val.lower() in ("1", "t", "true"):
         return True
     elif val.lower() in ("0", "f", "false",):
         args.writeFits = False
@@ -235,15 +233,15 @@ if __name__ == '__main__':
                 continue
             if arg[0] == '#':
                 return
-            
+
             if i == 0:
                 arg = "--%s" % arg
             yield arg
-    
+
     parser = argparse.ArgumentParser(description='PFS Spectral Simulator developed by Kiyoto Yabe and Robert Lupton',
                                      fromfile_prefix_chars='@')
     parser.convert_arg_line_to_args = convert_arg_line_to_args
-    
+
     parser.add_argument("--EXP_NUM", type=int, help="Number of exposures", default=8)
     parser.add_argument("--MAG_FILE", type=str, help="magnitude input file", default="22.5")
     parser.add_argument("--etcFile", type=str, help="continuum results input file", default="out/ref.snc.dat")
@@ -265,6 +263,19 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
+    if not os.path.exists(HOME_DIR):
+        exit("Unable to find path; please run make and try again")
+
+    for i in range(2):
+        try:
+            from pfs.datamodel.pfsConfig import PfsConfig
+        except ImportError as e:
+            if i == 0:
+                sys.path.append(HOME_DIR + "datamodel/python")
+
+    from pfs.datamodel.pfsArm import PfsArmSet
+    from pfs.datamodel.pfsObject import PfsObject, makePfsObject
+
     if args.asciiTable == 'None':
         args.asciiTable = None
 
@@ -283,7 +294,7 @@ if __name__ == '__main__':
         exit("Please specify at least one realization")
 
     objIds = range(args.objId, args.objId + args.nrealize)
-            
+
     main(inFile=args.etcFile,
          magFile=args.MAG_FILE,
          outDir=args.outDir,

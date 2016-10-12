@@ -1,6 +1,7 @@
 ########################
 ## PFS ETC Parameters ##
 ########################
+
 SEEING           0.80               #  Seeing FWHM size             [arcsec]
 ZENITH_ANG       45.00              #  Zenith angle                 [deg.]
 GALACTIC_EXT     0.00               #  Galactic extinction          [ABmag.]
