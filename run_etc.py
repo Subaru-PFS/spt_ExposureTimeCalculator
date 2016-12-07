@@ -87,10 +87,10 @@ def main():
         mag = float(args.MAG_FILE)
         if os.path.exists(HOME_DIR + 'tmp') == False:
             os.mkdir(HOME_DIR + 'tmp')
-        file = open(HOME_DIR + 'tmp/mag.dat', 'w')
+        file = open(HOME_DIR + 'tmp/mag_%s.dat' % (args.MAG_FILE), 'w')
         file.write('300.0 %.2f\n 1300. %.2f\n' % (mag, mag))
         file.close()
-        mag_file = HOME_DIR + 'tmp/mag.dat'
+        mag_file = HOME_DIR + 'tmp/mag_%s.dat' % (args.MAG_FILE)
     except:
         mag_file = args.MAG_FILE
     ## reuse noise data ? ##
