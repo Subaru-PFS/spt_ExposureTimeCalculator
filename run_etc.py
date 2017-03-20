@@ -7,6 +7,7 @@ import argparse
 import time
 import subprocess
 import shlex
+import numpy as np
 
 #######################
 offset = 0.01
@@ -84,15 +85,20 @@ def main():
         INSTR_SETUP = INSTR_SETUP
     ## make continuum magnitude file ##
     try:
-        mag = float(args.MAG_FILE)
-        if os.path.exists(HOME_DIR + 'tmp') == False:
-            os.mkdir(HOME_DIR + 'tmp')
-        file = open(HOME_DIR + 'tmp/mag_%s.dat' % (args.MAG_FILE), 'w')
-        file.write('300.0 %.2f\n 1300. %.2f\n' % (mag, mag))
+        _mag = float(args.MAG_FILE)
+        if os.path.exists('tmp') == False:
+            os.mkdir('tmp')
+        file = open('tmp/mag_%s.dat' % (args.MAG_FILE), 'w')
+        file.write('300.0 %.2f\n 1300. %.2f\n' % (_mag, _mag))
         file.close()
-        mag_file = HOME_DIR + 'tmp/mag_%s.dat' % (args.MAG_FILE)
+        mag_file = 'tmp/mag_%s.dat' % (args.MAG_FILE)
     except:
-        mag_file = args.MAG_FILE
+        ## interpolation so that the resolution is slightly higher than that of instrument ##
+        _lam, _mag = np.loadtxt(args.MAG_FILE, usecols=(0, 1), unpack=True)
+        lam = np.arange(300., 1300., 0.05)
+        mag = np.interp(lam, _lam, _mag)
+        mag_file = 'tmp/%s' % (args.MAG_FILE.split('/')[-1])
+        np.savetxt(mag_file, np.array([lam, mag]).transpose(), fmt='%.4e')
     ## reuse noise data ? ##
     flag = '0'
     if args.NOISE_REUSED.lower() == 'y':
