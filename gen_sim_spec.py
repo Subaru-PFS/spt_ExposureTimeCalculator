@@ -2,7 +2,6 @@
 import os
 import sys
 import argparse
-
 import numpy as np
 
 #######################
@@ -82,7 +81,7 @@ def write_ascii(aset, asciiTable, outDir):
     nFiber = len(aset.data.values()[0].flux)
 
     for i in range(nFiber):
-        with open(outFile if nFiber == 1 else '%s.%d' % (outFile, i), "w") as fd:
+        with open(outFile if nFiber == 1 else '%s.%d.dat' % (outFile, i), "w") as fd:
             fd.write('''#  1  WAVELENGTH  [nm]
 #  2  FLUX        [10^-17 erg/s/cm^2/A]
 #  3  ERROR       [10^-17 erg/s/cm^2/A]
@@ -134,26 +133,41 @@ def main(inFile,
 
     ## load magnitude or filename ##
     if os.path.exists(magFile):
-        _lam, _mag = np.loadtxt(magFile, usecols=(0, 1), unpack=True)
-        mag = np.interp(wav, _lam, _mag)
+        dat = np.loadtxt(magFile)
+        nobj = dat.shape[1] - 1
+#        _lam, _mag = np.loadtxt(magFile, usecols=(0, 1), unpack=True)
+        _lam = dat[:, 0]
+        mag = np.empty((len(wav), nobj))
+        for i in range(nobj):
+            _mag = dat[:, i + 1]
+            mag[:, i] = np.interp(wav, _lam, _mag)
     else:
-        mag = np.empty(len(wav))
-        mag.fill(float(magFile))
+        nobj = 1
+        mag = np.empty((len(wav), nobj))
+        mag[:, 0].fill(float(magFile))
 
+    wav_mtrx = np.empty((len(wav), nobj))
+    trn_mtrx = np.empty((len(wav), nobj))
+    smp_mtrx = np.empty((len(wav), nobj))
+    nsv_mtrx = np.empty((len(wav), nobj))
+    for i in range(nobj):
+        wav_mtrx[:, i] = wav
+        trn_mtrx[:, i] = trn
+        smp_mtrx[:, i] = smp
+        nsv_mtrx[:, i] = nsv
     ##
     # Calculate the flux etc. in observed units
     ##
     fnu = 10**(-0.4 * (mag + 48.6))
-    flam = 3.0e18 * fnu / (10 * wav)**2 / 1e-17
-
-    counts = trn * fnu
+    flam = 3.0e18 * fnu / (10 * wav_mtrx)**2 / 1e-17
+    counts = trn_mtrx * fnu
     if (counts == 0).any():
         print >> sys.stderr, "counts == 0 detected in some pixels; setting to %g for variance" % countsMin
         countsp = np.where(counts == 0, countsMin, counts)  # version of counts with zero pixels replaced
     else:
         countsp = counts
 
-    snr = countsp / np.sqrt(smp * countsp + nsv) * np.sqrt(nExposure)
+    snr = countsp / np.sqrt(smp_mtrx * countsp + nsv_mtrx) * np.sqrt(nExposure)
     sigma = flam / snr
     msk = np.zeros_like(wav, dtype=np.int32)
     sky = 3.0e18 * (skm / trn) / (10 * wav)**2 / 1e-17
@@ -164,9 +178,14 @@ def main(inFile,
     # Create and populate the objects corresponding to the datamodel
     #
     # First the parameters describing the observation, in PfsConfig
-    objectMags = [calculateFiberMagnitude(wav, mag, b) for b in "grizy"]
-    pfsConfig = makeFakePfsConfig(tract, patch,
-                                  150.0, 2.0, catId, objIds[0], objectMags, nFiber=nRealize)
+    objectMags = [calculateFiberMagnitude(wav, mag[:, 0], b) for b in "grizy"]
+    if nobj > 1:
+        pfsConfig = makeFakePfsConfig(tract, patch,
+                                      150.0, 2.0, catId, objIds[0], objectMags, nFiber=nobj)
+    else:
+        pfsConfig = makeFakePfsConfig(tract, patch,
+                                      150.0, 2.0, catId, objIds[0], objectMags, nFiber=nRealize)
+
     #
     # Create the PfsArmSet;  we'll put each realisation into a different fibre
     #
@@ -176,16 +195,24 @@ def main(inFile,
     for armStr, data in pfsArmSet.data.items():
         thisArm = (arm == armStr)
         nPt = np.sum(thisArm)
-
-        for i in range(nRealize):
-            data.lam.append(wav[thisArm])
-            data.flux.append(flam[thisArm] + np.random.normal(0.0, sigma[thisArm]))
-            data.sky.append(sky[thisArm])
-            data.mask.append(msk[thisArm])
-            covar = np.zeros(3 * nPt).reshape((3, nPt))
-            covar[0] = sigma[thisArm]**2
-            data.covar.append(covar)
-
+        if nobj > 1:
+            for i in range(nobj):
+                data.lam.append(wav[thisArm])
+                data.flux.append(flam[thisArm, i] + np.random.normal(0.0, sigma[thisArm, i]))
+                data.sky.append(sky[thisArm])
+                data.mask.append(msk[thisArm])
+                covar = np.zeros(3 * nPt).reshape((3, nPt))
+                covar[0] = sigma[thisArm, i]**2
+                data.covar.append(covar)
+        else:
+            for i in range(nRealize):
+                data.lam.append(wav[thisArm])
+                data.flux.append(flam[thisArm, 0] + np.random.normal(0.0, sigma[thisArm, 0]))
+                data.sky.append(sky[thisArm])
+                data.mask.append(msk[thisArm])
+                covar = np.zeros(3 * nPt).reshape((3, nPt))
+                covar[0] = sigma[thisArm, 0]**2
+                data.covar.append(covar)
     if plotArmSet:
         pfsArmSet.plot(showFlux=True, showMask=False, showSky=False, showCovar=False)
 
@@ -293,7 +320,21 @@ if __name__ == '__main__':
     if args.nrealize <= 0:
         exit("Please specify at least one realization")
 
-    objIds = range(args.objId, args.objId + args.nrealize)
+## check mag_file ##
+    ## load magnitude or filename ##
+    if os.path.exists(args.MAG_FILE):
+        dat = np.loadtxt(args.MAG_FILE)
+        nobj = dat.shape[1] - 1
+    else:
+        nobj = 1
+
+    if nobj > 1:
+        if args.nrealize > 1:
+            exit("The number of realization should be one for multiple input template")
+        else:
+            objIds = range(args.objId, args.objId + nobj)
+    else:
+        objIds = range(args.objId, args.objId + args.nrealize)
 
     main(inFile=args.etcFile,
          magFile=args.MAG_FILE,
