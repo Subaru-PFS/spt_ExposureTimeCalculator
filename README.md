@@ -18,11 +18,10 @@ Requirements
 * Standard C compiler (e.g., GCC)
 * Python2 (2.6 and higher; Python3 is NOT supported)
 * numpy  (1.8 and higher)  see http://www.numpy.org
-* scipy (0.12 and higher)  see http://www.scipy.org
 * pyfits (3.3 and higher)  see http://www.stsci.edu/institute/software_hardware/pyfits
 * matplotlib (if you use the plotting options)
 * Sufficient computing power
- (Note1) run_etc.py can be run without numpy/scipy/pyfits but the python modules are required for using gen_sim_spec.py and the PFS datamodel package. If you don't have these modules, please install them from the above website. The version of the module is the minimum one that we confirmed so far. If you have any updates, let me know please.
+ (Note1) pyfits is required only for using gen_sim_spec.py and the PFS datamodel package. If you don't have these modules, please install them from the above website. The version of the module is the minimum one that we confirmed so far. If you have any updates, let me know please.
  (Note2) Standard unix system including Linux and Mac OSX is recommended. There has been reported that this code does not work properly on a Linux system mounted on a Windows drive. This codes are tested under Mac OSX 10.9.5 on 2.8GHz Quad-Core Intel Xeon machine and Fedora Core 20 on Intel Core i5-4690 3.50GHz machine. Depending on the machine power, it takes <<several minutes>> if you run all the standard process. We recommend sufficient computing power at least similar to that we have tested. With our testing machine above, it takes about ~450 sec. (~200 sec. for noise calculation, ~155 sec. for emission line S/N calculation, and ~95 sec. for continuum S/N calculation).
 
 Installation
@@ -92,8 +91,7 @@ In this section, users can describe the target information including target magn
 | LINE_FLUX       | 1.0e-17       | Emission line flux          | [erg/s/cm^2]          |
 | LINE_WIDTH      | 70            | Emission line width sigma   | [km/s]                |
 
-Note: You can input your own target spectra into the ETC. Just specify the file name for `MAG_FILE`. The file should include wavelength [nm] and magnitude [ABmag] in the first and second column, respectively. Please note that the wavelength sampling should be larger than the pixel sampling of the PFS detector (~0.7A, ~0.8A, and ~0.8A for blue, red, and NIR arm, respectively). Do not include "NaN" or other non-numeric values in the input file.
-
+Note: You can input your own target spectra into the ETC. Just specify the file name for `MAG_FILE`. The file should include wavelength [nm] and magnitude [ABmag] in the first and second column, respectively. Please note that the wavelength is resampled with the sampling of 0.5A which is slightly larger than the pixel sampling of the PFS detector (~0.7A, ~0.8A, and ~0.8A for blue, red, and NIR arm, respectively). We do not recommend to include "NaN" or other non-numeric values in the input file.
 
 ### Setup of the name of the output file
 The outputs of the calculation are saved to the files defined by users. `OUTFILE_NOISE` defines the file name for the outputs of the noise calculation, `OUTFILE_SNC` defines the file name for the continuum S/N, and `OUTFILE_SNL` is for the emission line S/N. If you want to measure the S/N for [OII] doublet, kindly use `OUTFILE_OII` for the output file. If you set `NOISE_REUSED` to Y, the ETC will skip the process of generating noise vector which is a time-consuming process. The process time of the ETC can be reduced to roughly half by this mode. This mode is useful if you want to calculate the S/N of objects with various magnitudes and line fluxes with the same noise assumption (zenith angle, field angle, lunar condition, and exposure time). If you use this mode, you need to specified the noise vector file that you want to use in `OUTFILE_NOISE`. Also, You can skip outputting the results of continuum S/N and emission line S/N by replace the name to '-'. If you want to use medium resolution mode in the red arm, set `MR_MODE` to Y.
@@ -168,12 +166,12 @@ Spectral Simulator
 ------------------
 (N.b. you will need the python module numpy/scipy to run the simulator.  To write FITS files you'll also need pyfits, and to use the plotting options you'll need matplotlib)
 
-We can generate simulated outputs for use by the 1-D pipeline using a subset of the outputs from ETC above and then running gen_sim_spec.py.  The only output that we use is `OUTFILE_SNC`, and we only use a subset of the information in that file.  In particular, we the settings
+We can generate simulated outputs for use by the 1-D pipeline using a subset of the outputs from ETC above and then running gen_sim_spec.py.  The only output that we use is `OUTFILE_SNC`, and we only use a subset of the information in that file.  In particular, the settings
     `--EXP_NUM`  (the number of exposures)
     `--MAG_FILE` (the input spectrum)
 have *no* effect upon the simulator!
 
-One parameters that does matter is
+Parameters that do matter are
     `--MR_MODE`  (use low/medium resolution grating in the R arm)
 and of course things to do with observing such as the exposure time, seeing, moon, ...
     `--EXP_TIME`
@@ -248,6 +246,10 @@ Values in these HDU are resampled from the original data so that the pixel scale
 Note 2: Currently, the format of data table described above is still discussed in the DRP team and may be changed in the future release.
 
 Note 3: PFS configuration information, including catalogue ID, object ID, coordinate (dummy value is used), fiber flux (flux density of the input magnitude), MPS centroid parameter (dummy value is used), will be saved in "pfsConfig" file (e.g., "pfsConfig-0x00000001.fits").
+
+#### Realization of multiple spectra
+If you have many spectra you want to realize, you can do that in a single run using an input magnitude file (`MAG_FILE`) containing each spectral information (with columns like this: wavelength magnitude1 magnitude2 ... magnitude1000). Then you can get the output file of each spectrum. Please note that `--nrealize=1` when you use this mode.
+
 
 Some examples (under development)
 ---------------------------
