@@ -210,7 +210,7 @@ class Etc(object):
         if C != 0:
             exit('No execution of ETC')
         try:
-            print('##### starting to make a noise model ... (it takes about 1 min.) #####')
+            print('##### starting to make a noise model ... (it takes about 2 min.) #####')
             proc = subprocess.Popen([self.ETC_SRC], stdin=subprocess.PIPE)
             proc.communicate("\n".join([self.INSTR_SETUP,
                                         SKYMODELS,
@@ -255,7 +255,7 @@ class Etc(object):
         ''' run ETC '''
         start = time.time()
         try:
-            print('##### starting to make an SNC model ... (it takes about 30 sec.) #####')
+            print('##### starting to make an SNC model ... (it takes about 1 min.) #####')
             proc = subprocess.Popen([self.ETC_SRC], stdin=subprocess.PIPE)
             proc.communicate("\n".join([self.INSTR_SETUP,
                                         SKYMODELS,
@@ -293,7 +293,7 @@ class Etc(object):
         ''' run ETC '''
         start = time.time()
         try:
-            print('##### starting to make an SNL model ... (it takes about 30 sec.) #####')
+            print('##### starting to make an SNL model ... (it takes about 1 min.) #####')
             proc = subprocess.Popen([self.ETC_SRC], stdin=subprocess.PIPE)
             proc.communicate("\n".join([self.INSTR_SETUP,
                                         SKYMODELS,
@@ -331,7 +331,7 @@ class Etc(object):
         ''' run ETC '''
         start = time.time()
         try:
-            print('##### starting to make an OII model ... (it takes about 1 min.) #####')
+            print('##### starting to make an OII model ... (it takes about 2 min.) #####')
             proc = subprocess.Popen([self.ETC_SRC], stdin=subprocess.PIPE)
             proc.communicate("\n".join([self.INSTR_SETUP,
                                         SKYMODELS,
