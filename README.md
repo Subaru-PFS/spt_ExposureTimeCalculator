@@ -22,7 +22,7 @@ Requirements
 * matplotlib (if you use the plotting options)
 * Sufficient computing power
  (Note1) pyfits is required only for using gen_sim_spec.py and the PFS datamodel package. If you don't have these modules, please install them from the above website. The version of the module is the minimum one that we confirmed so far. If you have any updates, let me know please.
- (Note2) Standard unix system including Linux and Mac OSX is recommended. There has been reported that this code does not work properly on a Linux system mounted on a Windows drive. This codes are tested under Mac OSX 10.9.5 on 2.8GHz Quad-Core Intel Xeon machine and Fedora Core 20 on Intel Core i5-4690 3.50GHz machine. Depending on the machine power, it takes <<several minutes>> if you run all the standard process. We recommend sufficient computing power at least similar to that we have tested. With our testing machine above, it takes about ~450 sec. (~200 sec. for noise calculation, ~155 sec. for emission line S/N calculation, and ~95 sec. for continuum S/N calculation).
+ (Note2) Standard unix system including Linux and Mac OSX is recommended. There has been reported that this code does not work properly on a Linux system mounted on a Windows drive. This codes are tested under Mac OSX 10.9.5 on 2.8GHz Quad-Core Intel Xeon machine and Fedora Core 20 on Intel Core i5-4690 3.50GHz machine. Depending on the machine power, it takes <<several minutes>> if you run all the standard process. We recommend sufficient computing power at least similar to that we have tested. With our testing machine above, it takes about ~90 sec. (~40 sec. for noise calculation, ~25 sec. for emission line S/N calculation, and ~20 sec. for continuum S/N calculation).
 
 Installation
 ------------
@@ -31,12 +31,14 @@ To install the package, get the git repository by typing the following command o
     $ git clone --recursive https://github.com/Subaru-PFS/spt_ExposureTimeCalculator.git
     $ cd spt_ExposureTimeCalculator
     $ make
-   
+    $ python setup.py install
+
 Once you clone the repository, you can pull updates from the next time on the directory like this:
 
     $ git pull
     $ git submodule update --init
     $ make
+    $ python setup.py install
 
 You also can get the zip or tar ball from the following page:
 
