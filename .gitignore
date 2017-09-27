@@ -3,6 +3,7 @@ tmp
 build
 dist
 pfs*.fits
+python/pfsspecsim/*.pyc
 python/pfsspecsim.egg-info
 example/notebooks/tmp
 example/notebooks/out
