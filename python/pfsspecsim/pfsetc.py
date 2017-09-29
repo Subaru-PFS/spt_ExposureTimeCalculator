@@ -2,6 +2,7 @@
 
 from __future__ import print_function, division
 
+import sys
 import os
 from os import path
 import scipy as sp
@@ -159,22 +160,26 @@ class Etc(object):
         try:
             self.nsm_arms, self.nsm_pixs, self.nsm_lams, self.nsm_nois, self.nsm_skys = sp.genfromtxt(self.params['OUTFILE_NOISE'], unpack=True, usecols=(0, 1, 2, 3, 4))
         except:
-            exit('OUTFILE_NOISE is not found ...')
+            print('OUTFILE_NOISE is not found ...')
+            pass
         ''' load OUTFILE_SNC '''
         try:
             self.snc_arms, self.snc_pixs, self.snc_lams, self.snc_sncs, self.snc_sigs, self.snc_nois_mobj, self.snc_nois, self.snc_spin, self.snc_conv, self.snc_samp, self.snc_skys = sp.genfromtxt(self.params['OUTFILE_SNC'], unpack=True, usecols=(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10))
         except:
-            exit('OUTFILE_SNC is not found ...')
+            print('OUTFILE_SNC is not found ...')
+            pass
         ''' load OUTFILE_SNL '''
         try:
             self.snl_lams, self.snl_fcov, self.snl_effa, self.snl_sna0, self.snl_sna1, self.snl_sna2, self.snl_snls = sp.genfromtxt(self.params['OUTFILE_SNL'], unpack=True, usecols=(0, 1, 2, 3, 4, 5, 6))
         except:
-            exit('OUTFILE_SNL is not found ...')
+            print('OUTFILE_SNL is not found ...')
+            pass
         ''' load OUTFILE_OII '''
         try:
             self.sno2_zsps, self.sno2_lam1, self.sno2_lam2, self.sno2_fcov, self.sno2_effa, self.sno2_sna0, self.sno2_sna1, self.sno2_sna2, self.sno2_sno2 = sp.genfromtxt(self.params['OUTFILE_OII'], unpack=True, usecols=(0, 1, 2, 3, 4, 5, 6, 7, 8))
         except:
-            exit('OUTFILE_OII is not found ...')
+            print('OUTFILE_OII is not found ...')
+            pass
 
         ''' end of the process '''
         elapsed_time = time.time() - start
@@ -266,7 +271,8 @@ class Etc(object):
         try:
             self.nsm_arms, self.nsm_pixs, self.nsm_lams, self.nsm_nois, self.nsm_skys = sp.genfromtxt(self.params['OUTFILE_NOISE'], unpack=True, usecols=(0, 1, 2, 3, 4))
         except:
-            exit('OUTFILE_NOISE is not found ...')
+            print('OUTFILE_NOISE is not found ...')
+            pass
         ''' end of process '''
         elapsed_time = time.time() - start
         print("##### finished (elapsed_time: %.1f[sec]) #####" % (elapsed_time))
@@ -315,7 +321,8 @@ class Etc(object):
         try:
             self.snc_arms, self.snc_pixs, self.snc_lams, self.snc_sncs, self.snc_sigs, self.snc_nois_mobj, self.snc_nois, self.snc_spin, self.snc_conv, self.snc_samp, self.snc_skys = sp.genfromtxt(self.params['OUTFILE_SNC'], unpack=True, usecols=(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10))
         except:
-            exit('OUTFILE_SNC is not found ...')
+            print('OUTFILE_SNC is not found ...')
+            pass
         ''' end of process '''
         elapsed_time = time.time() - start
         print("##### finished (elapsed_time: %.1f[sec]) #####" % (elapsed_time))
@@ -364,7 +371,8 @@ class Etc(object):
         try:
             self.snl_lams, self.snl_fcov, self.snl_effa, self.snl_sna0, self.snl_sna1, self.snl_sna2, self.snl_snls = sp.genfromtxt(self.params['OUTFILE_SNL'], unpack=True, usecols=(0, 1, 2, 3, 4, 5, 6))
         except:
-            exit('OUTFILE_SNL is not found ...')
+            print('OUTFILE_SNL is not found ...')
+            pass
         ''' end of process '''
         elapsed_time = time.time() - start
         print("##### finished (elapsed_time: %.1f[sec]) #####" % (elapsed_time))
@@ -413,7 +421,8 @@ class Etc(object):
         try:
             self.sno2_zsps, self.sno2_lam1, self.sno2_lam2, self.sno2_fcov, self.sno2_effa, self.sno2_sna0, self.sno2_sna1, self.sno2_sna2, self.sno2_sno2 = sp.genfromtxt(self.params['OUTFILE_OII'], unpack=True, usecols=(0, 1, 2, 3, 4, 5, 6, 7, 8))
         except:
-            exit('OUTFILE_OII is not found ...')
+            print('OUTFILE_OII is not found ...')
+            pass
         ''' end of process '''
         elapsed_time = time.time() - start
         print("##### finished (elapsed_time: %.1f[sec]) #####" % (elapsed_time))
