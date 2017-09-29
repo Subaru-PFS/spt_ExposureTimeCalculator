@@ -7,7 +7,7 @@ import time
 import subprocess
 import numpy as np
 
-import pfsetc
+from pfsspecsim import pfsetc
 
 
 def convert_arg_line_to_args(arg_line):

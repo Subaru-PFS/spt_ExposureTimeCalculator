@@ -5,7 +5,7 @@ import sys
 import argparse
 import numpy as np
 
-import pfsspec
+from pfsspecsim import pfsspec
 
 
 def convert_arg_line_to_args(arg_line):

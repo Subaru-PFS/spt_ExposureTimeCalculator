@@ -16,13 +16,13 @@ Release Note
 Requirements
 ------------
 * Standard C compiler (e.g., GCC)
-* Python2 (2.6 and higher; Python3 is NOT supported)
-* numpy  (1.8 and higher)  see http://www.numpy.org
-* pyfits (3.3 and higher)  see http://www.stsci.edu/institute/software_hardware/pyfits
+* Python2 (2.6 and higher) is recommended (Python3 is NOT fully supported)
+* scipy   (0.14 and higher)  see http://www.scipy.org
+* pyfits  (3.3 and higher)  see http://www.stsci.edu/institute/software_hardware/pyfits
 * matplotlib (if you use the plotting options)
 * Sufficient computing power
  (Note1) pyfits is required only for using gen_sim_spec.py and the PFS datamodel package. If you don't have these modules, please install them from the above website. The version of the module is the minimum one that we confirmed so far. If you have any updates, let me know please.
- (Note2) Standard unix system including Linux and Mac OSX is recommended. There has been reported that this code does not work properly on a Linux system mounted on a Windows drive. This codes are tested under Mac OSX 10.9.5 on 2.8GHz Quad-Core Intel Xeon machine and Fedora Core 20 on Intel Core i5-4690 3.50GHz machine. Depending on the machine power, it takes <<several minutes>> if you run all the standard process. We recommend sufficient computing power at least similar to that we have tested. With our testing machine above, it takes about ~90 sec. (~40 sec. for noise calculation, ~25 sec. for emission line S/N calculation, and ~20 sec. for continuum S/N calculation).
+ (Note2) Standard unix system including Linux and Mac OSX is recommended. There has been reported that this code does not work properly on a Linux system mounted on a Windows drive. This package is tested under Mac OSX 10.9.5 on 2.8GHz Quad-Core Intel Xeon machine and Fedora Core 20 on Intel Core i5-4690 3.50GHz machine. Depending on the machine power, it takes **several minutes** if you run all the standard process. We recommend sufficient computing power at least similar to that we have tested. With our testing machine above, it takes about ~90 sec. (~40 sec. for noise calculation, ~25 sec. for emission line S/N calculation, and ~20 sec. for continuum S/N calculation).
 
 Installation
 ------------
@@ -48,7 +48,7 @@ Before you use the package, please reed `README.md` carefully.
 
 Description
 -----------
-This package includes two parts: one is the exposure time calculator (run_etc.py) and the other one is the spectral simulator (gen_sim_spec.py). You can get S/N information of an object in a given exposure time and various conditions by using the ETC, which is based on the "Chris Hirata's simulator". By using the results from the ETC, you can get the simulated spectra in the format of the current PFS datamodel with the spectral simulator.
+This package includes two parts: one is the exposure time calculator (scripts/run_etc.py) and the other one is the spectral simulator (scripts/gen_sim_spec.py). You can get S/N information of an object in a given exposure time and various conditions by using the ETC, which is based on the "Chris Hirata's simulator". By using the results from the ETC, you can get the simulated spectra in the format of the current PFS datamodel with the spectral simulator.
 
 Exposure Time Calculator (ETC)
 ------------------------------
@@ -252,7 +252,24 @@ Note 3: PFS configuration information, including catalogue ID, object ID, coordi
 #### Realization of multiple spectra
 If you have many spectra you want to realize, you can do that in a single run using an input magnitude file (`MAG_FILE`) containing each spectral information (with columns like this: wavelength magnitude1 magnitude2 ... magnitude1000). Then you can get the output file of each spectrum. Please note that `--nrealize=1` when you use this mode.
 
+Usage in your Python code or Jupyter notebook (under development)
+---------------------------
+These functionality can be used by importing pfsspecsim module in your own Python codes and on Jupyter notebooks like this: 
 
+```python
+from pfsspecsim import pfsetc
+
+etc = pfsetc.Etc()
+etc.set_param('EXP_TIME', 1200)
+etc.set_param('EXP_NUM', 3)
+etc.set_param('OUTFILE_NOISE','out/ref.noise.dat')
+etc.set_param('OUTFILE_SNC','out/ref.snc.dat')
+etc.set_param('OUTFILE_SNL','out/ref.snl.dat')
+etc.set_param('OUTFILE_OII','out/ref.snoii.dat')
+etc.run()
+```
+
+See example/notebooks/ETC Example.ipynb for details.
 Some examples (under development)
 ---------------------------
 #### Input spectra

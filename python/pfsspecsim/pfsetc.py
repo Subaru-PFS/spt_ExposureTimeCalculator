@@ -39,7 +39,7 @@ class Etc(object):
                        'OUTFILE_NOISE': 'out/ref.noise.dat',
                        'OUTFILE_SNC': 'out/ref.snc.dat',
                        'OUTFILE_SNL': 'out/ref.snl.dat',
-                       'OUTFILE_OII': '-',
+                       'OUTFILE_OII': 'out/ref.sno2.dat',
                        'MR_MODE': 'N',
                        'OVERWRITE': 'Y',
                        'INFILE_OIICat': '-',
@@ -152,8 +152,8 @@ class Etc(object):
                                         self.params['minSNR'],
                                         self.mag_file,
                                         self.params['REFF']
-                                        ]))
-        except OSError, e:
+                                        ]).encode())
+        except OSError as e:
             exit('Execution error of "%s" (%s)' % self.ETC_SRC, e)
         ''' load OUTFILE_NOISE '''
         try:
@@ -259,8 +259,8 @@ class Etc(object):
                                         self.params['minSNR'],
                                         self.mag_file,
                                         self.params['REFF']
-                                        ]))
-        except OSError, e:
+                                        ]).encode())
+        except OSError as e:
             exit('Execution error of "%s" (%s)' % self.ETC_SRC, e)
         ''' load OUTFILE_NOISE '''
         try:
@@ -308,8 +308,8 @@ class Etc(object):
                                         self.params['minSNR'],
                                         self.mag_file,
                                         self.params['REFF']
-                                        ]))
-        except OSError, e:
+                                        ]).encode())
+        except OSError as e:
             exit('Execution error of "%s" (%s)' % self.ETC_SRC, e)
         ''' load OUTFILE_SNC '''
         try:
@@ -357,8 +357,8 @@ class Etc(object):
                                         self.params['minSNR'],
                                         self.mag_file,
                                         self.params['REFF']
-                                        ]))
-        except OSError, e:
+                                        ]).encode())
+        except OSError as e:
             exit('Execution error of "%s" (%s)' % self.ETC_SRC, e)
         ''' load OUTFILE_SNL '''
         try:
@@ -405,9 +405,9 @@ class Etc(object):
                                         '-',
                                         self.params['minSNR'],
                                         self.mag_file,
-                                        self.params['REFF']
-                                        ]))
-        except OSError, e:
+                                        self.params['REFF'],
+                                        ]).encode())
+        except OSError as e:
             exit('Execution error of "%s" (%s)' % self.ETC_SRC, e)
         ''' load OUTFILE_OII '''
         try:

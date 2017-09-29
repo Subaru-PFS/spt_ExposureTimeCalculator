@@ -3,6 +3,7 @@ tmp
 build
 dist
 pfs*.fits
+python/pfsspecsim/__pycache__
 python/pfsspecsim/bin/gsetc.x
 python/pfsspecsim/*.pyc
 python/pfsspecsim.egg-info
