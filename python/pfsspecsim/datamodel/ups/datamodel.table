@@ -1,2 +1,0 @@
-setupOptional(pyfits)
-pathPrepend(PYTHONPATH, ${PRODUCT_DIR}/python)

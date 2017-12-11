@@ -256,6 +256,8 @@ Usage in your Python code or Jupyter notebook (under development)
 ---------------------------
 These functionality can be used by importing pfsspecsim module in your own Python codes and on Jupyter notebooks like this: 
 
+For calculation of S/N curves:
+
 ```python
 from pfsspecsim import pfsetc
 
@@ -267,6 +269,24 @@ etc.set_param('OUTFILE_SNC','out/ref.snc.dat')
 etc.set_param('OUTFILE_SNL','out/ref.snl.dat')
 etc.set_param('OUTFILE_OII','out/ref.snoii.dat')
 etc.run()
+```
+
+For making simulated spectra,
+
+```
+from pfsspecsim import pfsspec
+
+sim = pfsspec.Pfsspec()
+sim.set_param('ra', 150.0)
+sim.set_param('dec', 2.0)
+sim.set_param('etcFile', 'out/ref.snc.dat')
+sim.set_param('MAG_FILE', 19.0)
+sim.set_param('EXP_NUM',16)
+sim.set_param('asciiTable','test')
+sim.set_param('nrealize',1)
+sim.set_param('plotObject','t')
+sim.set_param('plotArmSet','f')
+sim.make_sim_spec()
 ```
 
 See example/notebooks/ETC Example.ipynb for details.
