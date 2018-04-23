@@ -248,8 +248,6 @@ class Pfsspec(object):
                 objIds = range(self.objId, self.objId + nrealize)
                 #catIds = sp.zeros(nobj)
             catIds = sp.array([self.catId])
-        print(objIds)
-        print(catIds)
         '''
             ## read input file ##
             # arm: 0-3 telling us which arm the data comes from (arm_name will convert to b, r, n, m)
