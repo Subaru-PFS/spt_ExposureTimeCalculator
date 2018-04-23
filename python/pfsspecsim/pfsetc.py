@@ -91,10 +91,10 @@ class Etc(object):
         else:
             self.INSTR_SETUP = self.INSTR_SETUP
         ''' make continuum magnitude file '''
+        if os.path.exists('tmp') == False:
+            os.mkdir('tmp')
         try:
             _mag = float(self.params['MAG_FILE'])
-            if os.path.exists('tmp') == False:
-                os.mkdir('tmp')
             file = open('tmp/mag_%s.dat' % (self.params['MAG_FILE']), 'w')
             file.write('300.0 %.2f\n 1300. %.2f\n' % (_mag, _mag))
             file.close()

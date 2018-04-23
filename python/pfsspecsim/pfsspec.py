@@ -56,11 +56,33 @@ def makeFakePfsConfig(tract, patch, ra, dec, catId, startingObjId, objectMags, n
 
     fiberMag = np.empty((nFiber, 5))
     for i in range(nFiber):
-        fiberMag[i] = objectMags
+        fiberMag[i] = objectMags[i]
 
     mpsCen = np.zeros((nFiber, 2))
 
     return PfsConfig(None, tract, patch, fiberId, ra, dec, catId=catIds,
+                     objId=objIds, mpsCen=mpsCen, fiberMag=fiberMag)
+
+
+def makePfsConfig(tract, patch, fiberIds, ras, decs, catIds, objIds, objectMags):
+    """
+        Make and return a PfsConfig with real information
+    """
+    nFiber = len(fiberIds)
+
+    tmp, tracts = tract, np.empty(nFiber, dtype=np.int32)
+    tracts.fill(tmp)
+
+    tmp, patches = patch, np.empty(nFiber, dtype=str)
+    patches.fill(tmp)
+    patches = nFiber * [tmp]
+
+    fiberMag = np.empty((nFiber, 5))
+    for i in range(nFiber):
+        fiberMag[i] = objectMags[i]
+    mpsCen = np.zeros((nFiber, 2))
+
+    return PfsConfig(None, tracts, patches, fiberIds, ras, decs, catId=catIds,
                      objId=objIds, mpsCen=mpsCen, fiberMag=fiberMag)
 
 
@@ -117,7 +139,7 @@ def strToBool(val):
     elif val.lower() in ("0", "f", "false"):
         return False
     else:
-        exit("Unable to interpret \"%s\" as bool" % val)
+        sys.exit("Unable to interpret \"%s\" as bool" % val)
 
 
 class Pfsspec(object):
@@ -130,12 +152,16 @@ class Pfsspec(object):
                        'nrealize': '1',
                        'outDir': 'out',
                        'asciiTable': 'None',
-                       'tract': '0',
+                       'ra': 150.0,
+                       'dec': 2.0,
+                       'tract': 0,
                        'patch': '0,0',
-                       'visit': '1',
-                       'catId': '0',
-                       'objId': '1',
-                       'spectrograph': '1',
+                       'visit': 1,
+                       'catId': 0,
+                       'objId': 1,
+                       'fiberId': 1,
+                       'spectrograph': 1,
+                       'pfsConfigFull': 'f',
                        'writeFits': 't',
                        'writePfsArm': 't',
                        'plotArmSet': 'f',
@@ -160,7 +186,7 @@ class Pfsspec(object):
                 if line[0] != '#' and len(a) > 0:
                     self.params[a[0]] = a[1]
         except:
-            exit('Error: maybe file not found')
+            sys.exit('Error: maybe file not found')
         return 0
 
     def make_sim_spec(self):
@@ -168,9 +194,12 @@ class Pfsspec(object):
         self.tract = int(self.params['tract'])
         self.patch = self.params['patch']
         self.visit = int(self.params['visit'])
-        self.catId = int(self.params['catId'])
-        self.objId = int(self.params['objId'])
-        self.spectrograph = int(self.params['spectrograph'])
+        self.fiberId = self.params['fiberId']
+        self.ra = self.params['ra']
+        self.dec = self.params['dec']
+        self.catId = self.params['catId']
+        self.objId = self.params['objId']
+        self.spectrograph = self.params['spectrograph']
         try:
             self.mag_file = '%.4e' % (float(self.params['MAG_FILE']))
         except:
@@ -181,29 +210,42 @@ class Pfsspec(object):
         self.plotArmSet = strToBool(self.params['plotArmSet'])
         self.plotObject = strToBool(self.params['plotObject'])
         self.asciiTable = self.params['asciiTable']
+        self.pfsConfigFull = strToBool(self.params['pfsConfigFull'])
 
         if not self.writeFits and not self.asciiTable:
-            exit("Please specify asciiTable or omit writeFits (or say writeFits true)")
+            sys.exit("Please specify asciiTable or omit writeFits (or say writeFits true)")
         if not os.path.exists(self.outdir):
             try:
                 os.makedirs(self.outdir)
             except OSError as e:
-                exit("Unable to create outDir: %s" % e)
+                sys.exit("Unable to create outDir: %s" % e)
         if int(self.params['nrealize']) <= 0:
-            exit("Please specify at least one realization")
+            sys.exit("Please specify at least one realization")
         ''' check magfile '''
         if os.path.exists(self.mag_file):
             dat = np.loadtxt(self.mag_file)
             nobj = dat.shape[1] - 1
         else:
             nobj = 1
-        if nobj > 1:
-            if int(self.params['nrealize']) > 1:
-                exit("The number of realization should be one for multiple input template")
-            else:
-                objIds = range(self.objId, self.objId + nobj)
+        if self.pfsConfigFull:
+            try:
+                if len(self.fiberId) == nobj and len(self.ra) == nobj and len(self.dec) == nobj and len(self.catId) == nobj and len(self.objId) == nobj:
+                    objIds = self.objId
+                    catIds = self.catId
+                else:
+                    sys.exit("specify fiberId/ra/dec/objId/catId!")
+            except:
+                sys.exit("specify fiberId/ra/dec/objId/catId!")
         else:
-            objIds = range(self.objId, self.objId + int(self.params['nrealize']))
+            if nobj > 1:
+                if int(self.params['nrealize']) > 1:
+                    sys.exit("The number of realization should be one for multiple input template")
+                else:
+                    objIds = range(self.objId, self.objId + nobj)
+                    catIds = sp.zeros(nobj)
+            else:
+                objIds = range(self.objId, self.objId + int(self.params['nrealize']))
+                catIds = sp.zeros(nobj)
         '''
             ## read input file ##
             # arm: 0-3 telling us which arm the data comes from (arm_name will convert to b, r, n, m)
@@ -255,14 +297,19 @@ class Pfsspec(object):
         arms = np.array(sorted(set(arm), key=lambda x: dict(b=0, r=1, m=1.5, n=2)[x]))  # unique values of arm
         '''
             Create and populate the objects corresponding to the datamodel
-    
+
             First the parameters describing the observation, in PfsConfig
         '''
-        objectMags = [calculateFiberMagnitude(wav, mag[:, 0], b) for b in "grizy"]
-        if nobj > 1:
-            pfsConfig = makeFakePfsConfig(self.tract, self.patch, 150.0, 2.0, self.catId, objIds[0], objectMags, nFiber=nobj)
+        objectMags = []
+        for i in range(nobj):
+            objectMags.append([calculateFiberMagnitude(wav, mag[:, i], b) for b in "grizy"])
+        if self.pfsConfigFull:
+            pfsConfig = makePfsConfig(self.tract, self.patch, self.fiberId, self.ra, self.dec, self.catId, objIds, objectMags)
         else:
-            pfsConfig = makeFakePfsConfig(self.tract, self.patch, 150.0, 2.0, self.catId, objIds[0], objectMags, nFiber=int(self.params['nrealize']))
+            if nobj > 1:
+                pfsConfig = makeFakePfsConfig(self.tract, self.patch, self.ra, self.dec, self.catId, objIds[0], objectMags, nFiber=nobj)
+            else:
+                pfsConfig = makeFakePfsConfig(self.tract, self.patch, self.ra, self.dec, self.catId, objIds[0], objectMags, nFiber=int(self.params['nrealize']))
         '''
             Create the PfsArmSet;  we'll put each realisation into a different fibre
         '''
@@ -308,9 +355,9 @@ class Pfsspec(object):
         '''
             Now make the PfsObject from the PfsArmSet
         '''
-        for objId in objIds:
-            pfsObject = makePfsObject(objId, [pfsArmSet])
-
+        for objId, catId in zip(objIds, catIds):
+            pfsObject = makePfsObject(objId, [pfsArmSet], catId=catId)
+            self.pfsVisitHash = pfsObject.pfsVisitHash
             if self.plotObject:
                 pfsObject.plot()
 
