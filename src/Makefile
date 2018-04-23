@@ -5,8 +5,8 @@ OPT := -O3
 CFLAGS = $(OPT) -DHGCDTE_SUTR -DMOONLIGHT_
 LDFLAGS = -lm
 
-../bin/gsetc.x : gsetc.o
-	$(CC) gsetc.o $(LDFLAGS) -o ../bin/gsetc.x
+../python/pfsspecsim/bin/gsetc.x : gsetc.o
+	$(CC) gsetc.o $(LDFLAGS) -o ../python/pfsspecsim/bin/gsetc.x
 gsetc.o : modeldata.h
 
 clean :

@@ -510,8 +510,8 @@ double gsGeometricThroughput(SPECTRO_ATTRIB *spectro, OBS_ATTRIB *obs, double la
   double R, sigma, uscale, rs, theta_D, EFL;
 
   /* The parameters */
-  Nu = 200;
-  du = 0.006;
+  Nu = 50;
+  du = 0.024;
 
   /* Smearing in arcsec, and the EFL */
   i = floor(4*fieldang/spectro->rfov);
@@ -638,7 +638,7 @@ double gsSpectroMTF(SPECTRO_ATTRIB *spectro, OBS_ATTRIB *obs, int i_arm, double 
 
   /* Defocus in the detector -- Si only */
   if (spectro->Dtype[i_arm]==0) {
-    N = 20;
+    N = 3;
     ddepth = spectro->thick[i_arm]/N;
     numer = denom = 0.;
     mfp = gsOP_Si_abslength(lambda, spectro->temperature[i_arm]);
@@ -655,7 +655,7 @@ double gsSpectroMTF(SPECTRO_ATTRIB *spectro, OBS_ATTRIB *obs, int i_arm, double 
        * MTF[single depth] = <sin^2 phi cos(arg * cos phi)> averaged over phi
        * Use steps of pi/6 here.
        */
-      numer += contrib * (cos(0.866025404*arg)/6. + cos(0.5*arg)/2. + 1./3.);
+      numer += contrib * (0.1666666667*cos(0.866025404*arg) + 0.5*cos(0.5*arg) + 0.3333333333);
     }
     mtf *= numer/denom;
   }
@@ -1052,7 +1052,7 @@ void gsGetSignal(SPECTRO_ATTRIB *spectro, OBS_ATTRIB *obs, int i_arm, double lam
 
   /* Atmospheric transmission */
   trans = den = 0.;
-  for(x=-4;x<4.01;x+=.1) {
+  for(x=-4;x<4.01;x+=.2) {
     trans += gsAtmTrans(obs,lambda*(1 + x*sigma_v/299792.458),flags) * exp(-0.5*x*x);
     den += exp(-0.5*x*x);
   }
@@ -1165,7 +1165,7 @@ double gsGetSNR_Single(SPECTRO_ATTRIB *spectro, OBS_ATTRIB *obs, int i_arm, doub
 
   /* Atmospheric transmission */
   trans = den = 0.;
-  for(x=-4;x<4.01;x+=.1) {
+  for(x=-4;x<4.01;x+=.2) {
     trans += gsAtmTrans(obs,lambda,flags) * exp(-0.5*x*x);
     den += exp(-0.5*x*x);
   }
@@ -1254,7 +1254,7 @@ double gsGetSNR_OII(SPECTRO_ATTRIB *spectro, OBS_ATTRIB *obs, int i_arm, double 
 #ifndef NO_OBJ_CONTINUUM
   /* Atmospheric transmission */
   trans = den = 0.;
-  for(x=-4;x<4.01;x+=.1) {
+  for(x=-4;x<4.01;x+=.2) {
     trans += gsAtmTrans(obs,lambda[0] + (0.5+0.5*x)*(lambda[1]-lambda[0]),flags) * exp(-0.5*x*x);
     den += exp(-0.5*x*x);
   }
@@ -1957,7 +1957,7 @@ int main(void) {
   if (strcmp("-",OutFileSNR)!=0) {
     proc+=1;
     snrType = 2;
-    printf("(%d/%d) Computing [OII] ELG SNR curve for fiducial parameters ...\n",proc,proc_tot);
+    printf("(%d/%d) Computing SNR curve for [OII] emission lines ...\n",proc,proc_tot);
     fp = fopen(OutFileSNR, "w");
     for(z=0.1;z<2.5001;z+=0.0002) {
       fprintf(stderr, "      --> %.0f percent done ...\r",41.666*(z-0.1));
@@ -1993,7 +1993,7 @@ int main(void) {
   if (strcmp("-",OutFileSNR2)!=0) {
     proc+=1;
     snrType = 0;
-    printf("(%d/%d) Computing ELG SNR curve for f=%.2e [erg cm-2 s-1], sigma=%.0lf [km s-1] ...\n", proc, proc_tot, flux_emi, sigma_emi);
+    printf("(%d/%d) Computing SNR curve for a single line with f=%.2e [erg cm-2 s-1], sigma=%.0lf [km s-1] ...\n", proc, proc_tot, flux_emi, sigma_emi);
     fp = fopen(OutFileSNR2, "w");
     for(z=0.1;z<2.7627;z+=0.0002) {
       fprintf(stderr, "      --> %.0f percent done ...\r",37.556*(z-0.1));
@@ -2029,7 +2029,7 @@ int main(void) {
   if (strcmp("-",OutFileSNRAB)!=0) {
     proc+=1;
     snrType = 0;
-    printf("(%d/%d) Computing continuum SNR curve for fiducial parameters ...\n",proc,proc_tot);
+    printf("(%d/%d) Computing SNR curve for continuum ...\n",proc,proc_tot);
     fp = fopen(OutFileSNRAB, "w");
     for(ia=0;ia<spectro.N_arms;ia++) {
       /* Modified by Y. Moritani for input mag. file: 20150422 :*/
