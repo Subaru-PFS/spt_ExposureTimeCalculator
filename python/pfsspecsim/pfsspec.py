@@ -211,6 +211,7 @@ class Pfsspec(object):
         self.plotObject = strToBool(self.params['plotObject'])
         self.asciiTable = self.params['asciiTable']
         self.pfsConfigFull = strToBool(self.params['pfsConfigFull'])
+        nrealize = int(self.params['nrealize'])
 
         if not self.writeFits and not self.asciiTable:
             sys.exit("Please specify asciiTable or omit writeFits (or say writeFits true)")
@@ -219,7 +220,7 @@ class Pfsspec(object):
                 os.makedirs(self.outdir)
             except OSError as e:
                 sys.exit("Unable to create outDir: %s" % e)
-        if int(self.params['nrealize']) <= 0:
+        if nrealize <= 0:
             sys.exit("Please specify at least one realization")
         ''' check magfile '''
         if os.path.exists(self.mag_file):
@@ -230,22 +231,25 @@ class Pfsspec(object):
         if self.pfsConfigFull:
             try:
                 if len(self.fiberId) == nobj and len(self.ra) == nobj and len(self.dec) == nobj and len(self.catId) == nobj and len(self.objId) == nobj:
-                    objIds = self.objId
-                    catIds = self.catId
+                    objIds = [self.objId]
+                    catIds = [self.catId]
                 else:
                     sys.exit("specify fiberId/ra/dec/objId/catId!")
             except:
                 sys.exit("specify fiberId/ra/dec/objId/catId!")
         else:
             if nobj > 1:
-                if int(self.params['nrealize']) > 1:
+                if nrealize > 1:
                     sys.exit("The number of realization should be one for multiple input template")
                 else:
                     objIds = range(self.objId, self.objId + nobj)
-                    catIds = sp.zeros(nobj)
+                    #catIds = sp.zeros(nobj)
             else:
-                objIds = range(self.objId, self.objId + int(self.params['nrealize']))
-                catIds = sp.zeros(nobj)
+                objIds = range(self.objId, self.objId + nrealize)
+                #catIds = sp.zeros(nobj)
+            catIds = sp.array([self.catId])
+        print(objIds)
+        print(catIds)
         '''
             ## read input file ##
             # arm: 0-3 telling us which arm the data comes from (arm_name will convert to b, r, n, m)
@@ -301,15 +305,19 @@ class Pfsspec(object):
             First the parameters describing the observation, in PfsConfig
         '''
         objectMags = []
-        for i in range(nobj):
-            objectMags.append([calculateFiberMagnitude(wav, mag[:, i], b) for b in "grizy"])
+        if nobj > 1:
+            for i in range(nobj):
+                objectMags.append([calculateFiberMagnitude(wav, mag[:, i], b) for b in "grizy"])
+        else:
+            for i in range(nrealize):
+                objectMags.append([calculateFiberMagnitude(wav, mag[:, 0], b) for b in "grizy"])
         if self.pfsConfigFull:
             pfsConfig = makePfsConfig(self.tract, self.patch, self.fiberId, self.ra, self.dec, self.catId, objIds, objectMags)
         else:
             if nobj > 1:
                 pfsConfig = makeFakePfsConfig(self.tract, self.patch, self.ra, self.dec, self.catId, objIds[0], objectMags, nFiber=nobj)
             else:
-                pfsConfig = makeFakePfsConfig(self.tract, self.patch, self.ra, self.dec, self.catId, objIds[0], objectMags, nFiber=int(self.params['nrealize']))
+                pfsConfig = makeFakePfsConfig(self.tract, self.patch, self.ra, self.dec, self.catId, objIds[0], objectMags, nFiber=nrealize)
         '''
             Create the PfsArmSet;  we'll put each realisation into a different fibre
         '''
@@ -329,7 +337,7 @@ class Pfsspec(object):
                     covar[0] = sigma[thisArm, i]**2
                     data.covar.append(covar)
             else:
-                for i in range(int(self.params['nrealize'])):
+                for i in range(nrealize):
                     data.lam.append(wav[thisArm])
                     data.flux.append(flam[thisArm, 0] + np.random.normal(0.0, sigma[thisArm, 0]))
                     data.sky.append(sky[thisArm])
@@ -355,13 +363,14 @@ class Pfsspec(object):
         '''
             Now make the PfsObject from the PfsArmSet
         '''
-        for objId, catId in zip(objIds, catIds):
-            pfsObject = makePfsObject(objId, [pfsArmSet], catId=catId)
-            self.pfsVisitHash = pfsObject.pfsVisitHash
-            if self.plotObject:
-                pfsObject.plot()
+        for catId in catIds:
+            for objId in objIds:
+                pfsObject = makePfsObject(objId, [pfsArmSet], catId=catId)
+                self.pfsVisitHash = pfsObject.pfsVisitHash
+                if self.plotObject:
+                    pfsObject.plot()
 
-            if self.writeFits:
-                pfsObject.write(self.outdir)         # pfsObject file
+                if self.writeFits:
+                    pfsObject.write(self.outdir)         # pfsObject file
 
         return 0
