@@ -853,7 +853,7 @@ void gsGetNoise(SPECTRO_ATTRIB *spectro, OBS_ATTRIB *obs, int i_arm, double fiel
 
   /* Sky continuum contributions.
    */
-  fprintf(stderr, "  --> Computing Sky Continuum Contribution ...\n");
+  printf("  --> Computing Sky Continuum Contribution ...\n");
   for(ipix=0;ipix<Npix;ipix++) {
     lambda = lmin + (ipix+0.5)*dl;   
     printf("      --> %.0f percent done ...\r",0.02441*ipix);
@@ -983,7 +983,7 @@ void gsGetNoise(SPECTRO_ATTRIB *spectro, OBS_ATTRIB *obs, int i_arm, double fiel
     SkyMod[ipix]=Noise[ipix]/sample_factor;
   }
 
-  fprintf(stderr, "  --> Computing Sky Systematic Error Contribution ...\n");
+  printf("  --> Computing Sky Systematic Error Contribution ...\n");
   /* Add the systematic sky subtraction error */
   for(ipix=0;ipix<Npix;ipix++) {
     sky_sysref = sky[ipix];
@@ -1950,7 +1950,7 @@ int main(void) {
       fprintf(fp, "\n");
     }
     fclose(fp);
-    fprintf(stderr, " --> Done.\n");
+    printf(" --> Done.\n");
   }
 
   /* Generate and write the S/N ratio vector for the [OII] doublet as a function of redshift,
@@ -1989,8 +1989,8 @@ int main(void) {
         fprintf(fp, " %8.4lf", snr[ia]);
         fprintf(fp, " %8.4lf\n", snrtot);
     }
-    fprintf(stderr, "\n");
-    fprintf(stderr, " --> Done.\n");
+    printf("\n");
+    printf(" --> Done.\n");
     fclose(fp);
   }
 
@@ -2023,8 +2023,8 @@ int main(void) {
         fprintf(fp, " %8.4lf", snr[ia]);
       fprintf(fp, " %8.4lf\n", snrtot);
     }
-    fprintf(stderr, "\n");
-    fprintf(stderr, " --> Done.\n");
+    printf("\n");
+    printf(" --> Done.\n");
     fclose(fp);
   }
   /* Added by Y.Moritani for line SNR. file: 20150427 : end */
@@ -2047,8 +2047,8 @@ int main(void) {
 		spectro_arm(&spectro, ia), j, spectro.lmin[ia]+spectro.dl[ia]*j,snrcont[j]*sqrt((double)n_exp),snrcontcount[j],spNoise[ia][j],snrcontnoise[j],magcont[j],snctrans[j],samplefac[j],spSky[ia][j]);
       }
     }
-    fprintf(stderr, "\n");
-    fprintf(stderr, " --> Done.\n");
+    printf("\n");
+    printf(" --> Done.\n");
     fclose(fp);
 }
 
