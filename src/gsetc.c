@@ -856,7 +856,7 @@ void gsGetNoise(SPECTRO_ATTRIB *spectro, OBS_ATTRIB *obs, int i_arm, double fiel
   fprintf(stderr, "  --> Computing Sky Continuum Contribution ...\n");
   for(ipix=0;ipix<Npix;ipix++) {
     lambda = lmin + (ipix+0.5)*dl;   
-    fprintf(stderr, "      --> %.0f percent done ...\r",0.02441*ipix);
+    printf("      --> %.0f percent done ...\r",0.02441*ipix);
     /* Atmospheric transmission -- used to remap the continuum model */
     gsSpectroDist(spectro,obs,i_arm,lambda,7.5,0,SP_PSF_LEN,FR);
     num = den = 0.;
@@ -1345,7 +1345,7 @@ void gsGetSNR_Continuum(SPECTRO_ATTRIB *spectro, OBS_ATTRIB *obs, int i_arm, dou
 #endif
 
   for(ipix=0;ipix<Npix;ipix++) {
-    fprintf(stderr, "      --> %.0f percent done ...\r",(i_arm*Npix+(1+ipix))*0.008138);
+    printf("      --> %.0f percent done ...\r",(i_arm*Npix+(1+ipix))*0.008138);
     lambda = spectro->lmin[i_arm] + spectro->dl[i_arm]*ipix;
  
     /* Added by Y.Moritani for input mag. file: 20150422 */
@@ -1966,7 +1966,7 @@ int main(void) {
     printf("(%d/%d) Computing SNR curve for [OII] emission lines ...\n",proc,proc_tot);
     fp = fopen(OutFileSNR, "w");
     for(z=0.1;z<2.5001;z+=0.0002) {
-      fprintf(stderr, "      --> %.0f percent done ...\r",41.666*(z-0.1));
+      printf("      --> %.0f percent done ...\r",41.666*(z-0.1));
       snrtot = 0.;
       for(ia=0;ia<spectro.N_arms;ia++) {
         snr[ia] = 0.;
@@ -2002,7 +2002,7 @@ int main(void) {
     printf("(%d/%d) Computing SNR curve for a single line with f=%.2e [erg cm-2 s-1], sigma=%.0lf [km s-1] ...\n", proc, proc_tot, flux_emi, sigma_emi);
     fp = fopen(OutFileSNR2, "w");
     for(z=0.1;z<2.7627;z+=0.0002) {
-      fprintf(stderr, "      --> %.0f percent done ...\r",37.556*(z-0.1));
+      printf("      --> %.0f percent done ...\r",37.556*(z-0.1));
       snrtot = 0.;
       for(ia=0;ia<spectro.N_arms;ia++) {
         snr[ia] = 0.;
