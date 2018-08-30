@@ -82,6 +82,7 @@ For instance, if you want observational condition under 0.80 arcsec seeing, the 
 | EXP_TIME        | 450           | Single exposure time    | [sec.]                        |
 | EXP_NUM         | 8             | The number of exposures |                               |
 | FIELD_ANG       | 0.675         | Field angle             | [deg.; center=0, edge=0.675]  |
+| degrade         | 1.0           | Troughput degradation factor |                          |
 
 ### Setup of the target information
 In this section, users can describe the target information including target magnitude, effective radius, emission line flux and width. If you want to calculate the S/N for a flat continuum with 22.5 ABmag and an emission line with line flux of 1.0x10^-17 erg/s/cm^2, line width of sigma=70 km/s, and effective radius of 0.3 arcsec, the parameters are as follows:
