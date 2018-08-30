@@ -45,7 +45,8 @@ class Etc(object):
                        'OVERWRITE': 'Y',
                        'INFILE_OIICat': '-',
                        'OUTFILE_OIICat': '-',
-                       'minSNR': '9.0'
+                       'minSNR': '9.0',
+                       'degrade': 1.0
                        }
         self.HOME_DIR = path.dirname(path.abspath(__file__))
         self.ETC_SRC = self.HOME_DIR + '/bin/gsetc.x'
@@ -128,6 +129,7 @@ class Etc(object):
             print('##### starting to run ETC ... (it takes a few min.) #####')
             proc = subprocess.Popen([self.ETC_SRC], stdin=subprocess.PIPE)
             proc.communicate("\n".join([self.INSTR_SETUP,
+                                        self.params['degrade'],
                                         SKYMODELS,
                                         self.params['SEEING'],
                                         self.params['ZENITH_ANG'],
@@ -239,6 +241,7 @@ class Etc(object):
             print('##### starting to make a noise model ... (it takes about 2 min.) #####')
             proc = subprocess.Popen([self.ETC_SRC], stdin=subprocess.PIPE)
             proc.communicate("\n".join([self.INSTR_SETUP,
+                                        self.params['degrade'],
                                         SKYMODELS,
                                         self.params['SEEING'],
                                         self.params['ZENITH_ANG'],
@@ -289,6 +292,7 @@ class Etc(object):
             print('##### starting to make an SNC model ... (it takes about 1 min.) #####')
             proc = subprocess.Popen([self.ETC_SRC], stdin=subprocess.PIPE)
             proc.communicate("\n".join([self.INSTR_SETUP,
+                                        self.params['degrade'],
                                         SKYMODELS,
                                         self.params['SEEING'],
                                         self.params['ZENITH_ANG'],
@@ -339,6 +343,7 @@ class Etc(object):
             print('##### starting to make an SNL model ... (it takes about 1 min.) #####')
             proc = subprocess.Popen([self.ETC_SRC], stdin=subprocess.PIPE)
             proc.communicate("\n".join([self.INSTR_SETUP,
+                                        self.params['degrade'],
                                         SKYMODELS,
                                         self.params['SEEING'],
                                         self.params['ZENITH_ANG'],
@@ -389,6 +394,7 @@ class Etc(object):
             print('##### starting to make an OII model ... (it takes about 2 min.) #####')
             proc = subprocess.Popen([self.ETC_SRC], stdin=subprocess.PIPE)
             proc.communicate("\n".join([self.INSTR_SETUP,
+                                        self.params['degrade'],
                                         SKYMODELS,
                                         self.params['SEEING'],
                                         self.params['ZENITH_ANG'],

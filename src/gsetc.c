@@ -1417,7 +1417,7 @@ void gsGetSNR_Continuum(SPECTRO_ATTRIB *spectro, OBS_ATTRIB *obs, int i_arm, dou
  * ...
  * <lambda_N-1> <Thr(lambda_N-1) [1st]> ... <Thr(lambda_N-1) [5th]>
  */
-void gsReadSpectrographConfig(char FileName[], SPECTRO_ATTRIB *spectro) {
+void gsReadSpectrographConfig(char FileName[], SPECTRO_ATTRIB *spectro, double degrade) {
   FILE *fp;
   int i, i_arm, args;
   char InfoLine[512];
@@ -1548,7 +1548,7 @@ void gsReadSpectrographConfig(char FileName[], SPECTRO_ATTRIB *spectro) {
             fprintf(stderr, "Error: gsReadSpectrographConfig: illegal throughput table line: %d/6 arguments assigned.\n", args);
             exit(1);
           }
-          spectro->T[i] = temp[0]*temp[1]*temp[2]*temp[3]*temp[4];
+          spectro->T[i] = temp[0]*temp[1]*temp[2]*temp[3]*temp[4]*degrade;
           i++;
         }
         if (count==1000000) {
@@ -1666,6 +1666,8 @@ int main(void) {
   /* Added by K.Yabe: 20160130 */
   double ref_input;
 
+  double degrade;
+
   /* Tell us what flags are on */
   printf("Compiler flags:");
 #ifdef DIFFRACTION_OFF
@@ -1694,7 +1696,11 @@ int main(void) {
     fprintf(stderr, "Error: Can't get input file.\n");
     exit(1);
   }
-  gsReadSpectrographConfig(FileName, &spectro);
+
+  if(scanf("%lg", &(degrade))==EOF)
+    degrade = 1.0;
+
+  gsReadSpectrographConfig(FileName, &spectro, degrade);
 
   /* Allocate noise vectors */
   spNoise=(double**)malloc((size_t)(spectro.N_arms*sizeof(double*)));
