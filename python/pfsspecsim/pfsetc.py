@@ -46,7 +46,7 @@ class Etc(object):
                        'INFILE_OIICat': '-',
                        'OUTFILE_OIICat': '-',
                        'minSNR': '9.0',
-                       'degrade': 1.0
+                       'degrade': '1.0',
                        }
         self.HOME_DIR = path.dirname(path.abspath(__file__))
         self.ETC_SRC = self.HOME_DIR + '/bin/gsetc.x'
