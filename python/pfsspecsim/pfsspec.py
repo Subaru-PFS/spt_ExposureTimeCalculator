@@ -134,6 +134,8 @@ def write_ascii(aset, asciiTable, outDir):
 
 
 def strToBool(val):
+    if isinstance(val, bool):
+        return val
     if val.lower() in ("1", "t", "true"):
         return True
     elif val.lower() in ("0", "f", "false"):
