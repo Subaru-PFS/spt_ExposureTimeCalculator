@@ -8,7 +8,6 @@ from os import path
 import numpy as np
 import scipy as sp
 
-
 HOME_DIR = path.dirname(path.abspath(__file__))
 ''' import datamodel module '''
 sys.path.append(HOME_DIR + "/datamodel/python")
@@ -64,18 +63,17 @@ def makeFakePfsConfig(tract, patch, ra, dec, catId, startingObjId, objectMags, n
                      objId=objIds, mpsCen=mpsCen, fiberMag=fiberMag)
 
 
-def makePfsConfig(tract, patch, fiberIds, ras, decs, catIds, objIds, objectMags):
+def makePfsConfig(tracts, patches, fiberIds, ras, decs, catIds, objIds, objectMags):
     """
         Make and return a PfsConfig with real information
     """
     nFiber = len(fiberIds)
+    #tmp, tracts = tract, np.empty(nFiber, dtype=np.int32)
+    # tracts.fill(tmp)
 
-    tmp, tracts = tract, np.empty(nFiber, dtype=np.int32)
-    tracts.fill(tmp)
-
-    tmp, patches = patch, np.empty(nFiber, dtype=str)
-    patches.fill(tmp)
-    patches = nFiber * [tmp]
+    #tmp, patches = patch, np.empty(nFiber, dtype=str)
+    # patches.fill(tmp)
+    #patches = nFiber * [tmp]
 
     fiberMag = np.empty((nFiber, 5))
     for i in range(nFiber):
@@ -191,7 +189,7 @@ class Pfsspec(object):
 
     def make_sim_spec(self):
         self.outdir = self.params['outDir']
-        self.tract = int(self.params['tract'])
+        self.tract = self.params['tract']
         self.patch = self.params['patch']
         self.visit = int(self.params['visit'])
         self.fiberId = self.params['fiberId']
@@ -212,6 +210,13 @@ class Pfsspec(object):
         self.asciiTable = self.params['asciiTable']
         self.pfsConfigFull = strToBool(self.params['pfsConfigFull'])
         nrealize = int(self.params['nrealize'])
+        try:
+            if len(self.fiberId) > 0:
+                self.multi_info = 1
+            else:
+                self.multi_info = 0
+        except:
+            self.multi_info = 0
 
         if not self.writeFits and not self.asciiTable:
             sys.exit("Please specify asciiTable or omit writeFits (or say writeFits true)")
@@ -228,26 +233,53 @@ class Pfsspec(object):
             nobj = dat.shape[1] - 1
         else:
             nobj = 1
-        if self.pfsConfigFull:
-            try:
-                if len(self.fiberId) == nobj and len(self.ra) == nobj and len(self.dec) == nobj and len(self.catId) == nobj and len(self.objId) == nobj:
-                    objIds = [self.objId]
-                    catIds = [self.catId]
-                else:
-                    sys.exit("specify fiberId/ra/dec/objId/catId!")
-            except:
-                sys.exit("specify fiberId/ra/dec/objId/catId!")
-        else:
-            if nobj > 1:
-                if nrealize > 1:
-                    sys.exit("The number of realization should be one for multiple input template")
-                else:
-                    objIds = range(self.objId, self.objId + nobj)
-                    #catIds = sp.zeros(nobj)
+        if nobj > 1:
+            if nrealize > 1:
+                sys.exit("The number of realization should be one for multiple input template")
             else:
-                objIds = range(self.objId, self.objId + nrealize)
-                #catIds = sp.zeros(nobj)
-            catIds = sp.array([self.catId])
+                if self.multi_info == 0:
+                    objIds = np.arange(self.objId, self.objId + nobj)
+                    tmp, catIds = self.catId, np.empty(nobj, dtype=np.int32)
+                    catIds.fill(tmp)
+                    fiberIds = np.arange(self.fiberId, self.fiberId + nobj)
+                    tmp, ras = self.ra, np.empty(nobj, dtype=np.float32)
+                    ras.fill(tmp)
+                    tmp, decs = self.dec, np.empty(nobj, dtype=np.float32)
+                    decs.fill(tmp)
+                    tmp, tracts = self.tract, np.empty(nobj, dtype=np.int32)
+                    tracts.fill(tmp)
+                    tmp, patches = self.patch, np.empty(nobj, dtype='U3')
+                    patches.fill(tmp)
+                else:
+                    objIds = np.array(self.objId)
+                    catIds = np.array(self.catId)
+                    fiberIds = np.array(self.fiberId)
+                    ras = np.array(self.ra)
+                    decs = np.array(self.dec)
+                    tracts = np.array(self.tract)
+                    patches = np.array(self.patch)
+        else:
+            if nrealize > 1:
+                objIds = np.arange(self.objId, self.objId + nrealize)
+                tmp, catIds = self.catId, np.empty(nrealize, dtype=np.int32)
+                catIds.fill(tmp)
+                fiberIds = range(self.fiberId, self.fiberId + nrealize)
+                tmp, ras = self.ra, np.empty(nrealize, dtype=np.float32)
+                ras.fill(tmp)
+                tmp, decs = self.dec, np.empty(nrealize, dtype=np.float32)
+                decs.fill(tmp)
+                tmp, tracts = self.tract, np.empty(nrealize, dtype=np.int32)
+                tracts.fill(tmp)
+                tmp, patches = self.patch, np.empty(nrealize, dtype='U3')
+                patches.fill(tmp)
+            else:
+                objIds = np.array([self.objId])
+                catIds = np.array([self.catId])
+                fiberIds = np.array([self.fiberId])
+                ras = np.array([self.ra])
+                decs = np.array([self.dec])
+                tracts = np.array([self.tract])
+                patches = np.array([self.patch])
         '''
             ## read input file ##
             # arm: 0-3 telling us which arm the data comes from (arm_name will convert to b, r, n, m)
@@ -309,13 +341,9 @@ class Pfsspec(object):
         else:
             for i in range(nrealize):
                 objectMags.append([calculateFiberMagnitude(wav, mag[:, 0], b) for b in "grizy"])
-        if self.pfsConfigFull:
-            pfsConfig = makePfsConfig(self.tract, self.patch, self.fiberId, self.ra, self.dec, self.catId, objIds, objectMags)
-        else:
-            if nobj > 1:
-                pfsConfig = makeFakePfsConfig(self.tract, self.patch, self.ra, self.dec, self.catId, objIds[0], objectMags, nFiber=nobj)
-            else:
-                pfsConfig = makeFakePfsConfig(self.tract, self.patch, self.ra, self.dec, self.catId, objIds[0], objectMags, nFiber=nrealize)
+
+        pfsConfig = makePfsConfig(tracts, patches, fiberIds, ras, decs, catIds, objIds, objectMags)
+
         '''
             Create the PfsArmSet;  we'll put each realisation into a different fibre
         '''
@@ -361,14 +389,14 @@ class Pfsspec(object):
         '''
             Now make the PfsObject from the PfsArmSet
         '''
-        for catId in catIds:
-            for objId in objIds:
-                pfsObject = makePfsObject(objId, [pfsArmSet], catId=catId)
-                self.pfsVisitHash = pfsObject.pfsVisitHash
-                if self.plotObject:
-                    pfsObject.plot()
+        # for catId in catIds:
+        for catId, objId in zip(catIds, objIds):
+            pfsObject = makePfsObject(objId, [pfsArmSet], catId=catId)
+            self.pfsVisitHash = pfsObject.pfsVisitHash
+            if self.plotObject:
+                pfsObject.plot()
 
-                if self.writeFits:
-                    pfsObject.write(self.outdir)         # pfsObject file
+            if self.writeFits:
+                pfsObject.write(self.outdir)         # pfsObject file
 
         return 0
