@@ -10,7 +10,8 @@ import collections
 
 from . import dm_utils
 
-WAV_ERR_SHIFT = 3
+WAV_ERR_SHIFT = 0.002
+PSF_VAR_SIGMA = 0.01
 
 
 def arm_name(arm_num):
@@ -71,8 +72,6 @@ def write_ascii(aset, arms, asciiTable, outDir):
 
 
 def strToBool(val):
-    if isinstance(val, bool):
-        return val
     if val.lower() in ("1", "t", "true"):
         return True
     elif val.lower() in ("0", "f", "false"):
@@ -106,7 +105,8 @@ class Pfsspec(object):
                        'plotArmSet': 'f',
                        'plotObject': 'f',
                        'SKY_SUB_FLOOR': '0.01',
-                       'SKY_SUB_MODE': 'random'
+                       'SKY_SUB_MODE': 'random',
+                       'SKY_SUB_SEED': 0
                        }
         return None
 
@@ -154,6 +154,7 @@ class Pfsspec(object):
         self.pfsConfigFull = strToBool(self.params['pfsConfigFull'])
         self.sky_sub_err = float(self.params['SKY_SUB_FLOOR'])
         self.sky_sub_mode = self.params['SKY_SUB_MODE']
+        self.sky_sub_seed = self.params['SKY_SUB_SEED']
         nrealize = int(self.params['nrealize'])
         nexp = int(self.params['EXP_NUM'])
         try:
@@ -285,11 +286,11 @@ class Pfsspec(object):
             countsp = np.where(counts == 0, float(self.params['countsMin']), counts)  # version of counts with zero pixels replaced
         else:
             countsp = counts
-        if self.sky_sub_mode == 'residual' or self.sky_sub_mode == 'residual2':
-            snr1 = countsp / np.sqrt(smp_mtrx * countsp + nsv_rnd_mtrx) * np.sqrt(nexp)
+        if self.sky_sub_mode == 'random':
+            snr1 = countsp / np.sqrt(smp_mtrx * countsp + (nsv_rnd_mtrx + nsv_sys_mtrx)) * np.sqrt(nexp)
             snr2 = countsp / np.sqrt(smp_mtrx * countsp + (nsv_rnd_mtrx + nsv_sys_mtrx)) * np.sqrt(nexp)
         else:
-            snr1 = countsp / np.sqrt(smp_mtrx * countsp + (nsv_rnd_mtrx + nsv_sys_mtrx)) * np.sqrt(nexp)
+            snr1 = countsp / np.sqrt(smp_mtrx * countsp + nsv_rnd_mtrx) * np.sqrt(nexp)
             snr2 = countsp / np.sqrt(smp_mtrx * countsp + (nsv_rnd_mtrx + nsv_sys_mtrx)) * np.sqrt(nexp)
         sigma1 = flam / snr1
         sigma2 = flam / snr2
@@ -335,10 +336,8 @@ class Pfsspec(object):
                         'spectrograph': self.spectrograph,
                         'arm': arm_number(armStr)
                         }
-            if self.sky_sub_mode == 'residual' or self.sky_sub_mode == 'residual2':
-                sky_res_fac = np.random.normal(0.0, self.sky_sub_err)
-            else:
-                sky_res_fac = 0.0
+            sky_res_fac = 0.0
+            # np.random.seed(self.sky_sub_seed)
             nPt = np.sum(thisArm)
             datalam = []
             dataflux = []
@@ -348,20 +347,40 @@ class Pfsspec(object):
             if nobj > 1:
                 for i in range(nobj):
                     datalam.append(wav[thisArm])
-                    if self.sky_sub_mode == 'residual':
+                    if self.sky_sub_mode == 'systematic':
                         flux = []
                         for j in range(nexp):
+                            sky_res_fac = np.random.normal(0.0, self.sky_sub_err)
                             skyres = skm_sysref[thisArm] * sky_res_fac
-                            flux.append(flam[thisArm, i] + np.random.normal(0.0, sigma1[thisArm, i] * np.sqrt(nexp)) + skyres)
+                            flux.append(flam[thisArm, i] + np.random.normal(0.0, abs(sigma1[thisArm, i]) * np.sqrt(nexp)) + skyres)
                         dataflux.append(np.nanmean(flux, axis=0))
-                    elif self.sky_sub_mode == 'residual2':
+                    elif self.sky_sub_mode == 'wavecalib':
                         flux = []
                         for j in range(nexp):
-                            skyres = (skm_sysref[thisArm] - np.roll(skm_sysref[thisArm], WAV_ERR_SHIFT)) * sky_res_fac
-                            flux.append(flam[thisArm, i] + np.random.normal(0.0, sigma1[thisArm, i] * np.sqrt(nexp)) + skyres)
+                            wav_err_shift = np.random.normal(0.0, WAV_ERR_SHIFT)
+                            # skyres = (skm_sysref[thisArm] - np.roll(skm_sysref[thisArm], wav_err_shift))
+                            skyres = skm_sysref[thisArm] - np.interp(wav[thisArm] + wav_err_shift, wav[thisArm], skm_sysref[thisArm])
+                            flux.append(flam[thisArm, i] + np.random.normal(0.0, abs(sigma1[thisArm, i]) * np.sqrt(nexp)) + skyres)
+                        dataflux.append(np.nanmean(flux, axis=0))
+                    elif self.sky_sub_mode == 'psfvar':
+                        flux = []
+                        wav_fine = np.linspace(min(wav[thisArm]), max(wav[thisArm]), len(wav[thisArm]) * 10)
+                        skm_sysref_fine = np.interp(wav_fine, wav[thisArm], skm_sysref[thisArm])
+                        for j in range(nexp):
+                            psf_var_sigma_pix = PSF_VAR_SIGMA / 0.07 * 10
+                            gauss_kernel_sigma1 = np.random.uniform(psf_var_sigma_pix * 0.5, psf_var_sigma_pix * 2.0)
+                            gauss_kernel_sigma2 = np.random.uniform(psf_var_sigma_pix * 0.5, psf_var_sigma_pix * 2.0)
+                            x = np.arange(-100, 101, 1)
+                            gauss_kernel1 = (1.0 / np.sqrt(2 * np.pi * gauss_kernel_sigma1**2)) * np.exp(-1.0 * x**2 / (2 * gauss_kernel_sigma1**2))
+                            gauss_kernel2 = (1.0 / np.sqrt(2 * np.pi * gauss_kernel_sigma2**2)) * np.exp(-1.0 * x**2 / (2 * gauss_kernel_sigma2**2))
+                            skm_sysref_fine_conv1 = np.convolve(skm_sysref_fine, gauss_kernel1, mode='same')
+                            skm_sysref_fine_conv2 = np.convolve(skm_sysref_fine, gauss_kernel2, mode='same')
+                            skyres_fine = skm_sysref_fine_conv1 - skm_sysref_fine_conv2
+                            skyres = np.interp(wav[thisArm], wav_fine, skyres_fine)
+                            flux.append(flam[thisArm, i] + np.random.normal(0.0, abs(sigma1[thisArm, i]) * np.sqrt(nexp)) + skyres)
                         dataflux.append(np.nanmean(flux, axis=0))
                     else:
-                        dataflux.append(flam[thisArm, i] + np.random.normal(0.0, sigma1[thisArm, i]))
+                        dataflux.append(flam[thisArm, i] + np.random.normal(0.0, abs(sigma1[thisArm, i])))
                     datasky.append(sky[thisArm])
                     datamask.append(msk[thisArm])
                     covar = np.zeros(3 * nPt).reshape((3, nPt))
@@ -370,20 +389,43 @@ class Pfsspec(object):
             else:
                 for i in range(nrealize):
                     datalam.append(wav[thisArm])
-                    if self.sky_sub_mode == 'residual':
+                    if self.sky_sub_mode == 'systematic':
                         flux = []
                         for j in range(nexp):
+                            sky_res_fac = np.random.normal(0.0, self.sky_sub_err)
                             skyres = skm_sysref[thisArm] * sky_res_fac
-                            flux.append(flam[thisArm, 0] + np.random.normal(0.0, sigma1[thisArm, 0] * np.sqrt(nexp)) + skyres)
+                            flux.append(flam[thisArm, 0] + np.random.normal(0.0, abs(sigma1[thisArm, 0]) * np.sqrt(nexp)) + skyres)
                         dataflux.append(np.nanmean(flux, axis=0))
-                    elif self.sky_sub_mode == 'residual2':
+                    elif self.sky_sub_mode == 'wavecalib':
                         flux = []
+                        wav_fine = np.linspace(min(wav[thisArm]), max(wav[thisArm]), len(wav[thisArm]) * 10)
+                        skm_sysref_fine = np.interp(wav_fine, wav[thisArm], skm_sysref[thisArm])
                         for j in range(nexp):
-                            skyres = (skm_sysref[thisArm] - np.roll(skm_sysref[thisArm], WAV_ERR_SHIFT)) * sky_res_fac
-                            flux.append(flam[thisArm, 0] + np.random.normal(0.0, sigma1[thisArm, 0] * np.sqrt(nexp)) + skyres)
+                            wav_err_shift = np.random.normal(0.0, WAV_ERR_SHIFT)
+                            # skyres = (skm_sysref[thisArm] - np.roll(skm_sysref[thisArm], wav_err_shift))
+                            skyres_fine = skm_sysref_fine - np.interp(wav_fine + wav_err_shift, wav_fine, skm_sysref_fine)
+                            skyres = np.interp(wav[thisArm], wav_fine, skyres_fine)
+                            flux.append(flam[thisArm, 0] + np.random.normal(0.0, abs(sigma1[thisArm, 0]) * np.sqrt(nexp)) + skyres)
+                        dataflux.append(np.nanmean(flux, axis=0))
+                    elif self.sky_sub_mode == 'psfvar':
+                        flux = []
+                        wav_fine = np.linspace(min(wav[thisArm]), max(wav[thisArm]), len(wav[thisArm]) * 10)
+                        skm_sysref_fine = np.interp(wav_fine, wav[thisArm], skm_sysref[thisArm])
+                        for j in range(nexp):
+                            psf_var_sigma_pix = PSF_VAR_SIGMA / 0.07 * 10
+                            gauss_kernel_sigma1 = np.random.uniform(psf_var_sigma_pix * 0.3, psf_var_sigma_pix * 3.0)
+                            gauss_kernel_sigma2 = np.random.uniform(psf_var_sigma_pix * 0.3, psf_var_sigma_pix * 3.0)
+                            x = np.arange(-100, 101, 1)
+                            gauss_kernel1 = (1.0 / np.sqrt(2 * np.pi * gauss_kernel_sigma1**2)) * np.exp(-1.0 * x**2 / (2 * gauss_kernel_sigma1**2))
+                            gauss_kernel2 = (1.0 / np.sqrt(2 * np.pi * gauss_kernel_sigma2**2)) * np.exp(-1.0 * x**2 / (2 * gauss_kernel_sigma2**2))
+                            skm_sysref_fine_conv1 = np.convolve(skm_sysref_fine, gauss_kernel1, mode='same')
+                            skm_sysref_fine_conv2 = np.convolve(skm_sysref_fine, gauss_kernel2, mode='same')
+                            skyres_fine = skm_sysref_fine_conv1 - skm_sysref_fine_conv2
+                            skyres = np.interp(wav[thisArm], wav_fine, skyres_fine)
+                            flux.append(flam[thisArm, 0] + np.random.normal(0.0, abs(sigma1[thisArm, 0]) * np.sqrt(nexp)) + skyres)
                         dataflux.append(np.nanmean(flux, axis=0))
                     else:
-                        dataflux.append(flam[thisArm, 0] + np.random.normal(0.0, sigma1[thisArm, 0]))
+                        dataflux.append(flam[thisArm, 0] + np.random.normal(0.0, abs(sigma1[thisArm, 0])))
                     datasky.append(sky[thisArm])
                     datamask.append(msk[thisArm])
                     covar = np.zeros(3 * nPt).reshape((3, nPt))
@@ -416,7 +458,7 @@ class Pfsspec(object):
         ''' Ascii '''
         if self.asciiTable != "None":
             write_ascii(pfsArmSet, arms, self.asciiTable, self.outdir)
-            print("ASCII table %s was generated" % self.asciiTable)
+            # print("ASCII table %s was generated" % self.asciiTable)
         '''
             Now make the PfsObject from the PfsArmSet
         '''
