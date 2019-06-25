@@ -6,14 +6,19 @@ import sys
 import os
 from os import path
 import numpy as np
-import scipy as sp
+import collections
 
 HOME_DIR = path.dirname(path.abspath(__file__))
 ''' import datamodel module '''
 sys.path.append(HOME_DIR + "/datamodel/python")
-from pfs.datamodel.pfsConfig import PfsConfig
-from pfs.datamodel.pfsArm import PfsArmSet
-from pfs.datamodel.pfsObject import PfsObject, makePfsObject
+from pfs.datamodel.pfsConfig import PfsDesign, PfsConfig
+from pfs.datamodel.drp import PfsArm, PfsMerged, PfsObject
+from pfs.datamodel.masks import MaskHelper
+from pfs.datamodel.target import TargetData, TargetObservations
+from pfs.datamodel import utils
+
+WAV_ERR_SHIFT = 3
+visit0 = 1
 
 
 def arm_name(arm_num):
@@ -28,60 +33,167 @@ def arm_number(armStr):
     return dict(b=0, r=1, n=2, m=3)[armStr]
 
 
-def makeFakePfsConfig(tract, patch, ra, dec, catId, startingObjId, objectMags, nFiber=1):
-    """Make and return a PfsConfig with nFiber entries referring to the same object
-
-    Successive fibres are given object IDs that increase by one, starting with objId
+def makePfsDesign(tracts, patches, fiberIds, ras, decs, catIds, objIds, objectMags):
     """
-    fiberId = np.arange(1, nFiber + 1, dtype=np.int32)
-
-    tmp, ra = ra, np.empty(nFiber)
-    ra.fill(tmp)
-
-    tmp, dec = dec, np.empty(nFiber)
-    dec.fill(tmp)
-
-    catIds = np.empty(nFiber)
-    catIds.fill(catId)
-
-    tmp, tract = tract, np.empty(nFiber, dtype=np.int32)
-    tract.fill(tmp)
-
-    tmp, patch = patch, np.empty(nFiber, dtype=str)
-    patch.fill(tmp)
-    patch = nFiber * [tmp]
-
-    objIds = startingObjId + np.arange(nFiber, dtype=np.int64)
-
+        Make and return a PfsDesign with real information
+    """
+    nFiber = len(fiberIds)
     fiberMag = np.empty((nFiber, 5))
     for i in range(nFiber):
         fiberMag[i] = objectMags[i]
+    raBoresight = np.median(ras)
+    decBoresight = np.median(decs)
+    targetTypes = np.array([1 for i in range(nFiber)], dtype='i4')
+    fiberMags = [[mag] for mag in fiberMag[:, 0]]
+    filterNames = [['g'] for i in range(nFiber)]
+    pfiNominals = np.zeros((nFiber, 2))
+    pfsDesignId = utils.calculate_pfsDesignId(fiberIds, ras, decs)
+    return PfsDesign(pfsDesignId=pfsDesignId, raBoresight=raBoresight, decBoresight=decBoresight,
+                     fiberId=fiberIds, tract=tracts, patch=patches, ra=ras, dec=decs,
+                     catId=catIds, objId=objIds, targetType=targetTypes,
+                     fiberMag=fiberMags, filterNames=filterNames, pfiNominal=pfiNominals)
 
-    mpsCen = np.zeros((nFiber, 2))
 
-    return PfsConfig(None, tract, patch, fiberId, ra, dec, catId=catIds,
-                     objId=objIds, mpsCen=mpsCen, fiberMag=fiberMag)
-
-
-def makePfsConfig(tracts, patches, fiberIds, ras, decs, catIds, objIds, objectMags):
+def makePfsConfig(pfsDesignId, visit0, tracts, patches, fiberIds, ras, decs, catIds, objIds, objectMags):
     """
         Make and return a PfsConfig with real information
     """
     nFiber = len(fiberIds)
-    #tmp, tracts = tract, np.empty(nFiber, dtype=np.int32)
-    # tracts.fill(tmp)
-
-    #tmp, patches = patch, np.empty(nFiber, dtype=str)
-    # patches.fill(tmp)
-    #patches = nFiber * [tmp]
-
     fiberMag = np.empty((nFiber, 5))
     for i in range(nFiber):
         fiberMag[i] = objectMags[i]
-    mpsCen = np.zeros((nFiber, 2))
+    raBoresight = np.median(ras)
+    decBoresight = np.median(decs)
+    targetTypes = np.array([1 for i in range(nFiber)], dtype='i4')
+    fiberMags = [[mag] for mag in fiberMag[:, 0]]
+    filterNames = [['g'] for i in range(nFiber)]
+    pfiNominals = np.zeros((nFiber, 2))
+    pfiCenters = np.zeros((nFiber, 2))
+    return PfsConfig(pfsDesignId=pfsDesignId, visit0=visit0, raBoresight=raBoresight, decBoresight=decBoresight,
+                     fiberId=fiberIds, tract=tracts, patch=patches, ra=ras, dec=decs,
+                     catId=catIds, objId=objIds, targetType=targetTypes,
+                     fiberMag=fiberMags, filterNames=filterNames,
+                     pfiCenter=pfiCenters, pfiNominal=pfiNominals)
 
-    return PfsConfig(None, tracts, patches, fiberIds, ras, decs, catId=catIds,
-                     objId=objIds, mpsCen=mpsCen, fiberMag=fiberMag)
+
+def makePfsObjects(pfsConfig, pfsArmSet, minWavelength, maxWavelength, dWavelength):
+    minWl = minWavelength
+    maxWl = maxWavelength
+    dWl = dWavelength
+    wavelength = minWl + dWl * np.arange(int((maxWl - minWl) / dWl), dtype=float)
+
+    def combine(spectra, flags):
+        """Combine spectra
+
+        Parameters
+        ----------
+        spectra : iterable of `pfs.datamodel.PfsSpectra`
+            List of spectra to combine. These should already have been
+            resampled to a common wavelength representation.
+        flags : `pfs.datamodel.MaskHelper`
+            Mask interpreter, for identifying bad pixels.
+
+        Returns
+        -------
+        wavelength : `numpy.ndarray` of `float`
+            Wavelengths for combined spectrum.
+        flux : `numpy.ndarray` of `float`
+            Flux measurements for combined spectrum.
+        sky : `numpy.ndarray` of `float`
+            Sky measurements for combined spectrum.
+        covar : `numpy.ndarray` of `float`
+            Covariance matrix for combined spectrum.
+        mask : `numpy.ndarray` of `int`
+            Mask for combined spectrum.
+        """
+        archetype = spectra[0]
+        mask = np.zeros_like(archetype.mask)
+        flux = np.zeros_like(archetype.flux)
+        sky = np.zeros_like(archetype.sky)
+        covar = np.zeros_like(archetype.covar)
+        sumWeights = np.zeros_like(archetype.flux)
+
+        for ss in spectra:
+            good = ((ss.mask & ss.flags.get(*["NO_DATA"])) == 0) & (ss.covar[:, 0] > 0)
+            weight = np.zeros_like(ss.flux)
+            weight[good] = 1.0 / ss.covar[:, 0][good]
+            flux += ss.flux * weight
+            sky += ss.sky * weight
+            mask[good] |= ss.mask[good]
+            sumWeights += weight
+
+        good = sumWeights > 0
+        flux[good] /= sumWeights[good]
+        sky[good] /= sumWeights[good]
+        covar[:, 0][good] = 1.0 / sumWeights[good]
+        covar[:, 0][~good] = np.inf
+        covar[:, 1:2] = np.where(good, 0.0, np.inf)[:, np.newaxis]
+        mask[~good] = flags["NO_DATA"]
+        covar2 = np.zeros((1, 1), dtype=archetype.covar.dtype)
+        Struct = collections.namedtuple('Struct', 'wavelength flux sky covar mask covar2')
+        return Struct(archetype.wavelength, flux, sky, covar, mask, covar2)
+#        return Struct(wavelength=archetype.wavelength, flux=flux, sky=sky, covar=covar, mask = mask, covar2 = covar2)
+
+    def mergeSpectra(spectraList, identityKeys):
+        """Combine all spectra from the same exposure
+
+        All spectra should have the same fibers, so we simply iterate over the
+        fibers, combining each spectrum from that fiber.
+
+        Parameters
+        ----------
+        spectraList : iterable of `pfs.datamodel.PfsSpectra`
+            List of spectra to coadd.
+        identityKeys : iterable of `str`
+            Keys to select from the input spectra's ``identity`` for the
+            merged spectra's ``identity``.
+
+        Returns
+        -------
+        result : `pfs.datamodel.PfsMerged`
+            Merged spectra.
+        """
+        archetype = spectraList[0]
+        identity = {key: archetype.identity[key] for key in identityKeys}
+        fiberId = archetype.fiberId
+        if any(np.any(ss.fiberId != fiberId) for ss in spectraList):
+            raise RuntimeError("Selection of fibers differs")
+        resampled = [ss.resample(wavelength) for ss in spectraList]
+        flags = MaskHelper.fromMerge([ss.flags for ss in spectraList])
+        combination = combine(resampled, flags)
+        return PfsMerged(identity, fiberId, combination.wavelength, combination.flux, combination.mask,
+                         combination.sky, combination.covar, flags, archetype.metadata), combination.covar2
+    """ make arm merged spectra """
+    sm, covar2 = mergeSpectra(pfsArmSet, ["visit", "spectrograph"])
+    # print(sm.flux)
+    # import matplotlib.pyplot as plt
+    # plt.plot(sm.wavelength[1], sm.flux[1])
+
+    """ make pfsObject """
+    pfsObjects = []
+    pfsVisitHashes = []
+    for i in range(len(sm.fiberId)):
+        fiberId = pfsConfig.fiberId[i]
+        catId = pfsConfig.catId[i]
+        objId = pfsConfig.objId[i]
+        tract = pfsConfig.tract[i]
+        patch = pfsConfig.patch[i]
+        ra = pfsConfig.ra[i]
+        dec = pfsConfig.dec[i]
+        targetType = pfsConfig.targetType[i]
+        fiberMags = collections.defaultdict(list)
+        for ff, mag in zip(pfsConfig.filterNames[i], pfsConfig.fiberMag[i]):
+            fiberMags[ff].append(mag)
+        targetData = TargetData(catId, tract, patch, objId, ra, dec, targetType, dict(**fiberMags))
+        identityList = [{'visit': visit0}]
+        pfiNominal = pfsConfig.pfiNominal[i]
+        pfiCenter = pfsConfig.pfiCenter[i]
+        observations = TargetObservations(identityList, np.array([fiberId]), np.array([pfiNominal]), np.array([pfiCenter]))
+        pfsObject = PfsObject(targetData, observations, sm.wavelength[i], sm.flux[i], sm.mask[i], sm.sky[i], sm.covar[i], covar2, sm.flags)
+        pfsObjects.append(pfsObject)
+        pfsVisitHash = observations.getIdentity()['pfsVisitHash']
+        pfsVisitHashes.append(pfsVisitHash)
+    return pfsObjects, pfsVisitHashes
 
 
 def calculateFiberMagnitude(wav, mag, filterName):
@@ -101,12 +213,11 @@ def calculateFiberMagnitude(wav, mag, filterName):
     return fiberMag
 
 
-def write_ascii(aset, asciiTable, outDir):
+def write_ascii(aset, arms, asciiTable, outDir):
     """Write an ascii table"""
 
     outFile = os.path.join(outDir, asciiTable)
-    nFiber = len(aset.data.values()[0].flux)
-
+    nFiber = len(aset[0].flux)
     for i in range(nFiber):
         with open('%s.dat' % (outFile) if nFiber == 1 else '%s.%d.dat' % (outFile, i), "w") as fd:
             fd.write('''#  1  WAVELENGTH  [nm]
@@ -118,14 +229,13 @@ def write_ascii(aset, asciiTable, outDir):
 '''
                      )
 
-            for armStr, arm in aset.data.items():
-                lam = arm.lam[i]
-                flux = arm.flux[i]
-                sigma = np.sqrt(arm.covar[i][0])
-                mask = arm.mask[i]
-                sky = arm.sky[i]
+            for a, armStr in zip(aset, arms):
+                lam = a.wavelength[i]
+                flux = a.flux[i]
+                sigma = np.sqrt(a.covar[i][0])
+                mask = a.mask[i]
+                sky = a.sky[i]
                 armNum = arm_number(armStr)
-
                 for j in range(len(lam)):
                     fd.write('%8.3f %12.4e %12.4e %2d %12.4e %1d\n' %
                              (lam[j], flux[j], sigma[j], mask[j], sky[j], armNum))
@@ -163,7 +273,9 @@ class Pfsspec(object):
                        'writeFits': 't',
                        'writePfsArm': 't',
                        'plotArmSet': 'f',
-                       'plotObject': 'f'
+                       'plotObject': 'f',
+                       'SKY_SUB_FLOOR': '0.01',
+                       'SKY_SUB_MODE': 'random'
                        }
         return None
 
@@ -209,7 +321,10 @@ class Pfsspec(object):
         self.plotObject = strToBool(self.params['plotObject'])
         self.asciiTable = self.params['asciiTable']
         self.pfsConfigFull = strToBool(self.params['pfsConfigFull'])
+        self.sky_sub_err = float(self.params['SKY_SUB_FLOOR'])
+        self.sky_sub_mode = self.params['SKY_SUB_MODE']
         nrealize = int(self.params['nrealize'])
+        nexp = int(self.params['EXP_NUM'])
         try:
             if len(self.fiberId) > 0:
                 self.multi_info = 1
@@ -289,7 +404,21 @@ class Pfsspec(object):
             # smp: samplingFactor.  A fiddle factor for the Poisson noise in HgCdTe devices
             # skm: sky flux
         '''
+        with open(self.params['etcFile'], 'r') as f:
+            for line in f.readlines():
+                if "EXP_NUM" in line:
+                    nexp_etc = int(line.split()[2])
         arm, wav, nsv, trn, smp, skm = np.loadtxt(self.params['etcFile'], usecols=(0, 2, 5, 8, 9, 10), unpack=True)
+        ''' remove sky systematics '''
+        skm_sysref = skm.copy()
+        skmp = np.roll(skm_sysref, 1)
+        skmp[0] = 0.0
+        skmm = np.roll(skm_sysref, -1)
+        skmm[-1] = 0.0
+        skm_sysref = np.amax([skm_sysref, skmm, skmp], axis=0)
+        nsv_sys = (self.sky_sub_err * np.sqrt(nexp_etc) * skm_sysref)**2
+        nsv_rnd = nsv - nsv_sys
+        ''' '''
         arm = arm.astype(int)
         trn[trn < 1.0e26] = 1.0e26
         ''' load magnitude or filename '''
@@ -308,12 +437,14 @@ class Pfsspec(object):
         wav_mtrx = np.empty((len(wav), nobj))
         trn_mtrx = np.empty((len(wav), nobj))
         smp_mtrx = np.empty((len(wav), nobj))
-        nsv_mtrx = np.empty((len(wav), nobj))
+        nsv_rnd_mtrx = np.empty((len(wav), nobj))
+        nsv_sys_mtrx = np.empty((len(wav), nobj))
         for i in range(nobj):
             wav_mtrx[:, i] = wav
             trn_mtrx[:, i] = trn
             smp_mtrx[:, i] = smp
-            nsv_mtrx[:, i] = nsv
+            nsv_rnd_mtrx[:, i] = nsv_rnd
+            nsv_sys_mtrx[:, i] = nsv_sys * float(nexp) / float(nexp_etc)
         ''' calculate the flux etc. in observed units '''
         fnu = 10**(-0.4 * (mag + 48.6))
         flam = 3.0e18 * fnu / (10 * wav_mtrx)**2 / 1e-17
@@ -323,16 +454,29 @@ class Pfsspec(object):
             countsp = np.where(counts == 0, float(self.params['countsMin']), counts)  # version of counts with zero pixels replaced
         else:
             countsp = counts
-        snr = countsp / np.sqrt(smp_mtrx * countsp + nsv_mtrx) * np.sqrt(int(self.params['EXP_NUM']))
-        sigma = flam / snr
+        if self.sky_sub_mode == 'residual' or self.sky_sub_mode == 'residual2':
+            snr1 = countsp / np.sqrt(smp_mtrx * countsp + nsv_rnd_mtrx) * np.sqrt(nexp)
+            snr2 = countsp / np.sqrt(smp_mtrx * countsp + (nsv_rnd_mtrx + nsv_sys_mtrx)) * np.sqrt(nexp)
+        else:
+            snr1 = countsp / np.sqrt(smp_mtrx * countsp + (nsv_rnd_mtrx + nsv_sys_mtrx)) * np.sqrt(nexp)
+            snr2 = countsp / np.sqrt(smp_mtrx * countsp + (nsv_rnd_mtrx + nsv_sys_mtrx)) * np.sqrt(nexp)
+        sigma1 = flam / snr1
+        sigma2 = flam / snr2
+
         msk = np.zeros_like(wav, dtype=np.int32)
         sky = 3.0e18 * (skm / trn) / (10 * wav)**2 / 1e-17
+        skm_sysref = sky.copy()
+        skmp = np.roll(skm_sysref, 1)
+        skmp[0] = 0.0
+        skmm = np.roll(skm_sysref, -1)
+        skmm[-1] = 0.0
+        skm_sysref = np.amax([skm_sysref, skmm, skmp], axis=0)
         arm = arm_name(arm)
         arms = np.array(sorted(set(arm), key=lambda x: dict(b=0, r=1, m=1.5, n=2)[x]))  # unique values of arm
         '''
             Create and populate the objects corresponding to the datamodel
 
-            First the parameters describing the observation, in PfsConfig
+            First the parameters describing the observation, in PfsDesign and PfsConfig
         '''
         objectMags = []
         if nobj > 1:
@@ -342,61 +486,116 @@ class Pfsspec(object):
             for i in range(nrealize):
                 objectMags.append([calculateFiberMagnitude(wav, mag[:, 0], b) for b in "grizy"])
 
-        pfsConfig = makePfsConfig(tracts, patches, fiberIds, ras, decs, catIds, objIds, objectMags)
+        pfsDesign = makePfsDesign(tracts, patches, fiberIds, ras, decs, catIds, objIds, objectMags)
+
+        pfsConfig = makePfsConfig(pfsDesign.pfsDesignId, visit0, tracts, patches, fiberIds, ras, decs, catIds, objIds, objectMags)
 
         '''
-            Create the PfsArmSet;  we'll put each realisation into a different fibre
+            Create the PfsArm;  we'll put each realisation into a different fibre
         '''
-        pfsConfigId = pfsConfig.pfsConfigId
-        pfsArmSet = PfsArmSet(self.visit, self.spectrograph, arms=arms, pfsConfig=pfsConfig)
-
-        for armStr, data in pfsArmSet.data.items():
+        metadata = {}
+        mapper = {"NO_DATA": 1}
+        flags = MaskHelper(**mapper)
+        pfsArmSet = []
+        for armStr in arms:
             thisArm = (arm == armStr)
+            identity = {'visit': visit0,
+                        'pfsDesignId': pfsDesign.pfsDesignId,
+                        'spectrograph': self.spectrograph,
+                        'arm': arm_number(armStr)
+                        }
+            if self.sky_sub_mode == 'residual' or self.sky_sub_mode == 'residual2':
+                sky_res_fac = np.random.normal(0.0, self.sky_sub_err)
+            else:
+                sky_res_fac = 0.0
             nPt = np.sum(thisArm)
+            datalam = []
+            dataflux = []
+            datasky = []
+            datamask = []
+            datacovar = []
             if nobj > 1:
                 for i in range(nobj):
-                    data.lam.append(wav[thisArm])
-                    data.flux.append(flam[thisArm, i] + np.random.normal(0.0, sigma[thisArm, i]))
-                    data.sky.append(sky[thisArm])
-                    data.mask.append(msk[thisArm])
+                    datalam.append(wav[thisArm])
+                    if self.sky_sub_mode == 'residual':
+                        flux = []
+                        for j in range(nexp):
+                            skyres = skm_sysref[thisArm] * sky_res_fac
+                            flux.append(flam[thisArm, i] + np.random.normal(0.0, sigma1[thisArm, i] * np.sqrt(nexp)) + skyres)
+                        dataflux.append(np.nanmean(flux, axis=0))
+                    elif self.sky_sub_mode == 'residual2':
+                        flux = []
+                        for j in range(nexp):
+                            skyres = (skm_sysref[thisArm] - np.roll(skm_sysref[thisArm], WAV_ERR_SHIFT)) * sky_res_fac
+                            flux.append(flam[thisArm, i] + np.random.normal(0.0, sigma1[thisArm, i] * np.sqrt(nexp)) + skyres)
+                        dataflux.append(np.nanmean(flux, axis=0))
+                    else:
+                        dataflux.append(flam[thisArm, i] + np.random.normal(0.0, sigma1[thisArm, i]))
+                    datasky.append(sky[thisArm])
+                    datamask.append(msk[thisArm])
                     covar = np.zeros(3 * nPt).reshape((3, nPt))
-                    covar[0] = sigma[thisArm, i]**2
-                    data.covar.append(covar)
+                    covar[0] = sigma2[thisArm, i]**2
+                    datacovar.append(covar)
             else:
                 for i in range(nrealize):
-                    data.lam.append(wav[thisArm])
-                    data.flux.append(flam[thisArm, 0] + np.random.normal(0.0, sigma[thisArm, 0]))
-                    data.sky.append(sky[thisArm])
-                    data.mask.append(msk[thisArm])
+                    datalam.append(wav[thisArm])
+                    if self.sky_sub_mode == 'residual':
+                        flux = []
+                        for j in range(nexp):
+                            skyres = skm_sysref[thisArm] * sky_res_fac
+                            flux.append(flam[thisArm, 0] + np.random.normal(0.0, sigma1[thisArm, 0] * np.sqrt(nexp)) + skyres)
+                        dataflux.append(np.nanmean(flux, axis=0))
+                    elif self.sky_sub_mode == 'residual2':
+                        flux = []
+                        for j in range(nexp):
+                            skyres = (skm_sysref[thisArm] - np.roll(skm_sysref[thisArm], WAV_ERR_SHIFT)) * sky_res_fac
+                            flux.append(flam[thisArm, 0] + np.random.normal(0.0, sigma1[thisArm, 0] * np.sqrt(nexp)) + skyres)
+                        dataflux.append(np.nanmean(flux, axis=0))
+                    else:
+                        dataflux.append(flam[thisArm, 0] + np.random.normal(0.0, sigma1[thisArm, 0]))
+                    datasky.append(sky[thisArm])
+                    datamask.append(msk[thisArm])
                     covar = np.zeros(3 * nPt).reshape((3, nPt))
-                    covar[0] = sigma[thisArm, 0]**2
-                    data.covar.append(covar)
+                    covar[0] = sigma2[thisArm, 0]**2
+                    datacovar.append(covar)
+            pfsArm = PfsArm(identity=identity,
+                            fiberId=fiberIds,
+                            wavelength=np.array(datalam),
+                            flux=np.array(dataflux),
+                            mask=np.array(datamask),
+                            sky=np.array(datasky),
+                            covar=np.array(datacovar),
+                            flags=flags,
+                            metadata=metadata
+                            )
+            pfsArmSet.append(pfsArm)
         if self.plotArmSet:
-            pfsArmSet.plot(showFlux=True, showMask=False, showSky=False, showCovar=False)
+            for pfsArm in pfsArmSet:
+                pfsArm.plot(fiberId=None, usePixels=False, ignorePixelMask=0x0, show=True)
         '''
             Time for I/O
         '''
         ''' Fits '''
         if self.writeFits:
+            pfsDesign.write(self.outdir)         # pfsDesign file
             pfsConfig.write(self.outdir)         # pfsConfig file
             if self.writePfsArm:                 # write pfsArm files
-                for data in pfsArmSet.data.values():
-                    data.write(self.outdir)
+                for pfsArm in pfsArmSet:
+                    pfsArm.write(self.outdir)
         ''' Ascii '''
         if self.asciiTable != "None":
-            write_ascii(pfsArmSet, self.asciiTable, self.outdir)
+            write_ascii(pfsArmSet, arms, self.asciiTable, self.outdir)
             print("ASCII table %s was generated" % self.asciiTable)
         '''
             Now make the PfsObject from the PfsArmSet
         '''
-        # for catId in catIds:
-        for catId, objId in zip(catIds, objIds):
-            pfsObject = makePfsObject(objId, [pfsArmSet], catId=catId)
-            self.pfsVisitHash = pfsObject.pfsVisitHash
-            if self.plotObject:
-                pfsObject.plot()
-
+        pfsObjects, pfsVisitHashes = makePfsObjects(pfsConfig=pfsConfig, pfsArmSet=pfsArmSet,
+                                                    minWavelength=350., maxWavelength=1260., dWavelength=0.1)
+        for pfsObject, pfsVisitHash in zip(pfsObjects, pfsVisitHashes):
             if self.writeFits:
-                pfsObject.write(self.outdir)         # pfsObject file
+                pfsObject.write(self.outdir)         # pfsDesign file
+            self.pfsVisitHash = pfsVisitHash
+            if self.plotObject:
+                pfsObject.plot(show=True)
 
         return 0
