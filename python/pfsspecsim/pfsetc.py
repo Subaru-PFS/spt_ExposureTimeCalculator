@@ -69,12 +69,11 @@ class Etc(object):
                        'minSNR': '9.0',
                        'degrade': '1.0',
                        'SKY_SUB_FLOOR': '0.01',
-                       'DIFFUSE_STRAY': '0.02'
+                       'DIFFUSE_STRAY': '0.02',
+                       'throughput_model': '20151204'
                        }
         self.HOME_DIR = path.dirname(path.abspath(__file__))
         self.ETC_SRC = self.HOME_DIR + '/bin/gsetc.x'
-        self.INSTR_SETUP = self.HOME_DIR + '/config/PFS.dat'
-        self.INSTR_SETUP_MR = self.HOME_DIR + '/config/PFS.redMR.dat'
 #        if not os.path.exists(self.HOME_DIR + '/bin'):
 #            os.mkdir(self.HOME_DIR + '/bin')
         if not os.path.exists('out'):
@@ -102,6 +101,9 @@ class Etc(object):
 
     def run(self):
         start = time.time()
+        ''' select throughput model '''
+        self.INSTR_SETUP = self.HOME_DIR + '/config/PFS.%s.dat' % (self.params['throughput_model'])
+        self.INSTR_SETUP_MR = self.HOME_DIR + '/config/PFS.redMR.%s.dat' % (self.params['throughput_model'])
         ''' Noise reuse flag '''
         flag = '0'
         if self.params['NOISE_REUSED'].lower() == 'y':
