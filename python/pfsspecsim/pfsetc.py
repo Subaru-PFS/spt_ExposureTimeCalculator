@@ -15,9 +15,30 @@ import subprocess
 ###############################################
 SKYMODELS = '11005'
 OFFSET_FIB = '0.00'
-SKY_SUB_FLOOR = '0.01'
-DIFFUSE_STRAY = '0.02'
 offset = 0.01
+
+
+def add_header(filename, seeing, zenith_ang, galactic_ext, moon_zenith_ang, moon_target_ang, moon_phase, texp, nexp, field_ang, mag_file, reff, line_flux, line_width):
+    hdr = ''
+    hdr += '#  SEEING: %s\n' % (seeing)
+    hdr += '#  ZENITH_ANG: %s\n' % (zenith_ang)
+    hdr += '#  GALACTIC_EXT: %s\n' % (galactic_ext)
+    hdr += '#  MOON_ZENITH_ANG: %s\n' % (moon_zenith_ang)
+    hdr += '#  MOON_TARGET_ANG: %s\n' % (moon_target_ang)
+    hdr += '#  MOON_PHASE: %s\n' % (moon_phase)
+    hdr += '#  EXP_TIME: %s\n' % (texp)
+    hdr += '#  EXP_NUM: %s\n' % (nexp)
+    hdr += '#  FIELD_ANG: %s\n' % (field_ang)
+    hdr += '#  MAG_FILE: %s\n' % (mag_file)
+    hdr += '#  REFF: %s\n' % (reff)
+    hdr += '#  LINE_FLUX: %s\n' % (line_flux)
+    hdr += '#  LINE_WIDTH: %s\n' % (line_width)
+    with open(filename, 'r') as f:
+        dat = f.read()
+    with open(filename, 'w') as f:
+        f.write(hdr)
+        f.write(dat)
+    return 0
 
 
 class Etc(object):
@@ -47,6 +68,8 @@ class Etc(object):
                        'OUTFILE_OIICat': '-',
                        'minSNR': '9.0',
                        'degrade': '1.0',
+                       'SKY_SUB_FLOOR': '0.01',
+                       'DIFFUSE_STRAY': '0.02'
                        }
         self.HOME_DIR = path.dirname(path.abspath(__file__))
         self.ETC_SRC = self.HOME_DIR + '/bin/gsetc.x'
@@ -141,8 +164,8 @@ class Etc(object):
                                         self.params['MOON_PHASE'],
                                         self.params['EXP_TIME'],
                                         self.params['EXP_NUM'],
-                                        SKY_SUB_FLOOR,
-                                        DIFFUSE_STRAY,
+                                        self.params['SKY_SUB_FLOOR'],
+                                        self.params['DIFFUSE_STRAY'],
                                         self.NOISE_REUSED,
                                         self.params['OUTFILE_NOISE'],
                                         self.params['OUTFILE_OII'],
@@ -159,29 +182,37 @@ class Etc(object):
         except OSError as e:
             exit('Execution error of "%s" (%s)' % self.ETC_SRC, e)
         ''' load OUTFILE_NOISE '''
-        try:
-            self.nsm_arms, self.nsm_pixs, self.nsm_lams, self.nsm_nois, self.nsm_skys = sp.genfromtxt(self.params['OUTFILE_NOISE'], unpack=True, usecols=(0, 1, 2, 3, 4))
-        except:
-            print('OUTFILE_NOISE is not found ...')
-            pass
+        if self.params['OUTFILE_NOISE'] != '-':
+            add_header(self.params['OUTFILE_NOISE'], self.params['SEEING'], self.params['ZENITH_ANG'], self.params['GALACTIC_EXT'], self.params['MOON_ZENITH_ANG'], self.params['MOON_TARGET_ANG'], self.params['MOON_PHASE'], self.params['EXP_TIME'], self.params['EXP_NUM'], self.params['FIELD_ANG'], self.params['MAG_FILE'], self.params['REFF'], self.params['LINE_FLUX'], self.params['LINE_WIDTH'])
+            try:
+                self.nsm_arms, self.nsm_pixs, self.nsm_lams, self.nsm_nois, self.nsm_skys = sp.genfromtxt(self.params['OUTFILE_NOISE'], unpack=True, usecols=(0, 1, 2, 3, 4))
+            except:
+                print('OUTFILE_NOISE is not found ...')
+                pass
         ''' load OUTFILE_SNC '''
-        try:
-            self.snc_arms, self.snc_pixs, self.snc_lams, self.snc_sncs, self.snc_sigs, self.snc_nois_mobj, self.snc_nois, self.snc_spin, self.snc_conv, self.snc_samp, self.snc_skys = sp.genfromtxt(self.params['OUTFILE_SNC'], unpack=True, usecols=(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10))
-        except:
-            print('OUTFILE_SNC is not found ...')
-            pass
+        if self.params['OUTFILE_SNC'] != '-':
+            add_header(self.params['OUTFILE_SNC'], self.params['SEEING'], self.params['ZENITH_ANG'], self.params['GALACTIC_EXT'], self.params['MOON_ZENITH_ANG'], self.params['MOON_TARGET_ANG'], self.params['MOON_PHASE'], self.params['EXP_TIME'], self.params['EXP_NUM'], self.params['FIELD_ANG'], self.params['MAG_FILE'], self.params['REFF'], self.params['LINE_FLUX'], self.params['LINE_WIDTH'])
+            try:
+                self.snc_arms, self.snc_pixs, self.snc_lams, self.snc_sncs, self.snc_sigs, self.snc_nois_mobj, self.snc_nois, self.snc_spin, self.snc_conv, self.snc_samp, self.snc_skys = sp.genfromtxt(self.params['OUTFILE_SNC'], unpack=True, usecols=(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10))
+            except:
+                print('OUTFILE_SNC is not found ...')
+                pass
         ''' load OUTFILE_SNL '''
-        try:
-            self.snl_lams, self.snl_fcov, self.snl_effa, self.snl_sna0, self.snl_sna1, self.snl_sna2, self.snl_snls = sp.genfromtxt(self.params['OUTFILE_SNL'], unpack=True, usecols=(0, 1, 2, 3, 4, 5, 6))
-        except:
-            print('OUTFILE_SNL is not found ...')
-            pass
+        if self.params['OUTFILE_SNL'] != '-':
+            add_header(self.params['OUTFILE_SNL'], self.params['SEEING'], self.params['ZENITH_ANG'], self.params['GALACTIC_EXT'], self.params['MOON_ZENITH_ANG'], self.params['MOON_TARGET_ANG'], self.params['MOON_PHASE'], self.params['EXP_TIME'], self.params['EXP_NUM'], self.params['FIELD_ANG'], self.params['MAG_FILE'], self.params['REFF'], self.params['LINE_FLUX'], self.params['LINE_WIDTH'])
+            try:
+                self.snl_lams, self.snl_fcov, self.snl_effa, self.snl_sna0, self.snl_sna1, self.snl_sna2, self.snl_snls = sp.genfromtxt(self.params['OUTFILE_SNL'], unpack=True, usecols=(0, 1, 2, 3, 4, 5, 6))
+            except:
+                print('OUTFILE_SNL is not found ...')
+                pass
         ''' load OUTFILE_OII '''
-        try:
-            self.sno2_zsps, self.sno2_lam1, self.sno2_lam2, self.sno2_fcov, self.sno2_effa, self.sno2_sna0, self.sno2_sna1, self.sno2_sna2, self.sno2_sno2 = sp.genfromtxt(self.params['OUTFILE_OII'], unpack=True, usecols=(0, 1, 2, 3, 4, 5, 6, 7, 8))
-        except:
-            print('OUTFILE_OII is not found ...')
-            pass
+        if self.params['OUTFILE_OII'] != '-':
+            add_header(self.params['OUTFILE_OII'], self.params['SEEING'], self.params['ZENITH_ANG'], self.params['GALACTIC_EXT'], self.params['MOON_ZENITH_ANG'], self.params['MOON_TARGET_ANG'], self.params['MOON_PHASE'], self.params['EXP_TIME'], self.params['EXP_NUM'], self.params['FIELD_ANG'], self.params['MAG_FILE'], self.params['REFF'], self.params['LINE_FLUX'], self.params['LINE_WIDTH'])
+            try:
+                self.sno2_zsps, self.sno2_lam1, self.sno2_lam2, self.sno2_fcov, self.sno2_effa, self.sno2_sna0, self.sno2_sna1, self.sno2_sna2, self.sno2_sno2 = sp.genfromtxt(self.params['OUTFILE_OII'], unpack=True, usecols=(0, 1, 2, 3, 4, 5, 6, 7, 8))
+            except:
+                print('OUTFILE_OII is not found ...')
+                pass
 
         ''' end of the process '''
         elapsed_time = time.time() - start
@@ -253,8 +284,8 @@ class Etc(object):
                                         self.params['MOON_PHASE'],
                                         self.params['EXP_TIME'],
                                         self.params['EXP_NUM'],
-                                        SKY_SUB_FLOOR,
-                                        DIFFUSE_STRAY,
+                                        self.params['SKY_SUB_FLOOR'],
+                                        self.params['DIFFUSE_STRAY'],
                                         '0',
                                         self.params['OUTFILE_NOISE'],
                                         '-',
@@ -271,11 +302,13 @@ class Etc(object):
         except OSError as e:
             exit('Execution error of "%s" (%s)' % self.ETC_SRC, e)
         ''' load OUTFILE_NOISE '''
-        try:
-            self.nsm_arms, self.nsm_pixs, self.nsm_lams, self.nsm_nois, self.nsm_skys = sp.genfromtxt(self.params['OUTFILE_NOISE'], unpack=True, usecols=(0, 1, 2, 3, 4))
-        except:
-            print('OUTFILE_NOISE is not found ...')
-            pass
+        if self.params['OUTFILE_NOISE'] != '-':
+            add_header(self.params['OUTFILE_NOISE'], self.params['SEEING'], self.params['ZENITH_ANG'], self.params['GALACTIC_EXT'], self.params['MOON_ZENITH_ANG'], self.params['MOON_TARGET_ANG'], self.params['MOON_PHASE'], self.params['EXP_TIME'], self.params['EXP_NUM'], self.params['FIELD_ANG'], self.params['MAG_FILE'], self.params['REFF'], self.params['LINE_FLUX'], self.params['LINE_WIDTH'])
+            try:
+                self.nsm_arms, self.nsm_pixs, self.nsm_lams, self.nsm_nois, self.nsm_skys = sp.genfromtxt(self.params['OUTFILE_NOISE'], unpack=True, usecols=(0, 1, 2, 3, 4))
+            except:
+                print('OUTFILE_NOISE is not found ...')
+                pass
         ''' end of process '''
         elapsed_time = time.time() - start
         print("##### finished (elapsed_time: %.1f[sec]) #####" % (elapsed_time))
@@ -304,8 +337,8 @@ class Etc(object):
                                         self.params['MOON_PHASE'],
                                         self.params['EXP_TIME'],
                                         self.params['EXP_NUM'],
-                                        SKY_SUB_FLOOR,
-                                        DIFFUSE_STRAY,
+                                        self.params['SKY_SUB_FLOOR'],
+                                        self.params['DIFFUSE_STRAY'],
                                         '1',
                                         self.params['OUTFILE_NOISE'],
                                         '-',
@@ -322,11 +355,13 @@ class Etc(object):
         except OSError as e:
             exit('Execution error of "%s" (%s)' % self.ETC_SRC, e)
         ''' load OUTFILE_SNC '''
-        try:
-            self.snc_arms, self.snc_pixs, self.snc_lams, self.snc_sncs, self.snc_sigs, self.snc_nois_mobj, self.snc_nois, self.snc_spin, self.snc_conv, self.snc_samp, self.snc_skys = sp.genfromtxt(self.params['OUTFILE_SNC'], unpack=True, usecols=(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10))
-        except:
-            print('OUTFILE_SNC is not found ...')
-            pass
+        if self.params['OUTFILE_SNC'] != '-':
+            add_header(self.params['OUTFILE_SNC'], self.params['SEEING'], self.params['ZENITH_ANG'], self.params['GALACTIC_EXT'], self.params['MOON_ZENITH_ANG'], self.params['MOON_TARGET_ANG'], self.params['MOON_PHASE'], self.params['EXP_TIME'], self.params['EXP_NUM'], self.params['FIELD_ANG'], self.params['MAG_FILE'], self.params['REFF'], self.params['LINE_FLUX'], self.params['LINE_WIDTH'])
+            try:
+                self.snc_arms, self.snc_pixs, self.snc_lams, self.snc_sncs, self.snc_sigs, self.snc_nois_mobj, self.snc_nois, self.snc_spin, self.snc_conv, self.snc_samp, self.snc_skys = sp.genfromtxt(self.params['OUTFILE_SNC'], unpack=True, usecols=(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10))
+            except:
+                print('OUTFILE_SNC is not found ...')
+                pass
         ''' end of process '''
         elapsed_time = time.time() - start
         print("##### finished (elapsed_time: %.1f[sec]) #####" % (elapsed_time))
@@ -355,8 +390,8 @@ class Etc(object):
                                         self.params['MOON_PHASE'],
                                         self.params['EXP_TIME'],
                                         self.params['EXP_NUM'],
-                                        SKY_SUB_FLOOR,
-                                        DIFFUSE_STRAY,
+                                        self.params['SKY_SUB_FLOOR'],
+                                        self.params['DIFFUSE_STRAY'],
                                         '1',
                                         self.params['OUTFILE_NOISE'],
                                         '-',
@@ -373,11 +408,13 @@ class Etc(object):
         except OSError as e:
             exit('Execution error of "%s" (%s)' % self.ETC_SRC, e)
         ''' load OUTFILE_SNL '''
-        try:
-            self.snl_lams, self.snl_fcov, self.snl_effa, self.snl_sna0, self.snl_sna1, self.snl_sna2, self.snl_snls = sp.genfromtxt(self.params['OUTFILE_SNL'], unpack=True, usecols=(0, 1, 2, 3, 4, 5, 6))
-        except:
-            print('OUTFILE_SNL is not found ...')
-            pass
+        if self.params['OUTFILE_SNL'] != '-':
+            add_header(self.params['OUTFILE_SNL'], self.params['SEEING'], self.params['ZENITH_ANG'], self.params['GALACTIC_EXT'], self.params['MOON_ZENITH_ANG'], self.params['MOON_TARGET_ANG'], self.params['MOON_PHASE'], self.params['EXP_TIME'], self.params['EXP_NUM'], self.params['FIELD_ANG'], self.params['MAG_FILE'], self.params['REFF'], self.params['LINE_FLUX'], self.params['LINE_WIDTH'])
+            try:
+                self.snl_lams, self.snl_fcov, self.snl_effa, self.snl_sna0, self.snl_sna1, self.snl_sna2, self.snl_snls = sp.genfromtxt(self.params['OUTFILE_SNL'], unpack=True, usecols=(0, 1, 2, 3, 4, 5, 6))
+            except:
+                print('OUTFILE_SNL is not found ...')
+                pass
         ''' end of process '''
         elapsed_time = time.time() - start
         print("##### finished (elapsed_time: %.1f[sec]) #####" % (elapsed_time))
@@ -406,8 +443,8 @@ class Etc(object):
                                         self.params['MOON_PHASE'],
                                         self.params['EXP_TIME'],
                                         self.params['EXP_NUM'],
-                                        SKY_SUB_FLOOR,
-                                        DIFFUSE_STRAY,
+                                        self.params['SKY_SUB_FLOOR'],
+                                        self.params['DIFFUSE_STRAY'],
                                         '1',
                                         self.params['OUTFILE_NOISE'],
                                         self.params['OUTFILE_OII'],
@@ -424,11 +461,13 @@ class Etc(object):
         except OSError as e:
             exit('Execution error of "%s" (%s)' % self.ETC_SRC, e)
         ''' load OUTFILE_OII '''
-        try:
-            self.sno2_zsps, self.sno2_lam1, self.sno2_lam2, self.sno2_fcov, self.sno2_effa, self.sno2_sna0, self.sno2_sna1, self.sno2_sna2, self.sno2_sno2 = sp.genfromtxt(self.params['OUTFILE_OII'], unpack=True, usecols=(0, 1, 2, 3, 4, 5, 6, 7, 8))
-        except:
-            print('OUTFILE_OII is not found ...')
-            pass
+        if self.params['OUTFILE_OII'] != '-':
+            add_header(self.params['OUTFILE_OII'], self.params['SEEING'], self.params['ZENITH_ANG'], self.params['GALACTIC_EXT'], self.params['MOON_ZENITH_ANG'], self.params['MOON_TARGET_ANG'], self.params['MOON_PHASE'], self.params['EXP_TIME'], self.params['EXP_NUM'], self.params['FIELD_ANG'], self.params['MAG_FILE'], self.params['REFF'], self.params['LINE_FLUX'], self.params['LINE_WIDTH'])
+            try:
+                self.sno2_zsps, self.sno2_lam1, self.sno2_lam2, self.sno2_fcov, self.sno2_effa, self.sno2_sna0, self.sno2_sna1, self.sno2_sna2, self.sno2_sno2 = sp.genfromtxt(self.params['OUTFILE_OII'], unpack=True, usecols=(0, 1, 2, 3, 4, 5, 6, 7, 8))
+            except:
+                print('OUTFILE_OII is not found ...')
+                pass
         ''' end of process '''
         elapsed_time = time.time() - start
         print("##### finished (elapsed_time: %.1f[sec]) #####" % (elapsed_time))

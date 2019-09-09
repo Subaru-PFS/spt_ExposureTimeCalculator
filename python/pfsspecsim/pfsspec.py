@@ -6,15 +6,11 @@ import sys
 import os
 from os import path
 import numpy as np
-import scipy as sp
+import collections
 
+from . import dm_utils
 
-HOME_DIR = path.dirname(path.abspath(__file__))
-''' import datamodel module '''
-sys.path.append(HOME_DIR + "/datamodel/python")
-from pfs.datamodel.pfsConfig import PfsConfig
-from pfs.datamodel.pfsArm import PfsArmSet
-from pfs.datamodel.pfsObject import PfsObject, makePfsObject
+WAV_ERR_SHIFT = 3
 
 
 def arm_name(arm_num):
@@ -27,63 +23,6 @@ def arm_name(arm_num):
 
 def arm_number(armStr):
     return dict(b=0, r=1, n=2, m=3)[armStr]
-
-
-def makeFakePfsConfig(tract, patch, ra, dec, catId, startingObjId, objectMags, nFiber=1):
-    """Make and return a PfsConfig with nFiber entries referring to the same object
-
-    Successive fibres are given object IDs that increase by one, starting with objId
-    """
-    fiberId = np.arange(1, nFiber + 1, dtype=np.int32)
-
-    tmp, ra = ra, np.empty(nFiber)
-    ra.fill(tmp)
-
-    tmp, dec = dec, np.empty(nFiber)
-    dec.fill(tmp)
-
-    catIds = np.empty(nFiber)
-    catIds.fill(catId)
-
-    tmp, tract = tract, np.empty(nFiber, dtype=np.int32)
-    tract.fill(tmp)
-
-    tmp, patch = patch, np.empty(nFiber, dtype=str)
-    patch.fill(tmp)
-    patch = nFiber * [tmp]
-
-    objIds = startingObjId + np.arange(nFiber, dtype=np.int64)
-
-    fiberMag = np.empty((nFiber, 5))
-    for i in range(nFiber):
-        fiberMag[i] = objectMags[i]
-
-    mpsCen = np.zeros((nFiber, 2))
-
-    return PfsConfig(None, tract, patch, fiberId, ra, dec, catId=catIds,
-                     objId=objIds, mpsCen=mpsCen, fiberMag=fiberMag)
-
-
-def makePfsConfig(tract, patch, fiberIds, ras, decs, catIds, objIds, objectMags):
-    """
-        Make and return a PfsConfig with real information
-    """
-    nFiber = len(fiberIds)
-
-    tmp, tracts = tract, np.empty(nFiber, dtype=np.int32)
-    tracts.fill(tmp)
-
-    tmp, patches = patch, np.empty(nFiber, dtype=str)
-    patches.fill(tmp)
-    patches = nFiber * [tmp]
-
-    fiberMag = np.empty((nFiber, 5))
-    for i in range(nFiber):
-        fiberMag[i] = objectMags[i]
-    mpsCen = np.zeros((nFiber, 2))
-
-    return PfsConfig(None, tracts, patches, fiberIds, ras, decs, catId=catIds,
-                     objId=objIds, mpsCen=mpsCen, fiberMag=fiberMag)
 
 
 def calculateFiberMagnitude(wav, mag, filterName):
@@ -103,12 +42,11 @@ def calculateFiberMagnitude(wav, mag, filterName):
     return fiberMag
 
 
-def write_ascii(aset, asciiTable, outDir):
+def write_ascii(aset, arms, asciiTable, outDir):
     """Write an ascii table"""
 
     outFile = os.path.join(outDir, asciiTable)
-    nFiber = len(aset.data.values()[0].flux)
-
+    nFiber = len(aset[0].flux)
     for i in range(nFiber):
         with open('%s.dat' % (outFile) if nFiber == 1 else '%s.%d.dat' % (outFile, i), "w") as fd:
             fd.write('''#  1  WAVELENGTH  [nm]
@@ -120,14 +58,13 @@ def write_ascii(aset, asciiTable, outDir):
 '''
                      )
 
-            for armStr, arm in aset.data.items():
-                lam = arm.lam[i]
-                flux = arm.flux[i]
-                sigma = np.sqrt(arm.covar[i][0])
-                mask = arm.mask[i]
-                sky = arm.sky[i]
+            for a, armStr in zip(aset, arms):
+                lam = a.wavelength[i]
+                flux = a.flux[i]
+                sigma = np.sqrt(a.covar[i][0])
+                mask = a.mask[i]
+                sky = a.sky[i]
                 armNum = arm_number(armStr)
-
                 for j in range(len(lam)):
                     fd.write('%8.3f %12.4e %12.4e %2d %12.4e %1d\n' %
                              (lam[j], flux[j], sigma[j], mask[j], sky[j], armNum))
@@ -167,7 +104,9 @@ class Pfsspec(object):
                        'writeFits': 't',
                        'writePfsArm': 't',
                        'plotArmSet': 'f',
-                       'plotObject': 'f'
+                       'plotObject': 'f',
+                       'SKY_SUB_FLOOR': '0.01',
+                       'SKY_SUB_MODE': 'random'
                        }
         return None
 
@@ -193,7 +132,7 @@ class Pfsspec(object):
 
     def make_sim_spec(self):
         self.outdir = self.params['outDir']
-        self.tract = int(self.params['tract'])
+        self.tract = self.params['tract']
         self.patch = self.params['patch']
         self.visit = int(self.params['visit'])
         self.fiberId = self.params['fiberId']
@@ -213,7 +152,17 @@ class Pfsspec(object):
         self.plotObject = strToBool(self.params['plotObject'])
         self.asciiTable = self.params['asciiTable']
         self.pfsConfigFull = strToBool(self.params['pfsConfigFull'])
+        self.sky_sub_err = float(self.params['SKY_SUB_FLOOR'])
+        self.sky_sub_mode = self.params['SKY_SUB_MODE']
         nrealize = int(self.params['nrealize'])
+        nexp = int(self.params['EXP_NUM'])
+        try:
+            if len(self.fiberId) > 0:
+                self.multi_info = 1
+            else:
+                self.multi_info = 0
+        except:
+            self.multi_info = 0
 
         if not self.writeFits and not self.asciiTable:
             sys.exit("Please specify asciiTable or omit writeFits (or say writeFits true)")
@@ -230,26 +179,53 @@ class Pfsspec(object):
             nobj = dat.shape[1] - 1
         else:
             nobj = 1
-        if self.pfsConfigFull:
-            try:
-                if len(self.fiberId) == nobj and len(self.ra) == nobj and len(self.dec) == nobj and len(self.catId) == nobj and len(self.objId) == nobj:
-                    objIds = [self.objId]
-                    catIds = [self.catId]
-                else:
-                    sys.exit("specify fiberId/ra/dec/objId/catId!")
-            except:
-                sys.exit("specify fiberId/ra/dec/objId/catId!")
-        else:
-            if nobj > 1:
-                if nrealize > 1:
-                    sys.exit("The number of realization should be one for multiple input template")
-                else:
-                    objIds = range(self.objId, self.objId + nobj)
-                    #catIds = sp.zeros(nobj)
+        if nobj > 1:
+            if nrealize > 1:
+                sys.exit("The number of realization should be one for multiple input template")
             else:
-                objIds = range(self.objId, self.objId + nrealize)
-                #catIds = sp.zeros(nobj)
-            catIds = sp.array([self.catId])
+                if self.multi_info == 0:
+                    objIds = np.arange(self.objId, self.objId + nobj)
+                    tmp, catIds = self.catId, np.empty(nobj, dtype=np.int32)
+                    catIds.fill(tmp)
+                    fiberIds = np.arange(self.fiberId, self.fiberId + nobj)
+                    tmp, ras = self.ra, np.empty(nobj, dtype=np.float32)
+                    ras.fill(tmp)
+                    tmp, decs = self.dec, np.empty(nobj, dtype=np.float32)
+                    decs.fill(tmp)
+                    tmp, tracts = self.tract, np.empty(nobj, dtype=np.int32)
+                    tracts.fill(tmp)
+                    tmp, patches = self.patch, np.empty(nobj, dtype='U3')
+                    patches.fill(tmp)
+                else:
+                    objIds = np.array(self.objId)
+                    catIds = np.array(self.catId)
+                    fiberIds = np.array(self.fiberId)
+                    ras = np.array(self.ra)
+                    decs = np.array(self.dec)
+                    tracts = np.array(self.tract)
+                    patches = np.array(self.patch)
+        else:
+            if nrealize > 1:
+                objIds = np.arange(self.objId, self.objId + nrealize)
+                tmp, catIds = self.catId, np.empty(nrealize, dtype=np.int32)
+                catIds.fill(tmp)
+                fiberIds = range(self.fiberId, self.fiberId + nrealize)
+                tmp, ras = self.ra, np.empty(nrealize, dtype=np.float32)
+                ras.fill(tmp)
+                tmp, decs = self.dec, np.empty(nrealize, dtype=np.float32)
+                decs.fill(tmp)
+                tmp, tracts = self.tract, np.empty(nrealize, dtype=np.int32)
+                tracts.fill(tmp)
+                tmp, patches = self.patch, np.empty(nrealize, dtype='U3')
+                patches.fill(tmp)
+            else:
+                objIds = np.array([self.objId])
+                catIds = np.array([self.catId])
+                fiberIds = np.array([self.fiberId])
+                ras = np.array([self.ra])
+                decs = np.array([self.dec])
+                tracts = np.array([self.tract])
+                patches = np.array([self.patch])
         '''
             ## read input file ##
             # arm: 0-3 telling us which arm the data comes from (arm_name will convert to b, r, n, m)
@@ -259,7 +235,21 @@ class Pfsspec(object):
             # smp: samplingFactor.  A fiddle factor for the Poisson noise in HgCdTe devices
             # skm: sky flux
         '''
+        with open(self.params['etcFile'], 'r') as f:
+            for line in f.readlines():
+                if "EXP_NUM" in line:
+                    nexp_etc = int(line.split()[2])
         arm, wav, nsv, trn, smp, skm = np.loadtxt(self.params['etcFile'], usecols=(0, 2, 5, 8, 9, 10), unpack=True)
+        ''' remove sky systematics '''
+        skm_sysref = skm.copy()
+        skmp = np.roll(skm_sysref, 1)
+        skmp[0] = 0.0
+        skmm = np.roll(skm_sysref, -1)
+        skmm[-1] = 0.0
+        skm_sysref = np.amax([skm_sysref, skmm, skmp], axis=0)
+        nsv_sys = (self.sky_sub_err * np.sqrt(nexp_etc) * skm_sysref)**2
+        nsv_rnd = nsv - nsv_sys
+        ''' '''
         arm = arm.astype(int)
         trn[trn < 1.0e26] = 1.0e26
         ''' load magnitude or filename '''
@@ -278,12 +268,14 @@ class Pfsspec(object):
         wav_mtrx = np.empty((len(wav), nobj))
         trn_mtrx = np.empty((len(wav), nobj))
         smp_mtrx = np.empty((len(wav), nobj))
-        nsv_mtrx = np.empty((len(wav), nobj))
+        nsv_rnd_mtrx = np.empty((len(wav), nobj))
+        nsv_sys_mtrx = np.empty((len(wav), nobj))
         for i in range(nobj):
             wav_mtrx[:, i] = wav
             trn_mtrx[:, i] = trn
             smp_mtrx[:, i] = smp
-            nsv_mtrx[:, i] = nsv
+            nsv_rnd_mtrx[:, i] = nsv_rnd
+            nsv_sys_mtrx[:, i] = nsv_sys * float(nexp) / float(nexp_etc)
         ''' calculate the flux etc. in observed units '''
         fnu = 10**(-0.4 * (mag + 48.6))
         flam = 3.0e18 * fnu / (10 * wav_mtrx)**2 / 1e-17
@@ -293,16 +285,29 @@ class Pfsspec(object):
             countsp = np.where(counts == 0, float(self.params['countsMin']), counts)  # version of counts with zero pixels replaced
         else:
             countsp = counts
-        snr = countsp / np.sqrt(smp_mtrx * countsp + nsv_mtrx) * np.sqrt(int(self.params['EXP_NUM']))
-        sigma = flam / snr
+        if self.sky_sub_mode == 'residual' or self.sky_sub_mode == 'residual2':
+            snr1 = countsp / np.sqrt(smp_mtrx * countsp + nsv_rnd_mtrx) * np.sqrt(nexp)
+            snr2 = countsp / np.sqrt(smp_mtrx * countsp + (nsv_rnd_mtrx + nsv_sys_mtrx)) * np.sqrt(nexp)
+        else:
+            snr1 = countsp / np.sqrt(smp_mtrx * countsp + (nsv_rnd_mtrx + nsv_sys_mtrx)) * np.sqrt(nexp)
+            snr2 = countsp / np.sqrt(smp_mtrx * countsp + (nsv_rnd_mtrx + nsv_sys_mtrx)) * np.sqrt(nexp)
+        sigma1 = flam / snr1
+        sigma2 = flam / snr2
+
         msk = np.zeros_like(wav, dtype=np.int32)
         sky = 3.0e18 * (skm / trn) / (10 * wav)**2 / 1e-17
+        skm_sysref = sky.copy()
+        skmp = np.roll(skm_sysref, 1)
+        skmp[0] = 0.0
+        skmm = np.roll(skm_sysref, -1)
+        skmm[-1] = 0.0
+        skm_sysref = np.amax([skm_sysref, skmm, skmp], axis=0)
         arm = arm_name(arm)
         arms = np.array(sorted(set(arm), key=lambda x: dict(b=0, r=1, m=1.5, n=2)[x]))  # unique values of arm
         '''
             Create and populate the objects corresponding to the datamodel
 
-            First the parameters describing the observation, in PfsConfig
+            First the parameters describing the observation, in PfsDesign and PfsConfig
         '''
         objectMags = []
         if nobj > 1:
@@ -311,66 +316,117 @@ class Pfsspec(object):
         else:
             for i in range(nrealize):
                 objectMags.append([calculateFiberMagnitude(wav, mag[:, 0], b) for b in "grizy"])
-        if self.pfsConfigFull:
-            pfsConfig = makePfsConfig(self.tract, self.patch, self.fiberId, self.ra, self.dec, self.catId, objIds, objectMags)
-        else:
-            if nobj > 1:
-                pfsConfig = makeFakePfsConfig(self.tract, self.patch, self.ra, self.dec, self.catId, objIds[0], objectMags, nFiber=nobj)
-            else:
-                pfsConfig = makeFakePfsConfig(self.tract, self.patch, self.ra, self.dec, self.catId, objIds[0], objectMags, nFiber=nrealize)
-        '''
-            Create the PfsArmSet;  we'll put each realisation into a different fibre
-        '''
-        pfsConfigId = pfsConfig.pfsConfigId
-        pfsArmSet = PfsArmSet(self.visit, self.spectrograph, arms=arms, pfsConfig=pfsConfig)
 
-        for armStr, data in pfsArmSet.data.items():
+        pfsDesign = dm_utils.makePfsDesign(tracts, patches, fiberIds, ras, decs, catIds, objIds, objectMags)
+
+        pfsConfig = dm_utils.makePfsConfig(pfsDesign.pfsDesignId, self.visit, tracts, patches, fiberIds, ras, decs, catIds, objIds, objectMags)
+
+        '''
+            Create the PfsArm;  we'll put each realisation into a different fibre
+        '''
+        metadata = {}
+        mapper = {"NO_DATA": 1}
+        flags = dm_utils.MaskHelper(**mapper)
+        pfsArmSet = []
+        for armStr in arms:
             thisArm = (arm == armStr)
+            identity = {'visit': self.visit,
+                        'pfsDesignId': pfsDesign.pfsDesignId,
+                        'spectrograph': self.spectrograph,
+                        'arm': arm_number(armStr)
+                        }
+            if self.sky_sub_mode == 'residual' or self.sky_sub_mode == 'residual2':
+                sky_res_fac = np.random.normal(0.0, self.sky_sub_err)
+            else:
+                sky_res_fac = 0.0
             nPt = np.sum(thisArm)
+            datalam = []
+            dataflux = []
+            datasky = []
+            datamask = []
+            datacovar = []
             if nobj > 1:
                 for i in range(nobj):
-                    data.lam.append(wav[thisArm])
-                    data.flux.append(flam[thisArm, i] + np.random.normal(0.0, sigma[thisArm, i]))
-                    data.sky.append(sky[thisArm])
-                    data.mask.append(msk[thisArm])
+                    datalam.append(wav[thisArm])
+                    if self.sky_sub_mode == 'residual':
+                        flux = []
+                        for j in range(nexp):
+                            skyres = skm_sysref[thisArm] * sky_res_fac
+                            flux.append(flam[thisArm, i] + np.random.normal(0.0, sigma1[thisArm, i] * np.sqrt(nexp)) + skyres)
+                        dataflux.append(np.nanmean(flux, axis=0))
+                    elif self.sky_sub_mode == 'residual2':
+                        flux = []
+                        for j in range(nexp):
+                            skyres = (skm_sysref[thisArm] - np.roll(skm_sysref[thisArm], WAV_ERR_SHIFT)) * sky_res_fac
+                            flux.append(flam[thisArm, i] + np.random.normal(0.0, sigma1[thisArm, i] * np.sqrt(nexp)) + skyres)
+                        dataflux.append(np.nanmean(flux, axis=0))
+                    else:
+                        dataflux.append(flam[thisArm, i] + np.random.normal(0.0, sigma1[thisArm, i]))
+                    datasky.append(sky[thisArm])
+                    datamask.append(msk[thisArm])
                     covar = np.zeros(3 * nPt).reshape((3, nPt))
-                    covar[0] = sigma[thisArm, i]**2
-                    data.covar.append(covar)
+                    covar[0] = sigma2[thisArm, i]**2
+                    datacovar.append(covar)
             else:
                 for i in range(nrealize):
-                    data.lam.append(wav[thisArm])
-                    data.flux.append(flam[thisArm, 0] + np.random.normal(0.0, sigma[thisArm, 0]))
-                    data.sky.append(sky[thisArm])
-                    data.mask.append(msk[thisArm])
+                    datalam.append(wav[thisArm])
+                    if self.sky_sub_mode == 'residual':
+                        flux = []
+                        for j in range(nexp):
+                            skyres = skm_sysref[thisArm] * sky_res_fac
+                            flux.append(flam[thisArm, 0] + np.random.normal(0.0, sigma1[thisArm, 0] * np.sqrt(nexp)) + skyres)
+                        dataflux.append(np.nanmean(flux, axis=0))
+                    elif self.sky_sub_mode == 'residual2':
+                        flux = []
+                        for j in range(nexp):
+                            skyres = (skm_sysref[thisArm] - np.roll(skm_sysref[thisArm], WAV_ERR_SHIFT)) * sky_res_fac
+                            flux.append(flam[thisArm, 0] + np.random.normal(0.0, sigma1[thisArm, 0] * np.sqrt(nexp)) + skyres)
+                        dataflux.append(np.nanmean(flux, axis=0))
+                    else:
+                        dataflux.append(flam[thisArm, 0] + np.random.normal(0.0, sigma1[thisArm, 0]))
+                    datasky.append(sky[thisArm])
+                    datamask.append(msk[thisArm])
                     covar = np.zeros(3 * nPt).reshape((3, nPt))
-                    covar[0] = sigma[thisArm, 0]**2
-                    data.covar.append(covar)
+                    covar[0] = sigma2[thisArm, 0]**2
+                    datacovar.append(covar)
+            pfsArm = dm_utils.PfsArm(identity=identity,
+                                     fiberId=fiberIds,
+                                     wavelength=np.array(datalam),
+                                     flux=np.array(dataflux),
+                                     mask=np.array(datamask),
+                                     sky=np.array(datasky),
+                                     covar=np.array(datacovar),
+                                     flags=flags,
+                                     metadata=metadata
+                                     )
+            pfsArmSet.append(pfsArm)
         if self.plotArmSet:
-            pfsArmSet.plot(showFlux=True, showMask=False, showSky=False, showCovar=False)
+            for pfsArm in pfsArmSet:
+                pfsArm.plot(fiberId=None, usePixels=False, ignorePixelMask=0x0, show=True)
         '''
             Time for I/O
         '''
         ''' Fits '''
         if self.writeFits:
+            pfsDesign.write(self.outdir)         # pfsDesign file
             pfsConfig.write(self.outdir)         # pfsConfig file
             if self.writePfsArm:                 # write pfsArm files
-                for data in pfsArmSet.data.values():
-                    data.write(self.outdir)
+                for pfsArm in pfsArmSet:
+                    pfsArm.write(self.outdir)
         ''' Ascii '''
         if self.asciiTable != "None":
-            write_ascii(pfsArmSet, self.asciiTable, self.outdir)
+            write_ascii(pfsArmSet, arms, self.asciiTable, self.outdir)
             print("ASCII table %s was generated" % self.asciiTable)
         '''
             Now make the PfsObject from the PfsArmSet
         '''
-        for catId in catIds:
-            for objId in objIds:
-                pfsObject = makePfsObject(objId, [pfsArmSet], catId=catId)
-                self.pfsVisitHash = pfsObject.pfsVisitHash
-                if self.plotObject:
-                    pfsObject.plot()
-
-                if self.writeFits:
-                    pfsObject.write(self.outdir)         # pfsObject file
+        pfsObjects, pfsVisitHashes = dm_utils.makePfsObjects(pfsConfig=pfsConfig, visit0=self.visit, pfsArmSet=pfsArmSet,
+                                                             minWavelength=350., maxWavelength=1260., dWavelength=0.08)
+        for pfsObject, pfsVisitHash in zip(pfsObjects, pfsVisitHashes):
+            if self.writeFits:
+                pfsObject.write(self.outdir)         # pfsDesign file
+            self.pfsVisitHash = pfsVisitHash
+            if self.plotObject:
+                pfsObject.plot(show=True)
 
         return 0
