@@ -16,7 +16,7 @@ Release Note
 Requirements
 ------------
 * Standard C compiler (e.g., GCC)
-* Python2 (2.6 and higher) is recommended (Python3 is NOT fully supported)
+* Python3 is recommended (Python2 is NOT fully supported)
 * scipy   (0.14 and higher)  see http://www.scipy.org
 * pyfits  (3.3 and higher)  see http://www.stsci.edu/institute/software_hardware/pyfits
 * matplotlib (if you use the plotting options)
