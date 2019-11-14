@@ -17,6 +17,7 @@ from pfs.datamodel.masks import MaskHelper
 from pfs.datamodel.target import TargetData, TargetObservations
 from pfs.datamodel import utils
 from pfs.datamodel import FluxTable
+from pfs.datamodel.wavelengthArray import WavelengthArray
 
 
 def makePfsDesign(tracts, patches, fiberIds, ras, decs, catIds, objIds, objectMags):
@@ -66,7 +67,9 @@ def makePfsObjects(pfsConfig, visit0, pfsArmSet, minWavelength, maxWavelength, d
     minWl = minWavelength
     maxWl = maxWavelength
     dWl = dWavelength
-    wavelength = minWl + dWl * np.arange(int((maxWl - minWl) / dWl), dtype=float)
+    #wavelength = minWl + dWl * np.arange(int((maxWl - minWl) / dWl) + 1, dtype=float)
+    length = int((maxWl - minWl) / dWl) + 1
+    wavelength = WavelengthArray(minWl, maxWl, length)
 
     def combine(spectra, flags):
         """Combine spectra
@@ -147,8 +150,7 @@ def makePfsObjects(pfsConfig, visit0, pfsArmSet, minWavelength, maxWavelength, d
         resampled = [ss.resample(wavelength) for ss in spectraList]
         flags = MaskHelper.fromMerge([ss.flags for ss in spectraList])
         combination = combine(resampled, flags)
-        return PfsMerged(identity, fiberId, combination.wavelength, combination.flux, combination.mask,
-                         combination.sky, combination.covar, flags, archetype.metadata), combination.covar2
+        return PfsMerged(identity, fiberId, combination.wavelength, combination.flux, combination.mask, combination.sky, combination.covar, flags, archetype.metadata), combination.covar2
     """ make arm merged spectra """
     sm, covar2 = mergeSpectra(pfsArmSet, ["visit", "spectrograph"])
     # print(sm.flux)
@@ -187,7 +189,7 @@ def makePfsObjects(pfsConfig, visit0, pfsArmSet, minWavelength, maxWavelength, d
                               )
         pfsObject = PfsObject(targetData,
                               observations,
-                              sm.wavelength[i],
+                              wavelength,
                               sm.flux[i],
                               sm.mask[i],
                               sm.sky[i],
