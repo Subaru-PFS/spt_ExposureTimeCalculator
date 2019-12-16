@@ -433,11 +433,11 @@ class Pfsspec(object):
                     datacovar.append(covar)
             pfsArm = dm_utils.PfsArm(identity=identity,
                                      fiberId=fiberIds,
-                                     wavelength=np.array(datalam),
-                                     flux=np.array(dataflux),
-                                     mask=np.array(datamask),
-                                     sky=np.array(datasky),
-                                     covar=np.array(datacovar),
+                                     wavelength=np.array(datalam, dtype='f4'),
+                                     flux=np.array(dataflux, dtype='f4'),
+                                     mask=np.array(datamask, dtype='i4'),
+                                     sky=np.array(datasky, dtype='f4'),
+                                     covar=np.array(datacovar, dtype='f4'),
                                      flags=flags,
                                      metadata=metadata
                                      )
