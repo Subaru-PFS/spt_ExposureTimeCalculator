@@ -70,7 +70,7 @@ class Etc(object):
                        'degrade': '1.0',
                        'SKY_SUB_FLOOR': '0.01',
                        'DIFFUSE_STRAY': '0.02',
-                       'throughput_model': '20151204'
+                       'throughput_model': '20201231'
                        }
         self.HOME_DIR = path.dirname(path.abspath(__file__))
         self.ETC_SRC = self.HOME_DIR + '/bin/gsetc.x'
