@@ -82,7 +82,7 @@ For instance, if you want observational condition under 0.80 arcsec seeing, the 
 | EXP_TIME        | 450           | Single exposure time    | [sec.]                        |
 | EXP_NUM         | 8             | The number of exposures |                               |
 | FIELD_ANG       | 0.675         | Field angle             | [deg.; center=0, edge=0.675]  |
-| degrade         | 1.0           | Troughput degradation factor |                          |
+| degrade         | 1.0           | Throughput degradation factor |                          |
 
 ### Setup of the target information
 In this section, users can describe the target information including target magnitude, effective radius, emission line flux and width. If you want to calculate the S/N for a flat continuum with 22.5 ABmag and an emission line with line flux of 1.0x10^-17 erg/s/cm^2, line width of sigma=70 km/s, and effective radius of 0.3 arcsec, the parameters are as follows:
@@ -337,6 +337,8 @@ Other notes
 consistent with the observations in the SDSS/BOSS in optical and the result obtained the MOSFIRE engineering runs. We use the sky emission line model taken from UVES visible line atlas and theoretical model (Rousselot et al. 2000, A&A, 354, 1134) in NIR. As a fiducial atmospheric transmission model, we use Kitt Peak model for <900nm and a simulated ATRAN model with 3 mm PWV at longer wavelengths.
 
 5. The original code (gsetc.c) provided by Chris Hirata, which is partially modified by people in Kavli IPMU, can be found in the src directory. The manual for the code (Manual_v5.pdf) may be useful for understanding some assumptions in the noise calculation.
+
+6. The current throughput model includes several actual measurements such as Telescope reflectivity, optical elements in WFC and PFI, SpS optics, dichroic mirrors, VPH gratings, CCD QE. The details about the throughput models are described elsewhere.
 
 Have fun! and your feedback is highly appreciated!
 --------------------------------------------------
