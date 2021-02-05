@@ -12,6 +12,7 @@ Release Note
 ------------
 * Version 1.0  Feb. 26, 2016
 * Version 1.1  Apr. 27, 2016
+* Version 1.2  Feb. 05, 2021
 
 Requirements
 ------------
