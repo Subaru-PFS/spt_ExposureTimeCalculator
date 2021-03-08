@@ -198,7 +198,7 @@ You can either specify options on the command line (use --help to list them), or
 
 So a more complete example is:
 
-    python gen_sim_spec.py @gen_sim_spec.defaults --outDir=out --etcFile=out/etc-t450-lr.dat --ascii=test.sim.dat --writeFits=False --MAG_FILE=20.0
+    python gen_sim_spec.py @gen_sim_spec.defaults --outDir=out --etcFile=out/etc-t450-lr.dat --asciiTable=test.sim --writeFits=False --MAG_FILE=20.0
 
 to write the ASCII file (out/test.sim.dat) instead of the fits files, simulating a 20th magnitude flat spectrum source.  The noise is taken from the output of run_etc.py, used without specifying `OUTFILE_SNC` (which we do not recommend!). Note that, as usual, arguments such as `--asciiTable` may be abbreviated.
 
@@ -206,11 +206,11 @@ If you specify a value of `--nrealize` > 1 then multiple realizations of the noi
 
 1. The parameter file (e.g. gen_sim_spec.defaults) has the same format as the input to the ETC.
 
-| Parameter  | Default value   | Description                                       |
-|:---        |:---             |:---                                               |
-| etcFile    | out/ref.snc.dat | Input noise file for the simulator (from ETC)     |
-| nrealize   | 1               | The number of realization                         |
-| asciiTable | None            | Output ASCII table ("None" to omit writing table) |
+| Parameter  | Default value   | Description                                                              |
+|:---        |:---             |:---                                                                      |
+| etcFile    | out/ref.snc.dat | Input noise file for the simulator (from ETC)                            |
+| nrealize   | 1               | The number of realization                                                |
+| asciiTable | None            | Output ASCII table name without extension ("None" to omit writing table) |
 
 Here are some descriptions:
 
@@ -230,13 +230,13 @@ The table includes the following items:
 
 The FITS format output will be automatically generated unless you specify "--writeFits False". The filenames are defined by the datamodel, using values:
 
-| Parameter | Default value  | Description  |
-|:---       |:---            |:---          |
-| tract     | 0              | Tract        |
-| patch     | 0,0            | Patch        |
-| visit     | 1              | Visit number |
-| objId     | 1              | Object ID    |
-| catId     | 0              | Catalogue ID |
+| Parameter | Default value  | Description           |
+|:---       |:---            |:---                   |
+| tract     | 0              | Tract                 |
+| patch     | 0,0            | Patch                 |
+| visit0    | 1              | The fist visit number |
+| objId     | 1              | Object ID             |
+| catId     | 0              | Catalogue ID          |
 
 The format is defined by the datamodel, which may be found at
      https://github.com/Subaru-PFS/datamodel/blob/master/datamodel.txt
@@ -304,7 +304,7 @@ This example is a SDSS galaxy classified as `GALAXY`, whose spectra is redshifte
 
     python run_etc.py @run_etc.defaults --MAG_FILE=./example/spec/ex_gal_sf.dat --EXP_TIME=900 --EXP_NUM=4 --REFF=0.30 --OUTFILE_NOISE=./out/ex_gal_sf.noise.dat --OUTFILE_SNC=./out/ex_gal_sf.snc.dat --OUTFILE_SNL=- --NOISE_REUSED=N --MR_MODE=N --OVERWRITE=Y --SEEING=0.70 --ZENITH_ANG=30.0 --FIELD_ANG=0.00 --MOON_PHASE=0.25 --MOON_ZENITH_ANG=30.0 --MOON_TARGET_ANG=60.0
 
-    python gen_sim_spec.py @gen_sim_spec.defaults --etcFile=./out/ex_gal_sf.snc.dat --asciiTable=sim.ex_gal_sf.dat --MAG_FILE=./example/spec/ex_gal_sf.dat --EXP_NUM=4 --outDir=out
+    python gen_sim_spec.py @gen_sim_spec.defaults --etcFile=./out/ex_gal_sf.snc.dat --asciiTable=sim.ex_gal_sf --MAG_FILE=./example/spec/ex_gal_sf.dat --EXP_NUM=4 --outDir=out
 
 ##### An observation of a star-burst galaxy with (mostly) only emission lines:
 
@@ -312,7 +312,7 @@ This example is a SDSS galaxy classified as `GALAXY STARBUSRT`, whose spectra is
 
     python run_etc.py @run_etc.defaults --MAG_FILE=./example/spec/ex_gal_sb.dat --EXP_TIME=900 --EXP_NUM=2 --REFF=0.30 --OUTFILE_NOISE=./out/ex_gal_sb.noise.dat --OUTFILE_SNC=./out/ex_gal_sb.snc.dat --OUTFILE_SNL=- --NOISE_REUSED=N --MR_MODE=N --OVERWRITE=Y --SEEING=0.50 --ZENITH_ANG=40.0 --FIELD_ANG=0.00 --MOON_PHASE=0.5 --MOON_ZENITH_ANG=30.0 --MOON_TARGET_ANG=60.0
 
-    python gen_sim_spec.py @gen_sim_spec.defaults --etcFile=./out/ex_gal_sb.snc.dat --asciiTable=sim.ex_gal_sb.dat --MAG_FILE=./example/spec/ex_gal_sb.dat --EXP_NUM=2 --outDir=out
+    python gen_sim_spec.py @gen_sim_spec.defaults --etcFile=./out/ex_gal_sb.snc.dat --asciiTable=sim.ex_gal_sb --MAG_FILE=./example/spec/ex_gal_sb.dat --EXP_NUM=2 --outDir=out
 
 ##### An observation of a passive galaxy with a continuum and absorption lines:
 
