@@ -320,7 +320,6 @@ class Pfsspec(object):
             nsv_sys_mtrx[:, i] = nsv_sys * float(nexp) / float(nexp_etc)
         ''' calculate the flux etc. in observed units '''
         fnu = 10**(-0.4 * (mag + 48.6))
-        flam = 3.0e18 * fnu / (10 * wav_mtrx)**2 / 1e-17
         fnu_in_njy = fnu / 1e-32
         counts = trn_mtrx * fnu
         if (counts == 0).any():
