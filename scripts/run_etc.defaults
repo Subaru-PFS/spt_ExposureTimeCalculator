@@ -12,7 +12,7 @@ EXP_TIME         450                #  Single exposure time         [sec.]
 EXP_NUM          8                  #  The number of exposures
 FIELD_ANG        0.675              #  Field angle                  [deg.; center=0, edge=0.675]
 
-MAG_FILE         22.0               #  Magnitude or input spectrum  [ABmag] or <filename>
+MAG_FILE         22.5               #  Magnitude or input spectrum  [ABmag] or <filename>
 REFF             0.3                #  Effective radius             [arcsec]
 LINE_FLUX        1.0e-17            #  Emission line flux           [erg/s/cm^2]
 LINE_WIDTH       70                 #  Emission line width sigma    [km/s]

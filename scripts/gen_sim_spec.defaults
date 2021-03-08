@@ -8,10 +8,10 @@ countsMin        0.1                #  Minimum counts per pixel when calculating
 etcFile          out/ref.snc.dat    #  Input noise file for the simulator (from Chris Hirata's ETC)
 nrealize         1                  #  The number of realization
 outDir           out                #  Output directory
-asciiTable       None               #  Output ASCII table ("None" to omit writing table)
+asciiTable       None               #  Output ASCII table name without extension ("None" to omit writing table)
 tract            0                  #  Tract
 patch            0,0                #  Patch
-visit            1                  #  Visit number
+visit0           1                  #  Visit number
 catId            0                  #  Catalogue ID
 objId            1                  #  Object ID
 spectrograph     1                  #  The spectrograph that we are simulating (1-4)

@@ -32,7 +32,7 @@ def main():
     parser.add_argument("--outDir", type=str, help="Directory for outputs", default="out")
     parser.add_argument("--tract", type=int, help="tract", default=0)
     parser.add_argument("--patch", type=str, help="patch", default='0,0')
-    parser.add_argument("--visit", type=int, help="visit number", default=1)
+    parser.add_argument("--visit0", type=int, help="the first visit number", default=1)
     parser.add_argument("--objId", type=int, help="object id of first realisation ", default=1)
     parser.add_argument("--catId", type=int, help="catalogue id", default=0)
     parser.add_argument("--spectrograph", type=int, help="spectrograph number", default=1)

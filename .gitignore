@@ -1,5 +1,6 @@
 out
 tmp
+test
 build
 dist
 pfs*.fits

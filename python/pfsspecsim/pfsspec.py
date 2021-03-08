@@ -504,7 +504,7 @@ class Pfsspec(object):
         #identityList = [dm_utils.Identity(visit=v, arm=arm[0], spectrograph=self.spectrograph, pfsDesignId=pfsDesign.pfsDesignId).getDict() for v in visits]
         pfsObjects, pfsVisitHashes = dm_utils.makePfsObject(pfsConfig=pfsConfig, pfsArmSet=pfsArmSet, visits=visits, minWavelength=350., maxWavelength=1260., dWavelength=0.08)
         for pfsObject in pfsObjects:
-            if self.writePfsArm:                 # write FITS file
+            if self.writeFits:                   # write FITS file
                 pfsObject.write(self.outdir)
             if self.plotObject:                  # plot pfsObject
                 pfsObject.plot(show=True)
