@@ -222,10 +222,10 @@ c. asciiTable: The file name of the output ASCII table of the simulated spectrum
 The table includes the following items:
 
 * (1)  WAVELENGTH  [nm]
-* (2)  FLUX        [10^-17 erg/s/cm^2/A]
-* (3)  ERROR       [10^-17 erg/s/cm^2/A]
+* (2)  FLUX        [nJy]
+* (3)  ERROR       [nJy]
 * (4)  MASK        [1=masked]
-* (5)  SKY         [10^-17 erg/s/cm^2/A]
+* (5)  SKY         [nJy]
 * (6)  ARM         [0=blue,1=red,2=NIR,3=redMR]
 
 The FITS format output will be automatically generated unless you specify "--writeFits False". The filenames are defined by the datamodel, using values:

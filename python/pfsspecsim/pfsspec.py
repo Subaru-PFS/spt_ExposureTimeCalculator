@@ -51,10 +51,10 @@ def write_ascii(aset, arms, asciiTable, outDir):
     for i in range(nFiber):
         with open('%s.dat' % (outFile) if nFiber == 1 else '%s.%d.dat' % (outFile, i), "w") as fd:
             fd.write('''#  1  WAVELENGTH  [nm]
-#  2  FLUX        [10^-17 erg/s/cm^2/A]
-#  3  ERROR       [10^-17 erg/s/cm^2/A]
+#  2  FLUX        [nJy]
+#  3  ERROR       [nJy]
 #  4  MASK        [1=masked]
-#  5  SKY         [10^-17 erg/s/cm^2/A]
+#  5  SKY         [nJy]
 #  6  ARM         [0=blue,1=red,2=NIR,3=redMR]
 '''
                      )
@@ -338,7 +338,7 @@ class Pfsspec(object):
         sigma2 = fnu_in_njy / snr2
 
         msk = np.zeros_like(wav, dtype=np.int32)
-        sky = 3.0e18 * (skm / trn) / (10 * wav)**2 / 1e-17
+        sky = (skm / trn) / 1e-32
         skm_sysref = sky.copy()
         skmp = np.roll(skm_sysref, 1)
         skmp[0] = 0.0
