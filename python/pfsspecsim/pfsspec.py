@@ -510,3 +510,16 @@ class Pfsspec(object):
         self.pfsObjects = pfsObjects
         self.pfsVisitHashes = pfsVisitHashes
         return 0
+
+    def proc_multi(self, inputs):
+        for k, v in inputs.items():
+            print(k, v)
+            self.params[k] = v
+        self.make_sim_spec()
+        return 0
+
+    def make_sim_spec_multi(self, nproc, params):
+        from multiprocessing import Pool
+        p = Pool(nproc)
+        result = p.map(self.proc_multi, params)
+        return 0
