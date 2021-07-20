@@ -333,7 +333,7 @@ See example/notebooks/ETC Example.ipynb for details.
 Multi processing (under development)
 ---------------------------
 
-Multi-core processing is available using `run_multi`, where the number of cores is specified by `nproc`, the parameter name and the values that you want to calculate in parallel are specified by `param_name` and `param_values`. An example is shown below.
+Multi-core processing for `pfsetc` is available using `run_multi`, where the number of cores is specified by `nproc`, the parameter name and the values that you want to calculate in parallel are specified by `param_name` and `param_values`. An example is shown below.
 
 ```python
 from pfsspecsim import pfsetc
@@ -348,6 +348,66 @@ etc.set_param('OUTFILE_OII','-')
 etc.run_multi(nproc=3, param_name='MAG_FILE', param_values=['20.0', '21.0', '22.0', '23.0', '24.0'])
 ```
 
+Multi-core processing for `pfsspec` is available using `make_sim_spec_multi`, where the number of cores is specified by `nproc`, all parameters are specified as a list of dictionaries `params`. An example is shown below.
+
+```python
+from pfsspecsim import pfsspec
+
+params = [{'objId': 1000,
+          'catId': 0.0,
+          'fiberId': 71,
+          'ra': 150.77132,
+          'dec': 2.34267,
+          'tract': 1,
+          'patch': '0,0',
+          'fiberMag': [19.5, 19.5, 19.5, 19.5, 19.5],
+          'filterName': ['g', 'r', 'i', 'z', 'y'],
+          'MAG_FILE': './tmp/tmp0.dat',
+          'visit0': 100},
+         {'objId': 1001,
+          'catId': 0.0,
+          'fiberId': 65,
+          'ra': 150.02075,
+          'dec': 2.47669,
+          'tract': 2,
+          'patch': '1,1',
+          'fiberMag': [20.5, 20.5, 20.5, 20.5, 20.5],
+          'filterName': ['g', 'r', 'i', 'z', 'y'],
+          'MAG_FILE': './tmp/tmp1.dat',
+          'visit0': 101},
+         {'objId': 1002,
+          'catId': 1.0,
+          'fiberId': 42,
+          'ra': 150.63364,
+          'dec': 2.00197,
+          'tract': 3,
+          'patch': '2,2',
+          'fiberMag': [21.5, 21.5, 21.5, 21.5, 21.5],
+          'filterName': ['g', 'r', 'i', 'z', 'y'],
+          'MAG_FILE': './tmp/tmp2.dat',
+          'visit0': 102},
+         {'objId': 1003,
+          'catId': 1.0,
+          'fiberId': 67,
+          'ra': 150.74880,
+          'dec': 2.25609,
+          'tract': 4,
+          'patch': '3,3',
+          'fiberMag': [22.5, 22.5, 22.5, 22.5, 22.5],
+          'filterName': ['g', 'r', 'i', 'z', 'y'],
+          'MAG_FILE': './tmp/tmp3.dat',
+          'visit0': 103}]
+
+sim = pfsspec.Pfsspec()
+sim.set_param('etcFile', 'out/test.snc.dat')
+sim.set_param('EXP_NUM',3)
+sim.set_param('asciiTable','test')
+sim.set_param('nrealize',1)
+sim.set_param('plotObject','f')
+sim.set_param('plotArmSet','f')
+sim.make_sim_spec_multi(nproc=3, params=params)
+```
+
 Other notes
 -----------
 1. The other parameters that are implemented in the Chris Hirata's ETC are indicated in the run_etc.py including instrument setups and sky subtraction floor. Users can change these parameters on your own responsibility.
@@ -359,7 +419,7 @@ Other notes
 4. As a fiducial sky continuum model, we use the recent sky model provided by Jim Gunn, which is basically in
 consistent with the observations in the SDSS/BOSS in optical and the result obtained the MOSFIRE engineering runs. We use the sky emission line model taken from UVES visible line atlas and theoretical model (Rousselot et al. 2000, A&A, 354, 1134) in NIR. As a fiducial atmospheric transmission model, we use Kitt Peak model for <900nm and a simulated ATRAN model with 3 mm PWV at longer wavelengths.
 
-5. The original code (gsetc.c) provided by Chris Hirata, which is partially modified by people in Kavli IPMU, can be found in the src directory. The manual for the code (Manual_v5.pdf) may be useful for understanding some assumptions in the noise calculation.
+5. The ETC engine code (gsetc.c) developed by Chris Hirata, which is partially modified by people in Kavli IPMU, can be found in the src directory. The manual for the code (Manual_v5.pdf) may be useful for understanding some assumptions in the noise calculation.
 
 6. The current throughput model includes several actual measurements such as Telescope reflectivity, optical elements in WFC and PFI, SpS optics, dichroic mirrors, VPH gratings, CCD QE. The details about the throughput models are described elsewhere.
 
