@@ -314,7 +314,20 @@ class Etc(object):
         ''' end of process '''
         elapsed_time = time.time() - start
         print("##### finished (elapsed_time: %.1f[sec]) #####" % (elapsed_time))
+        return 0
 
+    def proc_multi(self, inputs):
+        self.params[inputs[0]] = str(inputs[1])
+        for outFileName in ['OUTFILE_NOISE', 'OUTFILE_SNC', 'OUTFILE_SNL', 'OUTFILE_OII']:
+            if self.params[outFileName] != "-":
+                self.params[outFileName] += '.'.join(['', inputs[0], inputs[1]])
+        self.run()
+        return 0
+
+    def run_multi(self, nproc, param_name, param_values):
+        from multiprocessing import Pool
+        p = Pool(nproc)
+        result = p.map(self.proc_multi, [(param_name, v) for v in param_values])
         return 0
 
     def get_noise(self):
