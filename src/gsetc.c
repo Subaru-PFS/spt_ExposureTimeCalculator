@@ -858,7 +858,7 @@ void gsGetNoise(SPECTRO_ATTRIB *spectro, OBS_ATTRIB *obs, int i_arm, double fiel
     lambda = lmin + (ipix+0.5)*dl;   
     printf("      --> %.0f percent done ...\r",0.02441*ipix);
     /* Atmospheric transmission -- used to remap the continuum model */
-    gsSpectroDist(spectro,obs,i_arm,lambda,7.5,0,SP_PSF_LEN,FR);
+    gsSpectroDist(spectro,obs,i_arm,lambda,SP_PSF_LEN/2-0.5,0,SP_PSF_LEN,FR);
     num = den = 0.;
     for(j=0;j<5*SP_PSF_LEN;j++) {
       trans = gsAtmTrans(obs,lambda+(0.2*j-SP_PSF_LEN/2+0.5)*dl,flags);
