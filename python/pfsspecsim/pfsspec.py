@@ -104,8 +104,8 @@ class Pfsspec(object):
                        'pfsConfigFull': 'f',
                        'writeFits': 't',
                        'writePfsArm': 't',
-                       'plotArmSet': 'f',
-                       'plotObject': 'f',
+                       'plotArmSet': False,
+                       'plotObject': False,
                        'SKY_SUB_FLOOR': '0.01',
                        'SKY_SUB_MODE': 'random',
                        'SKY_SUB_SEED': 0
@@ -152,8 +152,8 @@ class Pfsspec(object):
         ''' some checks '''
         self.writeFits = strToBool(self.params['writeFits'])
         self.writePfsArm = strToBool(self.params['writePfsArm'])
-        self.plotArmSet = strToBool(self.params['plotArmSet'])
-        self.plotObject = strToBool(self.params['plotObject'])
+        self.plotArmSet = self.params['plotArmSet']
+        self.plotObject = self.params['plotObject']
         self.asciiTable = self.params['asciiTable']
         self.pfsConfigFull = strToBool(self.params['pfsConfigFull'])
         self.sky_sub_err = float(self.params['SKY_SUB_FLOOR'])
@@ -161,6 +161,7 @@ class Pfsspec(object):
         self.sky_sub_seed = self.params['SKY_SUB_SEED']
         nrealize = int(self.params['nrealize'])
         nexp = int(self.params['EXP_NUM'])
+
         try:
             if len(self.fiberId) > 0:
                 self.multi_info = 1

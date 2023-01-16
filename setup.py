@@ -14,7 +14,7 @@ def main():
           install_requires=['scipy', 'matplotlib'],
           zip_safe=False,
           include_package_data=True,
-          license=license,
+          license="",  # temporarily set to an empty string as installation failed.
           package_dir={'': 'python'},
           packages=['pfsspecsim'],
           )
