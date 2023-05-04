@@ -79,8 +79,6 @@ class Etc(object):
         self.ETC_SRC = self.HOME_DIR + '/bin/gsetc.x'
 #        if not os.path.exists(self.HOME_DIR + '/bin'):
 #            os.mkdir(self.HOME_DIR + '/bin')
-        if not os.path.exists(self.params['OUTDIR']):
-            os.mkdir(self.params['OUTDIR'])
         if not os.path.exists(self.ETC_SRC):
             exit("Unable to find ETC engine; please run make first and try again")
         return None
@@ -104,6 +102,13 @@ class Etc(object):
 
     def run(self):
         start = time.time()
+
+        '''create directories for output files'''
+        if not os.path.exists(self.params['OUTDIR']):
+            os.mkdir(self.params['OUTDIR'])
+        if not os.path.exists(self.params['TMPDIR']):
+            os.mkdir(self.params['TMPDIR'])
+
         ''' select throughput model '''
         self.INSTR_SETUP = self.HOME_DIR + '/config/PFS.%s.dat' % (self.params['throughput_model'])
         self.INSTR_SETUP_MR = self.HOME_DIR + '/config/PFS.redMR.%s.dat' % (self.params['throughput_model'])
