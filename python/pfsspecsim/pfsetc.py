@@ -66,7 +66,7 @@ class Etc(object):
                        'degrade': '1.0',
                        'SKY_SUB_FLOOR': '0.01',
                        'DIFFUSE_STRAY': '0.02',
-                       'throughput_model': '20211220'
+                       'throughput_model': '20211220',
                        'OUTDIR': 'out',
                        }
         self.params['OUTFILE_NOISE'] = os.path.join(self.params['OUTDIR'], 'ref.noise.dat')
@@ -119,7 +119,7 @@ class Etc(object):
         else:
             self.INSTR_SETUP = self.INSTR_SETUP
         ''' make continuum magnitude file '''
-        if os.path.exists('tmp') == False:
+        if os.path.exists('tmp') is False:
             os.mkdir('tmp')
         try:
             _mag = float(self.params['MAG_FILE'])
@@ -241,7 +241,7 @@ class Etc(object):
         ''' make continuum magnitude file '''
         try:
             _mag = float(self.params['MAG_FILE'])
-            if os.path.exists('tmp') == False:
+            if os.path.exists('tmp') is False:
                 os.mkdir('tmp')
             file = open('tmp/mag_%s.dat' % (self.params['MAG_FILE']), 'w')
             file.write('300.0 %.2f\n 1300. %.2f\n' % (_mag, _mag))
