@@ -58,10 +58,6 @@ class Etc(object):
                        'LINE_FLUX': '1.0e-17',
                        'LINE_WIDTH': '70',
                        'NOISE_REUSED': 'N',
-                       'OUTFILE_NOISE': 'out/ref.noise.dat',
-                       'OUTFILE_SNC': 'out/ref.snc.dat',
-                       'OUTFILE_SNL': 'out/ref.snl.dat',
-                       'OUTFILE_OII': 'out/ref.sno2.dat',
                        'MR_MODE': 'N',
                        'OVERWRITE': 'Y',
                        'INFILE_OIICat': '-',
@@ -71,13 +67,19 @@ class Etc(object):
                        'SKY_SUB_FLOOR': '0.01',
                        'DIFFUSE_STRAY': '0.02',
                        'throughput_model': '20211220'
+                       'OUTDIR': 'out',
                        }
+        self.params['OUTFILE_NOISE'] = os.path.join(self.params['OUTDIR'], 'ref.noise.dat')
+        self.params['OUTFILE_SNC'] = os.path.join(self.params['OUTDIR'], 'ref.snc.dat')
+        self.params['OUTFILE_SNL'] = os.path.join(self.params['OUTDIR'], 'ref.snl.dat')
+        self.params['OUTFILE_OII'] = os.path.join(self.params['OUTDIR'], 'ref.sno2.dat')
+
         self.HOME_DIR = path.dirname(path.abspath(__file__))
         self.ETC_SRC = self.HOME_DIR + '/bin/gsetc.x'
 #        if not os.path.exists(self.HOME_DIR + '/bin'):
 #            os.mkdir(self.HOME_DIR + '/bin')
-        if not os.path.exists('out'):
-            os.mkdir('out')
+        if not os.path.exists(self.params['OUTDIR']):
+            os.mkdir(self.params['OUTDIR'])
         if not os.path.exists(self.ETC_SRC):
             exit("Unable to find ETC engine; please run make first and try again")
         return None
