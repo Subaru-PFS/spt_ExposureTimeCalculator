@@ -68,6 +68,7 @@ class Etc(object):
                        'DIFFUSE_STRAY': '0.02',
                        'throughput_model': '20211220',
                        'OUTDIR': 'out',
+                       'TMPDIR': 'tmp'
                        }
         self.params['OUTFILE_NOISE'] = os.path.join(self.params['OUTDIR'], 'ref.noise.dat')
         self.params['OUTFILE_SNC'] = os.path.join(self.params['OUTDIR'], 'ref.snc.dat')
@@ -119,20 +120,20 @@ class Etc(object):
         else:
             self.INSTR_SETUP = self.INSTR_SETUP
         ''' make continuum magnitude file '''
-        if os.path.exists('tmp') is False:
-            os.mkdir('tmp')
+        if os.path.exists(self.params['TMPDIR']) is False:
+            os.mkdir(self.params['TMPDIR'])
         try:
             _mag = float(self.params['MAG_FILE'])
-            file = open('tmp/mag_%s.dat' % (self.params['MAG_FILE']), 'w')
+            file = open(os.path.join(self.params['TMPDIR'], 'mag_%s.dat' % (self.params['MAG_FILE'])), 'w')
             file.write('300.0 %.2f\n 1300. %.2f\n' % (_mag, _mag))
             file.close()
-            self.mag_file = 'tmp/mag_%s.dat' % (self.params['MAG_FILE'])
+            self.mag_file = os.path.join(self.params['TMPDIR'], 'mag_%s.dat' % (self.params['MAG_FILE']))
         except:
             ## interpolation so that the resolution is slightly higher than that of instrument ##
             _lam, _mag = sp.loadtxt(self.params['MAG_FILE'], usecols=(0, 1), unpack=True)
             lam = sp.arange(300., 1300., 0.05)
             mag = sp.interp(lam, _lam, _mag)
-            self.mag_file = 'tmp/%s' % (self.params['MAG_FILE'].split('/')[-1])
+            self.mag_file = os.path.join(self.params['TMPDIR'], '%s' % (self.params['MAG_FILE'].split('/')[-1]))
             sp.savetxt(self.mag_file, sp.array([lam, mag]).transpose(), fmt='%.4e')
         ''' check file overwritten '''
         C = 0
@@ -241,18 +242,18 @@ class Etc(object):
         ''' make continuum magnitude file '''
         try:
             _mag = float(self.params['MAG_FILE'])
-            if os.path.exists('tmp') is False:
-                os.mkdir('tmp')
-            file = open('tmp/mag_%s.dat' % (self.params['MAG_FILE']), 'w')
+            if os.path.exists(self.params['TMPDIR']) is False:
+                os.mkdir(self.params['TMPDIR'])
+            file = open(os.path.join(self.params['TMPDIR'], 'mag_%s.dat' % (self.params['MAG_FILE'])), 'w')
             file.write('300.0 %.2f\n 1300. %.2f\n' % (_mag, _mag))
             file.close()
-            self.mag_file = 'tmp/mag_%s.dat' % (self.params['MAG_FILE'])
+            self.mag_file = os.path.join(self.params['TMPDIR'], 'mag_%s.dat' % (self.params['MAG_FILE']))
         except:
             ## interpolation so that the resolution is slightly higher than that of instrument ##
             _lam, _mag = sp.loadtxt(self.params['MAG_FILE'], usecols=(0, 1), unpack=True)
             lam = sp.arange(300., 1300., 0.05)
             mag = sp.interp(lam, _lam, _mag)
-            self.mag_file = 'tmp/%s' % (self.params['MAG_FILE'].split('/')[-1])
+            self.mag_file = os.path.join(self.params['TMPDIR'], '%s' % (self.params['MAG_FILE'].split('/')[-1]))
             sp.savetxt(self.mag_file, sp.array([lam, mag]).transpose(), fmt='%.4e')
         ''' check file overwritten '''
         C = 0
