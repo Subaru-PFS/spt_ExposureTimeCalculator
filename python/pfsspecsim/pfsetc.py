@@ -169,7 +169,7 @@ class Etc(object):
             exit('No execution of ETC')
         try:
             print('##### starting to run ETC ... (it takes a few min.) #####')
-            proc = subprocess.Popen([f"OMP_NUM_THREADS={self.omp_num_threads}", self.ETC_SRC], stdin=subprocess.PIPE)
+            proc = subprocess.Popen([self.ETC_SRC], stdin=subprocess.PIPE, env={"OMP_NUM_THREADS": self.omp_num_threads})
             proc.communicate("\n".join([self.INSTR_SETUP,
                                         self.params['degrade'],
                                         SKYMODELS,
@@ -289,7 +289,7 @@ class Etc(object):
             exit('No execution of ETC')
         try:
             print('##### starting to make a noise model ... (it takes about 2 min.) #####')
-            proc = subprocess.Popen([f"OMP_NUM_THREADS={self.omp_num_threads}", self.ETC_SRC], stdin=subprocess.PIPE)
+            proc = subprocess.Popen([self.ETC_SRC], stdin=subprocess.PIPE, env={"OMP_NUM_THREADS": self.omp_num_threads})
             proc.communicate("\n".join([self.INSTR_SETUP,
                                         self.params['degrade'],
                                         SKYMODELS,
@@ -355,7 +355,7 @@ class Etc(object):
         start = time.time()
         try:
             print('##### starting to make an SNC model ... (it takes about 1 min.) #####')
-            proc = subprocess.Popen([f"OMP_NUM_THREADS={self.omp_num_threads}", self.ETC_SRC], stdin=subprocess.PIPE)
+            proc = subprocess.Popen([self.ETC_SRC], stdin=subprocess.PIPE, env={"OMP_NUM_THREADS": self.omp_num_threads})
             proc.communicate("\n".join([self.INSTR_SETUP,
                                         self.params['degrade'],
                                         SKYMODELS,
@@ -408,7 +408,7 @@ class Etc(object):
         start = time.time()
         try:
             print('##### starting to make an SNL model ... (it takes about 1 min.) #####')
-            proc = subprocess.Popen([f"OMP_NUM_THREADS={self.omp_num_threads}", self.ETC_SRC], stdin=subprocess.PIPE)
+            proc = subprocess.Popen([self.ETC_SRC], stdin=subprocess.PIPE, env={"OMP_NUM_THREADS": self.omp_num_threads})
             proc.communicate("\n".join([self.INSTR_SETUP,
                                         self.params['degrade'],
                                         SKYMODELS,
@@ -461,7 +461,7 @@ class Etc(object):
         start = time.time()
         try:
             print('##### starting to make an OII model ... (it takes about 2 min.) #####')
-            proc = subprocess.Popen([f"OMP_NUM_THREADS={self.omp_num_threads}", self.ETC_SRC], stdin=subprocess.PIPE)
+            proc = subprocess.Popen([self.ETC_SRC], stdin=subprocess.PIPE, env={"OMP_NUM_THREADS": self.omp_num_threads})
             proc.communicate("\n".join([self.INSTR_SETUP,
                                         self.params['degrade'],
                                         SKYMODELS,
