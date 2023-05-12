@@ -68,7 +68,8 @@ class Etc(object):
                        'DIFFUSE_STRAY': '0.02',
                        'throughput_model': '20211220',
                        'OUTDIR': 'out',
-                       'TMPDIR': 'tmp'
+                       'TMPDIR': 'tmp',
+                       'BINDIR': 'bin',
                        }
         self.params['OUTFILE_NOISE'] = os.path.join(self.params['OUTDIR'], 'ref.noise.dat')
         self.params['OUTFILE_SNC'] = os.path.join(self.params['OUTDIR'], 'ref.snc.dat')
@@ -76,7 +77,11 @@ class Etc(object):
         self.params['OUTFILE_OII'] = os.path.join(self.params['OUTDIR'], 'ref.sno2.dat')
 
         self.HOME_DIR = path.dirname(path.abspath(__file__))
-        self.ETC_SRC = self.HOME_DIR + '/bin/gsetc.x'
+        if os.path.exists(os.path.join(self.HOME_DIR, self.params['BINDIR'], "gsetc_omp.x")):
+            self.ETC_SRC = os.path.join(self.HOME_DIR, self.params['BINDIR'], "gsetc_omp.x")
+            print("Use OpenMP version of gsetc")
+        else:
+            self.ETC_SRC = os.path.join(self.HOME_DIR, self.params['BINDIR'], "gsetc.x")
 #        if not os.path.exists(self.HOME_DIR + '/bin'):
 #            os.mkdir(self.HOME_DIR + '/bin')
         if not os.path.exists(self.ETC_SRC):
