@@ -8,6 +8,7 @@ from os import path
 import scipy as sp
 import time
 import subprocess
+import multiprocessing
 
 ### Some parameters ###########################
 ### CAUTION: ##################################
@@ -79,6 +80,9 @@ class Etc(object):
         self.HOME_DIR = path.dirname(path.abspath(__file__))
         if os.path.exists(os.path.join(self.HOME_DIR, self.params['BINDIR'], "gsetc_omp.x")):
             self.ETC_SRC = os.path.join(self.HOME_DIR, self.params['BINDIR'], "gsetc_omp.x")
+            OMP_MAX_THREADS = 32
+            n_threads = multiprocessing.cpu_count()
+            omp_num_threads = n_threads // 2 if n_threads // 2 < OMP_MAX_THREADS else OMP_MAX_THREADS
             print("Use OpenMP version of gsetc")
         else:
             self.ETC_SRC = os.path.join(self.HOME_DIR, self.params['BINDIR'], "gsetc.x")
@@ -165,7 +169,7 @@ class Etc(object):
             exit('No execution of ETC')
         try:
             print('##### starting to run ETC ... (it takes a few min.) #####')
-            proc = subprocess.Popen([self.ETC_SRC], stdin=subprocess.PIPE)
+            proc = subprocess.Popen([f"OMP_NUM_THREADS={omp_num_threads}", self.ETC_SRC], stdin=subprocess.PIPE)
             proc.communicate("\n".join([self.INSTR_SETUP,
                                         self.params['degrade'],
                                         SKYMODELS,
