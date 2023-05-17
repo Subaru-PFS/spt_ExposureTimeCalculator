@@ -1,13 +1,17 @@
-.c.o:
-	$(CC) -c -o $*.o $(CFLAGS) $*.c
-
 OPT := -O3
 CFLAGS = $(OPT) -DHGCDTE_SUTR -DMOONLIGHT_
 LDFLAGS = -lm
 
-../python/pfsspecsim/bin/gsetc.x : gsetc.o
-	$(CC) gsetc.o $(LDFLAGS) -o ../python/pfsspecsim/bin/gsetc.x
+.c.o:
+	$(CC) -c -o $*.o $(CFLAGS) $*.c
+
+all: gsetc.x
+	cp gsetc.x ../python/pfsspecsim/bin/.
+
+gsetc.x: gsetc.o
+	$(CC) gsetc.o $(LDFLAGS) -o gsetc.x
+
 gsetc.o : modeldata.h
 
 clean :
-	$(RM) gsetc.o *~
+	$(RM) gsetc.x gsetc.o *~
