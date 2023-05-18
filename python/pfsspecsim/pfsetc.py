@@ -42,9 +42,9 @@ def add_header(filename, seeing, zenith_ang, galactic_ext, moon_zenith_ang, moon
     return 0
 
 
-class Etc(object, omp_num_threads=16):
+class Etc(object):
 
-    def __init__(self):
+    def __init__(self, omp_num_threads=16):
         self.params = {'SEEING': '0.80',
                        'ZENITH_ANG': '45.00',
                        'GALACTIC_EXT': '0.00',
