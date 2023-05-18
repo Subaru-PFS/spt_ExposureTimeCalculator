@@ -80,9 +80,7 @@ class Etc(object):
         self.HOME_DIR = path.dirname(path.abspath(__file__))
         if os.path.exists(os.path.join(self.HOME_DIR, self.params['BINDIR'], "gsetc_omp.x")):
             self.ETC_SRC = os.path.join(self.HOME_DIR, self.params['BINDIR'], "gsetc_omp.x")
-            OMP_MAX_THREADS = 32
-            # n_threads = multiprocessing.cpu_count()
-            # self.omp_num_threads = n_threads // 2 if n_threads // 2 < OMP_MAX_THREADS else OMP_MAX_THREADS
+            OMP_MAX_THREADS = 32 if multiprocessing.cpu_count() >= 32 else multiprocessing.cpu_count()
             self.omp_num_threads = omp_num_threads if omp_num_threads <= OMP_MAX_THREADS else OMP_MAX_THREADS
             print(f"Use OpenMP version of gsetc with {self.omp_num_threads} threads")
         else:
