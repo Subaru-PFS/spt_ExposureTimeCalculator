@@ -71,6 +71,7 @@ class Etc(object):
                        'OUTDIR': 'out',
                        'TMPDIR': 'tmp',
                        'BINDIR': 'bin',
+                       "OMP_NUM_THREADS": 16,
                        }
         self.params['OUTFILE_NOISE'] = os.path.join(self.params['OUTDIR'], 'ref.noise.dat')
         self.params['OUTFILE_SNC'] = os.path.join(self.params['OUTDIR'], 'ref.snc.dat')
@@ -81,8 +82,9 @@ class Etc(object):
         if os.path.exists(os.path.join(self.HOME_DIR, self.params['BINDIR'], "gsetc_omp.x")):
             self.ETC_SRC = os.path.join(self.HOME_DIR, self.params['BINDIR'], "gsetc_omp.x")
             OMP_MAX_THREADS = 32
-            n_threads = multiprocessing.cpu_count()
-            self.omp_num_threads = n_threads // 2 if n_threads // 2 < OMP_MAX_THREADS else OMP_MAX_THREADS
+            # n_threads = multiprocessing.cpu_count()
+            # self.omp_num_threads = n_threads // 2 if n_threads // 2 < OMP_MAX_THREADS else OMP_MAX_THREADS
+            self.omp_num_threads = self.params["OMP_NUM_THREADS"] if self.params["OMP_NUM_THREADS"] <= OMP_MAX_THREADS else OMP_MAX_THREADS
             print("Use OpenMP version of gsetc")
         else:
             self.ETC_SRC = os.path.join(self.HOME_DIR, self.params['BINDIR'], "gsetc.x")
