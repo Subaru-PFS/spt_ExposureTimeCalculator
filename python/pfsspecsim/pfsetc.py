@@ -84,6 +84,7 @@ class Etc(object):
             self.omp_num_threads = omp_num_threads if omp_num_threads <= OMP_MAX_THREADS else OMP_MAX_THREADS
             print(f"Use OpenMP version of gsetc with {self.omp_num_threads} threads")
         else:
+            self.omp_num_threads=1
             self.ETC_SRC = os.path.join(self.HOME_DIR, self.params['BINDIR'], "gsetc.x")
 #        if not os.path.exists(self.HOME_DIR + '/bin'):
 #            os.mkdir(self.HOME_DIR + '/bin')
