@@ -41,8 +41,8 @@ def main():
     parser.add_argument("--writeFits", type=str, help="Write FITS files", default="True")
     parser.add_argument("--writePfsArm", type=str, help="Write pfsArm files (writeFits must be set)",
                         default="True")
-    parser.add_argument("--plotArmSet", action='store_true', help="Plot the pfsArmSet data", default='f')
-    parser.add_argument("--plotObject", action='store_true', help="Plot the pfsObject data", default='f')
+    parser.add_argument("--plotArmSet", action='store_true', help="Plot the pfsArmSet data")
+    parser.add_argument("--plotObject", action='store_true', help="Plot the pfsObject data")
     args = parser.parse_args()
 
     sim = pfsspec.Pfsspec()

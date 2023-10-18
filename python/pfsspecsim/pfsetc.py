@@ -8,6 +8,7 @@ from os import path
 import scipy as sp
 import time
 import subprocess
+import multiprocessing
 
 ### Some parameters ###########################
 ### CAUTION: ##################################
@@ -43,7 +44,7 @@ def add_header(filename, seeing, zenith_ang, galactic_ext, moon_zenith_ang, moon
 
 class Etc(object):
 
-    def __init__(self):
+    def __init__(self, omp_num_threads=16):
         self.params = {'SEEING': '0.80',
                        'ZENITH_ANG': '45.00',
                        'GALACTIC_EXT': '0.00',
@@ -58,10 +59,6 @@ class Etc(object):
                        'LINE_FLUX': '1.0e-17',
                        'LINE_WIDTH': '70',
                        'NOISE_REUSED': 'N',
-                       'OUTFILE_NOISE': 'out/ref.noise.dat',
-                       'OUTFILE_SNC': 'out/ref.snc.dat',
-                       'OUTFILE_SNL': 'out/ref.snl.dat',
-                       'OUTFILE_OII': 'out/ref.sno2.dat',
                        'MR_MODE': 'N',
                        'OVERWRITE': 'Y',
                        'INFILE_OIICat': '-',
@@ -70,14 +67,28 @@ class Etc(object):
                        'degrade': '1.0',
                        'SKY_SUB_FLOOR': '0.01',
                        'DIFFUSE_STRAY': '0.02',
-                       'throughput_model': '20211220'
+                       'throughput_model': '20211220',
+                       'OUTDIR': 'out',
+                       'TMPDIR': 'tmp',
+                       'BINDIR': 'bin',
                        }
+        self.params['OUTFILE_NOISE'] = os.path.join(self.params['OUTDIR'], 'ref.noise.dat')
+        self.params['OUTFILE_SNC'] = os.path.join(self.params['OUTDIR'], 'ref.snc.dat')
+        self.params['OUTFILE_SNL'] = os.path.join(self.params['OUTDIR'], 'ref.snl.dat')
+        self.params['OUTFILE_OII'] = os.path.join(self.params['OUTDIR'], 'ref.sno2.dat')
+
         self.HOME_DIR = path.dirname(path.abspath(__file__))
-        self.ETC_SRC = self.HOME_DIR + '/bin/gsetc.x'
+        if os.path.exists(os.path.join(self.HOME_DIR, self.params['BINDIR'], "gsetc_omp.x")):
+            self.ETC_SRC = os.path.join(self.HOME_DIR, self.params['BINDIR'], "gsetc_omp.x")
+            n_cpu = multiprocessing.cpu_count()
+            OMP_MAX_THREADS = 32 if int(n_cpu * 1.5) >= 32 else int(n_cpu * 1.5)
+            self.omp_num_threads = omp_num_threads if omp_num_threads <= OMP_MAX_THREADS else OMP_MAX_THREADS
+            print(f"Use OpenMP version of gsetc with {self.omp_num_threads} threads")
+        else:
+            self.omp_num_threads=1
+            self.ETC_SRC = os.path.join(self.HOME_DIR, self.params['BINDIR'], "gsetc.x")
 #        if not os.path.exists(self.HOME_DIR + '/bin'):
 #            os.mkdir(self.HOME_DIR + '/bin')
-        if not os.path.exists('out'):
-            os.mkdir('out')
         if not os.path.exists(self.ETC_SRC):
             exit("Unable to find ETC engine; please run make first and try again")
         return None
@@ -101,6 +112,13 @@ class Etc(object):
 
     def run(self):
         start = time.time()
+
+        '''create directories for output files'''
+        if not os.path.exists(self.params['OUTDIR']):
+            os.mkdir(self.params['OUTDIR'])
+        if not os.path.exists(self.params['TMPDIR']):
+            os.mkdir(self.params['TMPDIR'])
+
         ''' select throughput model '''
         self.INSTR_SETUP = self.HOME_DIR + '/config/PFS.%s.dat' % (self.params['throughput_model'])
         self.INSTR_SETUP_MR = self.HOME_DIR + '/config/PFS.redMR.%s.dat' % (self.params['throughput_model'])
@@ -117,20 +135,20 @@ class Etc(object):
         else:
             self.INSTR_SETUP = self.INSTR_SETUP
         ''' make continuum magnitude file '''
-        if os.path.exists('tmp') == False:
-            os.mkdir('tmp')
+        if os.path.exists(self.params['TMPDIR']) is False:
+            os.mkdir(self.params['TMPDIR'])
         try:
             _mag = float(self.params['MAG_FILE'])
-            file = open('tmp/mag_%s.dat' % (self.params['MAG_FILE']), 'w')
+            file = open(os.path.join(self.params['TMPDIR'], 'mag_%s.dat' % (self.params['MAG_FILE'])), 'w')
             file.write('300.0 %.2f\n 1300. %.2f\n' % (_mag, _mag))
             file.close()
-            self.mag_file = 'tmp/mag_%s.dat' % (self.params['MAG_FILE'])
+            self.mag_file = os.path.join(self.params['TMPDIR'], 'mag_%s.dat' % (self.params['MAG_FILE']))
         except:
             ## interpolation so that the resolution is slightly higher than that of instrument ##
             _lam, _mag = sp.loadtxt(self.params['MAG_FILE'], usecols=(0, 1), unpack=True)
             lam = sp.arange(300., 1300., 0.05)
             mag = sp.interp(lam, _lam, _mag)
-            self.mag_file = 'tmp/%s' % (self.params['MAG_FILE'].split('/')[-1])
+            self.mag_file = os.path.join(self.params['TMPDIR'], '%s' % (self.params['MAG_FILE'].split('/')[-1]))
             sp.savetxt(self.mag_file, sp.array([lam, mag]).transpose(), fmt='%.4e')
         ''' check file overwritten '''
         C = 0
@@ -152,7 +170,7 @@ class Etc(object):
             exit('No execution of ETC')
         try:
             print('##### starting to run ETC ... (it takes a few min.) #####')
-            proc = subprocess.Popen([self.ETC_SRC], stdin=subprocess.PIPE)
+            proc = subprocess.Popen([self.ETC_SRC], stdin=subprocess.PIPE, env={"OMP_NUM_THREADS": f"{self.omp_num_threads}"})
             proc.communicate("\n".join([self.INSTR_SETUP,
                                         self.params['degrade'],
                                         SKYMODELS,
@@ -239,18 +257,18 @@ class Etc(object):
         ''' make continuum magnitude file '''
         try:
             _mag = float(self.params['MAG_FILE'])
-            if os.path.exists('tmp') == False:
-                os.mkdir('tmp')
-            file = open('tmp/mag_%s.dat' % (self.params['MAG_FILE']), 'w')
+            if os.path.exists(self.params['TMPDIR']) is False:
+                os.mkdir(self.params['TMPDIR'])
+            file = open(os.path.join(self.params['TMPDIR'], 'mag_%s.dat' % (self.params['MAG_FILE'])), 'w')
             file.write('300.0 %.2f\n 1300. %.2f\n' % (_mag, _mag))
             file.close()
-            self.mag_file = 'tmp/mag_%s.dat' % (self.params['MAG_FILE'])
+            self.mag_file = os.path.join(self.params['TMPDIR'], 'mag_%s.dat' % (self.params['MAG_FILE']))
         except:
             ## interpolation so that the resolution is slightly higher than that of instrument ##
             _lam, _mag = sp.loadtxt(self.params['MAG_FILE'], usecols=(0, 1), unpack=True)
             lam = sp.arange(300., 1300., 0.05)
             mag = sp.interp(lam, _lam, _mag)
-            self.mag_file = 'tmp/%s' % (self.params['MAG_FILE'].split('/')[-1])
+            self.mag_file = os.path.join(self.params['TMPDIR'], '%s' % (self.params['MAG_FILE'].split('/')[-1]))
             sp.savetxt(self.mag_file, sp.array([lam, mag]).transpose(), fmt='%.4e')
         ''' check file overwritten '''
         C = 0
@@ -272,7 +290,7 @@ class Etc(object):
             exit('No execution of ETC')
         try:
             print('##### starting to make a noise model ... (it takes about 2 min.) #####')
-            proc = subprocess.Popen([self.ETC_SRC], stdin=subprocess.PIPE)
+            proc = subprocess.Popen([self.ETC_SRC], stdin=subprocess.PIPE, env={"OMP_NUM_THREADS": f"{self.omp_num_threads}"})
             proc.communicate("\n".join([self.INSTR_SETUP,
                                         self.params['degrade'],
                                         SKYMODELS,
@@ -338,7 +356,7 @@ class Etc(object):
         start = time.time()
         try:
             print('##### starting to make an SNC model ... (it takes about 1 min.) #####')
-            proc = subprocess.Popen([self.ETC_SRC], stdin=subprocess.PIPE)
+            proc = subprocess.Popen([self.ETC_SRC], stdin=subprocess.PIPE, env={"OMP_NUM_THREADS": f"{self.omp_num_threads}"})
             proc.communicate("\n".join([self.INSTR_SETUP,
                                         self.params['degrade'],
                                         SKYMODELS,
@@ -391,7 +409,7 @@ class Etc(object):
         start = time.time()
         try:
             print('##### starting to make an SNL model ... (it takes about 1 min.) #####')
-            proc = subprocess.Popen([self.ETC_SRC], stdin=subprocess.PIPE)
+            proc = subprocess.Popen([self.ETC_SRC], stdin=subprocess.PIPE, env={"OMP_NUM_THREADS": f"{self.omp_num_threads}"})
             proc.communicate("\n".join([self.INSTR_SETUP,
                                         self.params['degrade'],
                                         SKYMODELS,
@@ -444,7 +462,7 @@ class Etc(object):
         start = time.time()
         try:
             print('##### starting to make an OII model ... (it takes about 2 min.) #####')
-            proc = subprocess.Popen([self.ETC_SRC], stdin=subprocess.PIPE)
+            proc = subprocess.Popen([self.ETC_SRC], stdin=subprocess.PIPE, env={"OMP_NUM_THREADS": f"{self.omp_num_threads}"})
             proc.communicate("\n".join([self.INSTR_SETUP,
                                         self.params['degrade'],
                                         SKYMODELS,

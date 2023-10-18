@@ -1,6 +1,8 @@
 all :
-	cd src; make
-#	./set_path.py
+	cd src && make -f Makefile all
+	cd src && make -f Makefile.omp all
+
 clean :
-	cd src; make clean
-	cd python/pfsspecsim/bin; make clean
+	cd src && make -f Makefile clean
+	cd src && make -f Makefile.omp clean
+	cd python/pfsspecsim/bin && make clean

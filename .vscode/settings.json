@@ -1,0 +1,6 @@
+{
+  "editor.formatOnSaveMode": "modifications",
+  "isort.check": false,
+  "editor.formatOnSave": true,
+  "ruff.organizeImports": false
+}

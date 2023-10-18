@@ -1,0 +1,29 @@
+
+# if it's macOS, use homebrew-ed gcc
+# I assume it is not important, but more sophisticated way must be used.
+UNAME_S := $(shell uname -s)
+UNAME_M := $(shell uname -m)
+
+ifeq ($(UNAME_S), Darwin)
+ifeq ($(UNAME_M), arm64)
+CC=/opt/homebrew/bin/gcc-12
+endif
+endif
+
+OPT := -O3
+CFLAGS = $(OPT) -fopenmp -DHGCDTE_SUTR -DMOONLIGHT_ -DQUIET_FOR_OMP
+LDFLAGS = -lm
+
+.c.o:
+	$(CC) -c -o $*.o $(CFLAGS) $*.c
+
+all: gsetc_omp.x
+	cp gsetc_omp.x ../python/pfsspecsim/bin/.
+
+gsetc_omp.x : gsetc_omp.o
+	$(CC) gsetc_omp.o -fopenmp $(LDFLAGS) -o gsetc_omp.x
+
+gsetc_omp.o : modeldata.h
+
+clean :
+	$(RM) gsetc_omp.x gsetc_omp.o *~
