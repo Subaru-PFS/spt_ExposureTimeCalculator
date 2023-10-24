@@ -33,7 +33,7 @@
 #define MAXNTHR 1024
 
 /* Spectrograph PSF length (must be even) */
-#define SP_PSF_LEN 64
+#define SP_PSF_LEN 32
 
 /* Spectrograph attributes structure */
 typedef struct
