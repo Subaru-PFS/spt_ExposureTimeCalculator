@@ -801,12 +801,20 @@ void gsGetNoise(SPECTRO_ATTRIB *spectro, OBS_ATTRIB *obs, int i_arm, double fiel
            */
           count *= airmass/1.1  * exp(-gsAtmContOp(obs,lambda,flags)*airmass/1.086);
 
+          iref = (long)floor(pos-(SP_PSF_LEN/2-0.5));
+          if (iref<0) iref=0;
+          if (iref>Npix-SP_PSF_LEN) iref=Npix-SP_PSF_LEN;
+          gsSpectroDist(spectro,obs,i_arm,lambda,pos-iref,0,SP_PSF_LEN,FR);
+          for(j=0;j<SP_PSF_LEN;j++)
+            Noise[iref+j] += count*FR[j]*sample_factor;
+          /*
           iref = (long)floor(pos-7.5);
           if (iref<0) iref=0;
           if (iref>Npix-16) iref=Npix-16;
           gsSpectroDist(spectro,obs,i_arm,lambda,pos-iref,0,16,FR);
           for(j=0;j<16;j++)
             Noise[iref+j] += count*FR[j]*sample_factor;
+          */
         }
       }
 
@@ -858,7 +866,7 @@ void gsGetNoise(SPECTRO_ATTRIB *spectro, OBS_ATTRIB *obs, int i_arm, double fiel
     lambda = lmin + (ipix+0.5)*dl;   
     printf("      --> %.0f percent done ...\r",0.02441*ipix);
     /* Atmospheric transmission -- used to remap the continuum model */
-    gsSpectroDist(spectro,obs,i_arm,lambda,7.5,0,SP_PSF_LEN,FR);
+    gsSpectroDist(spectro,obs,i_arm,lambda,SP_PSF_LEN/2-0.5,0,SP_PSF_LEN,FR);
     num = den = 0.;
     for(j=0;j<5*SP_PSF_LEN;j++) {
       trans = gsAtmTrans(obs,lambda+(0.2*j-SP_PSF_LEN/2+0.5)*dl,flags);
@@ -1369,7 +1377,7 @@ void gsGetSNR_Continuum(SPECTRO_ATTRIB *spectro, OBS_ATTRIB *obs, int i_arm, dou
         mag = ((lambda-lambda_inmag2[p1])*mag_inmag2[p2] + (lambda_inmag2[p2]-lambda)*mag_inmag2[p1])/(lambda_inmag2[p2]-lambda_inmag2[p1]);
       }
       /* Atmospheric transmission */
-      gsSpectroDist(spectro,obs,i_arm,lambda,7.5,0,SP_PSF_LEN,FR);
+      gsSpectroDist(spectro,obs,i_arm,lambda,SP_PSF_LEN/2-0.5,0,SP_PSF_LEN,FR);
       num = den = 0.;
       for(j=0;j<5*SP_PSF_LEN;j++) {
         trans = gsAtmTrans(obs,lambda+(0.2*j-SP_PSF_LEN/2+0.5)*dl,flags);
