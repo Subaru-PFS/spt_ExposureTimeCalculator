@@ -7,6 +7,7 @@ import os
 from os import path
 import numpy as np
 import collections
+import matplotlib.pyplot as plt
 
 from . import dm_utils
 
@@ -79,6 +80,27 @@ def strToBool(val):
     else:
         sys.exit("Unable to interpret \"%s\" as bool" % val)
 
+def plotPfsObject(pfsObjects, fig=None):
+    if fig is None:
+        fig = plt.figure(figsize=(7,4))
+    axe = fig.add_subplot()
+    axe.set_xlabel('wavelength (nm)')
+    axe.set_ylabel('flux (nJy)')
+    for pfsObject in pfsObjects:
+        axe.plot(pfsObject.wavelength, pfsObject.flux)
+    plt.show()
+
+def plotPfsArm(pfsArmSet, fig=None):
+    if fig is None:
+        fig = plt.figure(figsize=(7,4))
+    axe = fig.add_subplot()
+    axe.set_xlabel('wavelength (nm)')
+    axe.set_ylabel('flux (electron/pix)')
+    for i in range(len(pfsArmSet[0])):
+        axe.plot(pfsArmSet[0].wavelength[i], pfsArmSet[0].flux[i], color=f'C{i}')
+        axe.plot(pfsArmSet[1].wavelength[i], pfsArmSet[1].flux[i], color=f'C{i}')
+        axe.plot(pfsArmSet[2].wavelength[i], pfsArmSet[2].flux[i], color=f'C{i}')
+    plt.show()
 
 class Pfsspec(object):
 
@@ -99,7 +121,7 @@ class Pfsspec(object):
                        'objId': 1,
                        'fiberId': 1,
                        'fiberMag': [22.5, 22.5, 22.5, 22.5, 22.5],
-                       'filterName': ['g', 'r', 'i', 'z', 'y'],
+                       'filterName': ['hcs_g', 'hcs_r', 'hcs_i', 'hcs_z', 'hcs_y'],
                        'spectrograph': 1,
                        'pfsConfigFull': 'f',
                        'writeFits': 't',
@@ -366,6 +388,7 @@ class Pfsspec(object):
 
         '''
             Create the PfsArm;  we'll put each realisation into a different fibre
+            (currently the content is not the one expected in the real pfsArm files so FIXME)
         '''
         metadata = {}
         mapper = {"NO_DATA": 1}
@@ -380,6 +403,7 @@ class Pfsspec(object):
             datalam = []
             dataflux = []
             datasky = []
+            datanorm = []
             datamask = []
             datacovar = []
             if nobj > 1:
@@ -465,6 +489,7 @@ class Pfsspec(object):
                     else:
                         dataflux.append(fnu_in_njy[thisArm, 0] + np.random.normal(0.0, abs(sigma1[thisArm, 0])))
                     datasky.append(sky[thisArm])
+                    datanorm.append([1.0 for _ in sky[thisArm]])
                     datamask.append(msk[thisArm])
                     covar = np.zeros(3 * nPt).reshape((3, nPt))
                     covar[0] = sigma2[thisArm, 0]**2
@@ -475,22 +500,23 @@ class Pfsspec(object):
                                      flux=np.array(dataflux, dtype='f4'),
                                      mask=np.array(datamask, dtype='i4'),
                                      sky=np.array(datasky, dtype='f4'),
+                                     norm=np.array(datanorm, dtype='f4'),
                                      covar=np.array(datacovar, dtype='f4'),
                                      flags=flags,
                                      metadata=metadata
                                      )
             pfsArmSet.append(pfsArm)
         if self.plotArmSet:
-            for pfsArm in pfsArmSet:
-                pfsArm.plot(fiberId=None, usePixels=False, ignorePixelMask=0x0, show=True)
+            plotPfsArm(pfsArmSet)
         '''
             Time for I/O
         '''
         ''' Fits '''
         if self.writeFits:
-            pfsDesign.write(self.outdir)         # pfsDesign file
-            pfsConfig.write(self.outdir)         # pfsConfig file
-            if self.writePfsArm:                 # write pfsArm files
+            print(f'pfsDesignId: {pfsDesign.pfsDesignId:#013x}')
+            pfsDesign.write(dirName=self.outdir)  # pfsDesign file
+            pfsConfig.write(dirName=self.outdir)  # pfsConfig file
+            if self.writePfsArm:                  # write pfsArm files
                 for pfsArm in pfsArmSet:
                     pfsArm.write(self.outdir)
         ''' Ascii '''
@@ -506,8 +532,8 @@ class Pfsspec(object):
         for pfsObject in pfsObjects:
             if self.writeFits:                   # write FITS file
                 pfsObject.write(self.outdir)
-            if self.plotObject:                  # plot pfsObject
-                pfsObject.plot(show=True)
+        if self.plotObject:                  # plot pfsObject
+            plotPfsObject(pfsObjects)
         self.pfsObjects = pfsObjects
         self.pfsVisitHashes = pfsVisitHashes
         return 0
