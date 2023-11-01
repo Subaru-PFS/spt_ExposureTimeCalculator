@@ -33,7 +33,7 @@
 #define MAXNTHR 1024
 
 /* Spectrograph PSF length (must be even) */
-#define SP_PSF_LEN 64
+#define SP_PSF_LEN 32
 
 /* Spectrograph attributes structure */
 typedef struct
@@ -907,6 +907,15 @@ void gsGetNoise(SPECTRO_ATTRIB *spectro, OBS_ATTRIB *obs, int i_arm, double fiel
 
         count *= airmass / 1.1 * exp(-gsAtmContOp(obs, lambda, flags) * airmass / 1.086);
 
+        iref = (long)floor(pos - (SP_PSF_LEN/2 - 0.5));
+        if (iref < 0) 
+          iref = 0;
+        if (iref > Npix - SP_PSF_LEN) 
+        iref = Npix - SP_PSF_LEN;
+        gsSpectroDist(spectro, obs, i_arm, lambda, pos - iref, 0, SP_PSF_LEN, FR);
+        for(j = 0; j < SP_PSF_LEN; j++)
+          Noise[iref+j] += count * FR[j] * sample_factor;
+        /*
         iref = (long)floor(pos - 7.5);
         if (iref < 0)
           iref = 0;
@@ -917,6 +926,7 @@ void gsGetNoise(SPECTRO_ATTRIB *spectro, OBS_ATTRIB *obs, int i_arm, double fiel
         for (j = 0; j < 16; j++)
 
           Noise[iref + j] += count * FR[j] * sample_factor;
+        */
       }
     }
 
@@ -982,7 +992,8 @@ void gsGetNoise(SPECTRO_ATTRIB *spectro, OBS_ATTRIB *obs, int i_arm, double fiel
 #endif
     /* Atmospheric transmission -- used to remap the continuum model */
 
-    gsSpectroDist(spectro, obs, i_arm, lambda, 7.5, 0, SP_PSF_LEN, FR);
+    gsSpectroDist(spectro, obs, i_arm, lambda, SP_PSF_LEN/2-0.5, 0, SP_PSF_LEN, FR);
+
     //
     num = den = 0.;
     for (j = 0; j < 5 * SP_PSF_LEN; j++)
@@ -1562,7 +1573,7 @@ void gsGetSNR_Continuum(SPECTRO_ATTRIB *spectro, OBS_ATTRIB *obs, int i_arm, dou
       mag = ((lambda - lambda_inmag2[p1]) * mag_inmag2[p2] + (lambda_inmag2[p2] - lambda) * mag_inmag2[p1]) / (lambda_inmag2[p2] - lambda_inmag2[p1]);
     }
     /* Atmospheric transmission */
-    gsSpectroDist(spectro, obs, i_arm, lambda, 7.5, 0, SP_PSF_LEN, FR);
+    gsSpectroDist(spectro, obs, i_arm, lambda, SP_PSF_LEN/2-0.5, 0, SP_PSF_LEN, FR);
     num = den = 0.;
     for (j = 0; j < 5 * SP_PSF_LEN; j++)
     {
