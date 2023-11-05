@@ -86,7 +86,7 @@ class Etc(object):
             self.omp_num_threads = omp_num_threads if omp_num_threads <= OMP_MAX_THREADS else OMP_MAX_THREADS
             print(f"Use OpenMP version of gsetc with {self.omp_num_threads} threads")
         else:
-            self.omp_num_threads=1
+            self.omp_num_threads = 1
             self.ETC_SRC = os.path.join(self.HOME_DIR, self.params['BINDIR'], "gsetc.x")
         #        if not os.path.exists(self.HOME_DIR + '/bin'):
         #            os.mkdir(self.HOME_DIR + '/bin')
@@ -126,8 +126,10 @@ class Etc(object):
         ''' select throughput model '''
         self.throughput_model = self.params['throughput_model']
         if self.spectrograph in ['sm1', 'sm2', 'sm3', 'sm4']:
-            self.INSTR_SETUP = self.HOME_DIR + '/config/PFS.%s.%s.dat' % (self.throughput_model, self.spectrograph)
-            self.INSTR_SETUP_MR = self.HOME_DIR + '/config/PFS.redMR.%s.%s.dat' % (self.throughput_model, self.spectrograph)
+            self.INSTR_SETUP = self.HOME_DIR + \
+                '/config/PFS.%s.%s.dat' % (self.throughput_model, self.spectrograph)
+            self.INSTR_SETUP_MR = self.HOME_DIR + \
+                '/config/PFS.redMR.%s.%s.dat' % (self.throughput_model, self.spectrograph)
         else:
             self.INSTR_SETUP = self.HOME_DIR + '/config/PFS.%s.dat' % (self.throughput_model)
             self.INSTR_SETUP_MR = self.HOME_DIR + '/config/PFS.redMR.%s.dat' % (self.throughput_model)
@@ -182,7 +184,8 @@ class Etc(object):
             exit('No execution of ETC')
         try:
             print('##### starting to run ETC ... (it takes a few min.) #####')
-            proc = subprocess.Popen([self.ETC_SRC], stdin=subprocess.PIPE, env={"OMP_NUM_THREADS": f"{self.omp_num_threads}"})
+            proc = subprocess.Popen([self.ETC_SRC], stdin=subprocess.PIPE, env={
+                                    "OMP_NUM_THREADS": f"{self.omp_num_threads}"})
             proc.communicate("\n".join([self.INSTR_SETUP,
                                         self.params['degrade'],
                                         SKYMODELS,
@@ -215,7 +218,8 @@ class Etc(object):
             exit('Execution error of "%s" (%s)' % self.ETC_SRC, e)
         ''' load OUTFILE_NOISE '''
         if self.params['OUTFILE_NOISE'] != '-':
-            add_header(self.params['OUTFILE_NOISE'], self.params['SEEING'], self.params['ZENITH_ANG'], self.params['GALACTIC_EXT'], self.params['MOON_ZENITH_ANG'], self.params['MOON_TARGET_ANG'], self.params['MOON_PHASE'], self.params['EXP_TIME'], self.params['EXP_NUM'], self.params['FIELD_ANG'], self.params['MAG_FILE'], self.params['REFF'], self.params['LINE_FLUX'], self.params['LINE_WIDTH'])
+            add_header(self.params['OUTFILE_NOISE'], self.params['SEEING'], self.params['ZENITH_ANG'], self.params['GALACTIC_EXT'], self.params['MOON_ZENITH_ANG'], self.params['MOON_TARGET_ANG'],
+                       self.params['MOON_PHASE'], self.params['EXP_TIME'], self.params['EXP_NUM'], self.params['FIELD_ANG'], self.params['MAG_FILE'], self.params['REFF'], self.params['LINE_FLUX'], self.params['LINE_WIDTH'])
             try:
                 (
                     self.nsm_arms,
@@ -231,7 +235,8 @@ class Etc(object):
                 pass
         ''' load OUTFILE_SNC '''
         if self.params['OUTFILE_SNC'] != '-':
-            add_header(self.params['OUTFILE_SNC'], self.params['SEEING'], self.params['ZENITH_ANG'], self.params['GALACTIC_EXT'], self.params['MOON_ZENITH_ANG'], self.params['MOON_TARGET_ANG'], self.params['MOON_PHASE'], self.params['EXP_TIME'], self.params['EXP_NUM'], self.params['FIELD_ANG'], self.params['MAG_FILE'], self.params['REFF'], self.params['LINE_FLUX'], self.params['LINE_WIDTH'])
+            add_header(self.params['OUTFILE_SNC'], self.params['SEEING'], self.params['ZENITH_ANG'], self.params['GALACTIC_EXT'], self.params['MOON_ZENITH_ANG'], self.params['MOON_TARGET_ANG'],
+                       self.params['MOON_PHASE'], self.params['EXP_TIME'], self.params['EXP_NUM'], self.params['FIELD_ANG'], self.params['MAG_FILE'], self.params['REFF'], self.params['LINE_FLUX'], self.params['LINE_WIDTH'])
             try:
                 (
                     self.snc_arms,
@@ -255,7 +260,8 @@ class Etc(object):
                 pass
         ''' load OUTFILE_SNL '''
         if self.params['OUTFILE_SNL'] != '-':
-            add_header(self.params['OUTFILE_SNL'], self.params['SEEING'], self.params['ZENITH_ANG'], self.params['GALACTIC_EXT'], self.params['MOON_ZENITH_ANG'], self.params['MOON_TARGET_ANG'], self.params['MOON_PHASE'], self.params['EXP_TIME'], self.params['EXP_NUM'], self.params['FIELD_ANG'], self.params['MAG_FILE'], self.params['REFF'], self.params['LINE_FLUX'], self.params['LINE_WIDTH'])
+            add_header(self.params['OUTFILE_SNL'], self.params['SEEING'], self.params['ZENITH_ANG'], self.params['GALACTIC_EXT'], self.params['MOON_ZENITH_ANG'], self.params['MOON_TARGET_ANG'],
+                       self.params['MOON_PHASE'], self.params['EXP_TIME'], self.params['EXP_NUM'], self.params['FIELD_ANG'], self.params['MAG_FILE'], self.params['REFF'], self.params['LINE_FLUX'], self.params['LINE_WIDTH'])
             try:
                 (
                     self.snl_lams,
@@ -275,7 +281,8 @@ class Etc(object):
                 pass
         ''' load OUTFILE_OII '''
         if self.params['OUTFILE_OII'] != '-':
-            add_header(self.params['OUTFILE_OII'], self.params['SEEING'], self.params['ZENITH_ANG'], self.params['GALACTIC_EXT'], self.params['MOON_ZENITH_ANG'], self.params['MOON_TARGET_ANG'], self.params['MOON_PHASE'], self.params['EXP_TIME'], self.params['EXP_NUM'], self.params['FIELD_ANG'], self.params['MAG_FILE'], self.params['REFF'], self.params['LINE_FLUX'], self.params['LINE_WIDTH'])
+            add_header(self.params['OUTFILE_OII'], self.params['SEEING'], self.params['ZENITH_ANG'], self.params['GALACTIC_EXT'], self.params['MOON_ZENITH_ANG'], self.params['MOON_TARGET_ANG'],
+                       self.params['MOON_PHASE'], self.params['EXP_TIME'], self.params['EXP_NUM'], self.params['FIELD_ANG'], self.params['MAG_FILE'], self.params['REFF'], self.params['LINE_FLUX'], self.params['LINE_WIDTH'])
             try:
                 (
                     self.sno2_zsps,
@@ -354,7 +361,8 @@ class Etc(object):
             exit('No execution of ETC')
         try:
             print('##### starting to make a noise model ... (it takes about 2 min.) #####')
-            proc = subprocess.Popen([self.ETC_SRC], stdin=subprocess.PIPE, env={"OMP_NUM_THREADS": f"{self.omp_num_threads}"})
+            proc = subprocess.Popen([self.ETC_SRC], stdin=subprocess.PIPE, env={
+                                    "OMP_NUM_THREADS": f"{self.omp_num_threads}"})
             proc.communicate("\n".join([self.INSTR_SETUP,
                                         self.params['degrade'],
                                         SKYMODELS,
@@ -387,7 +395,8 @@ class Etc(object):
             exit('Execution error of "%s" (%s)' % self.ETC_SRC, e)
         ''' load OUTFILE_NOISE '''
         if self.params['OUTFILE_NOISE'] != '-':
-            add_header(self.params['OUTFILE_NOISE'], self.params['SEEING'], self.params['ZENITH_ANG'], self.params['GALACTIC_EXT'], self.params['MOON_ZENITH_ANG'], self.params['MOON_TARGET_ANG'], self.params['MOON_PHASE'], self.params['EXP_TIME'], self.params['EXP_NUM'], self.params['FIELD_ANG'], self.params['MAG_FILE'], self.params['REFF'], self.params['LINE_FLUX'], self.params['LINE_WIDTH'])
+            add_header(self.params['OUTFILE_NOISE'], self.params['SEEING'], self.params['ZENITH_ANG'], self.params['GALACTIC_EXT'], self.params['MOON_ZENITH_ANG'], self.params['MOON_TARGET_ANG'],
+                       self.params['MOON_PHASE'], self.params['EXP_TIME'], self.params['EXP_NUM'], self.params['FIELD_ANG'], self.params['MAG_FILE'], self.params['REFF'], self.params['LINE_FLUX'], self.params['LINE_WIDTH'])
             try:
                 (
                     self.nsm_arms,
@@ -428,7 +437,8 @@ class Etc(object):
         start = time.time()
         try:
             print('##### starting to make an SNC model ... (it takes about 1 min.) #####')
-            proc = subprocess.Popen([self.ETC_SRC], stdin=subprocess.PIPE, env={"OMP_NUM_THREADS": f"{self.omp_num_threads}"})
+            proc = subprocess.Popen([self.ETC_SRC], stdin=subprocess.PIPE, env={
+                                    "OMP_NUM_THREADS": f"{self.omp_num_threads}"})
             proc.communicate("\n".join([self.INSTR_SETUP,
                                         self.params['degrade'],
                                         SKYMODELS,
@@ -461,7 +471,8 @@ class Etc(object):
             exit('Execution error of "%s" (%s)' % self.ETC_SRC, e)
         ''' load OUTFILE_SNC '''
         if self.params['OUTFILE_SNC'] != '-':
-            add_header(self.params['OUTFILE_SNC'], self.params['SEEING'], self.params['ZENITH_ANG'], self.params['GALACTIC_EXT'], self.params['MOON_ZENITH_ANG'], self.params['MOON_TARGET_ANG'], self.params['MOON_PHASE'], self.params['EXP_TIME'], self.params['EXP_NUM'], self.params['FIELD_ANG'], self.params['MAG_FILE'], self.params['REFF'], self.params['LINE_FLUX'], self.params['LINE_WIDTH'])
+            add_header(self.params['OUTFILE_SNC'], self.params['SEEING'], self.params['ZENITH_ANG'], self.params['GALACTIC_EXT'], self.params['MOON_ZENITH_ANG'], self.params['MOON_TARGET_ANG'],
+                       self.params['MOON_PHASE'], self.params['EXP_TIME'], self.params['EXP_NUM'], self.params['FIELD_ANG'], self.params['MAG_FILE'], self.params['REFF'], self.params['LINE_FLUX'], self.params['LINE_WIDTH'])
             try:
                 (
                     self.snc_arms,
@@ -497,7 +508,8 @@ class Etc(object):
         start = time.time()
         try:
             print('##### starting to make an SNL model ... (it takes about 1 min.) #####')
-            proc = subprocess.Popen([self.ETC_SRC], stdin=subprocess.PIPE, env={"OMP_NUM_THREADS": f"{self.omp_num_threads}"})
+            proc = subprocess.Popen([self.ETC_SRC], stdin=subprocess.PIPE, env={
+                                    "OMP_NUM_THREADS": f"{self.omp_num_threads}"})
             proc.communicate("\n".join([self.INSTR_SETUP,
                                         self.params['degrade'],
                                         SKYMODELS,
@@ -530,7 +542,8 @@ class Etc(object):
             exit('Execution error of "%s" (%s)' % self.ETC_SRC, e)
         ''' load OUTFILE_SNL '''
         if self.params['OUTFILE_SNL'] != '-':
-            add_header(self.params['OUTFILE_SNL'], self.params['SEEING'], self.params['ZENITH_ANG'], self.params['GALACTIC_EXT'], self.params['MOON_ZENITH_ANG'], self.params['MOON_TARGET_ANG'], self.params['MOON_PHASE'], self.params['EXP_TIME'], self.params['EXP_NUM'], self.params['FIELD_ANG'], self.params['MAG_FILE'], self.params['REFF'], self.params['LINE_FLUX'], self.params['LINE_WIDTH'])
+            add_header(self.params['OUTFILE_SNL'], self.params['SEEING'], self.params['ZENITH_ANG'], self.params['GALACTIC_EXT'], self.params['MOON_ZENITH_ANG'], self.params['MOON_TARGET_ANG'],
+                       self.params['MOON_PHASE'], self.params['EXP_TIME'], self.params['EXP_NUM'], self.params['FIELD_ANG'], self.params['MAG_FILE'], self.params['REFF'], self.params['LINE_FLUX'], self.params['LINE_WIDTH'])
             try:
                 (
                     self.snl_lams,
@@ -562,7 +575,8 @@ class Etc(object):
         start = time.time()
         try:
             print('##### starting to make an OII model ... (it takes about 2 min.) #####')
-            proc = subprocess.Popen([self.ETC_SRC], stdin=subprocess.PIPE, env={"OMP_NUM_THREADS": f"{self.omp_num_threads}"})
+            proc = subprocess.Popen([self.ETC_SRC], stdin=subprocess.PIPE, env={
+                                    "OMP_NUM_THREADS": f"{self.omp_num_threads}"})
             proc.communicate("\n".join([self.INSTR_SETUP,
                                         self.params['degrade'],
                                         SKYMODELS,
@@ -595,7 +609,8 @@ class Etc(object):
             exit('Execution error of "%s" (%s)' % self.ETC_SRC, e)
         ''' load OUTFILE_OII '''
         if self.params['OUTFILE_OII'] != '-':
-            add_header(self.params['OUTFILE_OII'], self.params['SEEING'], self.params['ZENITH_ANG'], self.params['GALACTIC_EXT'], self.params['MOON_ZENITH_ANG'], self.params['MOON_TARGET_ANG'], self.params['MOON_PHASE'], self.params['EXP_TIME'], self.params['EXP_NUM'], self.params['FIELD_ANG'], self.params['MAG_FILE'], self.params['REFF'], self.params['LINE_FLUX'], self.params['LINE_WIDTH'])
+            add_header(self.params['OUTFILE_OII'], self.params['SEEING'], self.params['ZENITH_ANG'], self.params['GALACTIC_EXT'], self.params['MOON_ZENITH_ANG'], self.params['MOON_TARGET_ANG'],
+                       self.params['MOON_PHASE'], self.params['EXP_TIME'], self.params['EXP_NUM'], self.params['FIELD_ANG'], self.params['MAG_FILE'], self.params['REFF'], self.params['LINE_FLUX'], self.params['LINE_WIDTH'])
             try:
                 (
                     self.sno2_zsps,
