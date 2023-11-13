@@ -40,7 +40,8 @@ def calculateFiberMagnitude(wav, mag, filterName):
 
     counts = np.exp(-mag)
     bandpass = np.where(np.logical_and(wav >= wav0, wav <= wav1), peak, 0)
-    fiberMag = -np.log(np.trapz(bandpass * counts, wav) / np.trapz(bandpass, wav))
+    fiberMag = -np.log(np.trapz(bandpass * counts, wav) /
+                       np.trapz(bandpass, wav))
     return fiberMag
 
 
@@ -99,9 +100,12 @@ def plotPfsArm(pfsArmSet, fig=None):
     axe.set_xlabel('wavelength (nm)')
     axe.set_ylabel('flux (electron/pix)')
     for i in range(len(pfsArmSet[0])):
-        axe.plot(pfsArmSet[0].wavelength[i], pfsArmSet[0].flux[i], color=f'C{i}')
-        axe.plot(pfsArmSet[1].wavelength[i], pfsArmSet[1].flux[i], color=f'C{i}')
-        axe.plot(pfsArmSet[2].wavelength[i], pfsArmSet[2].flux[i], color=f'C{i}')
+        axe.plot(pfsArmSet[0].wavelength[i],
+                 pfsArmSet[0].flux[i], color=f'C{i}')
+        axe.plot(pfsArmSet[1].wavelength[i],
+                 pfsArmSet[1].flux[i], color=f'C{i}')
+        axe.plot(pfsArmSet[2].wavelength[i],
+                 pfsArmSet[2].flux[i], color=f'C{i}')
     plt.show()
 
 
@@ -174,7 +178,8 @@ class Pfsspec(object):
             self.mag_file = self.params['MAG_FILE']
         self.fiberMag = self.params['fiberMag']
         self.filterName = self.params['filterName']
-        ''' some checks '''
+
+        # do some checks
         self.writeFits = strToBool(self.params['writeFits'])
         self.writePfsArm = strToBool(self.params['writePfsArm'])
         self.plotArmSet = self.params['plotArmSet']
@@ -196,7 +201,8 @@ class Pfsspec(object):
             self.multi_info = 0
 
         if not self.writeFits and not self.asciiTable:
-            sys.exit("Please specify asciiTable or omit writeFits (or say writeFits true)")
+            sys.exit(
+                "Please specify asciiTable or omit writeFits (or say writeFits true)")
         if not os.path.exists(self.outdir):
             try:
                 os.makedirs(self.outdir)
@@ -204,7 +210,8 @@ class Pfsspec(object):
                 sys.exit("Unable to create outDir: %s" % e)
         if nrealize <= 0:
             sys.exit("Please specify at least one realization")
-        ''' check magfile '''
+
+        # check magfile
         if os.path.exists(self.mag_file):
             dat = np.loadtxt(self.mag_file)
             nobj = dat.shape[1] - 1
@@ -212,7 +219,8 @@ class Pfsspec(object):
             nobj = 1
         if nobj > 1:
             if nrealize > 1:
-                sys.exit("The number of realization should be one for multiple input template")
+                sys.exit(
+                    "The number of realization should be one for multiple input template")
             else:
                 if self.multi_info == 0:
                     objIds = np.arange(self.objId, self.objId + nobj)
@@ -243,30 +251,40 @@ class Pfsspec(object):
             if nrealize > 1:
                 try:
                     if len(self.objId) == 1:
-                        objIds = np.arange(self.objId[0], self.objId[0] + nrealize)
-                        tmp, catIds = self.catId[0], np.empty(nrealize, dtype=np.int32)
+                        objIds = np.arange(
+                            self.objId[0], self.objId[0] + nrealize)
+                        tmp, catIds = self.catId[0], np.empty(
+                            nrealize, dtype=np.int32)
                         catIds.fill(tmp)
-                        fiberIds = np.arange(self.fiberId[0], self.fiberId[0] + nrealize)
-                        tmp, ras = self.ra[0], np.empty(nrealize, dtype=np.float32)
+                        fiberIds = np.arange(
+                            self.fiberId[0], self.fiberId[0] + nrealize)
+                        tmp, ras = self.ra[0], np.empty(
+                            nrealize, dtype=np.float32)
                         ras.fill(tmp)
-                        tmp, decs = self.dec[0], np.empty(nrealize, dtype=np.float32)
+                        tmp, decs = self.dec[0], np.empty(
+                            nrealize, dtype=np.float32)
                         decs.fill(tmp)
-                        tmp, tracts = self.tract[0], np.empty(nrealize, dtype=np.int32)
+                        tmp, tracts = self.tract[0], np.empty(
+                            nrealize, dtype=np.int32)
                         tracts.fill(tmp)
-                        tmp, patches = self.patch[0], np.empty(nrealize, dtype='U3')
+                        tmp, patches = self.patch[0], np.empty(
+                            nrealize, dtype='U3')
                         patches.fill(tmp)
                         fiberMags = [self.fiberMag[0] for i in range(nrealize)]
-                        filterNames = [self.filterName[0] for i in range(nrealize)]
+                        filterNames = [self.filterName[0]
+                                       for i in range(nrealize)]
                 except:
                     objIds = np.arange(self.objId, self.objId + nrealize)
-                    tmp, catIds = self.catId, np.empty(nrealize, dtype=np.int32)
+                    tmp, catIds = self.catId, np.empty(
+                        nrealize, dtype=np.int32)
                     catIds.fill(tmp)
                     fiberIds = np.arange(self.fiberId, self.fiberId + nrealize)
                     tmp, ras = self.ra, np.empty(nrealize, dtype=np.float32)
                     ras.fill(tmp)
                     tmp, decs = self.dec, np.empty(nrealize, dtype=np.float32)
                     decs.fill(tmp)
-                    tmp, tracts = self.tract, np.empty(nrealize, dtype=np.int32)
+                    tmp, tracts = self.tract, np.empty(
+                        nrealize, dtype=np.int32)
                     tracts.fill(tmp)
                     tmp, patches = self.patch, np.empty(nrealize, dtype='U3')
                     patches.fill(tmp)
@@ -309,7 +327,8 @@ class Pfsspec(object):
                     nexp_etc = int(line.split()[2])
         arm, wav, nsv, trn, smp, skm = np.loadtxt(
             self.params['etcFile'], usecols=(0, 2, 5, 8, 9, 10), unpack=True)
-        ''' remove sky systematics '''
+
+        # remove sky systematics
         skm_sysref = skm.copy()
         skmp = np.roll(skm_sysref, 1)
         skmp[0] = 0.0
@@ -318,10 +337,10 @@ class Pfsspec(object):
         skm_sysref = np.amax([skm_sysref, skmm, skmp], axis=0)
         nsv_sys = (self.sky_sub_err * np.sqrt(nexp_etc) * skm_sysref)**2
         nsv_rnd = nsv - nsv_sys
-        ''' '''
         arm = arm.astype(int)
         trn[trn < 1.0e26] = 1.0e26
-        ''' load magnitude or filename '''
+
+        # load magnitude or filename
         if os.path.exists(self.mag_file):
             dat = np.loadtxt(self.mag_file)
             nobj = dat.shape[1] - 1
@@ -345,7 +364,8 @@ class Pfsspec(object):
             smp_mtrx[:, i] = smp
             nsv_rnd_mtrx[:, i] = nsv_rnd
             nsv_sys_mtrx[:, i] = nsv_sys * float(nexp) / float(nexp_etc)
-        ''' calculate the flux etc. in observed units '''
+
+        # calculate the flux etc. in observed units
         fnu = 10**(-0.4 * (mag + 48.6))
         fnu_in_njy = fnu / 1e-32
         counts = trn_mtrx * fnu
@@ -353,15 +373,23 @@ class Pfsspec(object):
             print("counts == 0 detected in some pixels; setting to %g for variance" %
                   (float(self.params['countsMin'])), file=sys.stderr)
             # version of counts with zero pixels replaced
-            countsp = np.where(counts == 0, float(self.params['countsMin']), counts)
+            countsp = np.where(counts == 0, float(
+                self.params['countsMin']), counts)
         else:
             countsp = counts
         if self.sky_sub_mode == 'random':
-            snr1 = countsp / np.sqrt(smp_mtrx * countsp + (nsv_rnd_mtrx + nsv_sys_mtrx)) * np.sqrt(nexp)
-            snr2 = countsp / np.sqrt(smp_mtrx * countsp + (nsv_rnd_mtrx + nsv_sys_mtrx)) * np.sqrt(nexp)
+            snr1 = countsp / \
+                np.sqrt(smp_mtrx * countsp +
+                        (nsv_rnd_mtrx + nsv_sys_mtrx)) * np.sqrt(nexp)
+            snr2 = countsp / \
+                np.sqrt(smp_mtrx * countsp +
+                        (nsv_rnd_mtrx + nsv_sys_mtrx)) * np.sqrt(nexp)
         else:
-            snr1 = countsp / np.sqrt(smp_mtrx * countsp + nsv_rnd_mtrx) * np.sqrt(nexp)
-            snr2 = countsp / np.sqrt(smp_mtrx * countsp + (nsv_rnd_mtrx + nsv_sys_mtrx)) * np.sqrt(nexp)
+            snr1 = countsp / \
+                np.sqrt(smp_mtrx * countsp + nsv_rnd_mtrx) * np.sqrt(nexp)
+            snr2 = countsp / \
+                np.sqrt(smp_mtrx * countsp +
+                        (nsv_rnd_mtrx + nsv_sys_mtrx)) * np.sqrt(nexp)
         sigma1 = fnu_in_njy / snr1
         sigma2 = fnu_in_njy / snr2
 
@@ -374,7 +402,8 @@ class Pfsspec(object):
         skmm[-1] = 0.0
         skm_sysref = np.amax([skm_sysref, skmm, skmp], axis=0)
         arm = arm_name(arm)
-        arms = np.array(sorted(set(arm), key=lambda x: dict(b=0, r=1, m=1.5, n=2)[x]))  # unique values of arm
+        arms = np.array(sorted(set(arm), key=lambda x: dict(
+            b=0, r=1, m=1.5, n=2)[x]))  # unique values of arm
         '''
             Create and populate the objects corresponding to the datamodel
 
@@ -383,10 +412,12 @@ class Pfsspec(object):
         objectMags = []
         if nobj > 1:
             for i in range(nobj):
-                objectMags.append([calculateFiberMagnitude(wav, mag[:, i], b) for b in "grizy"])
+                objectMags.append([calculateFiberMagnitude(
+                    wav, mag[:, i], b) for b in "grizy"])
         else:
             for i in range(nrealize):
-                objectMags.append([calculateFiberMagnitude(wav, mag[:, 0], b) for b in "grizy"])
+                objectMags.append([calculateFiberMagnitude(
+                    wav, mag[:, 0], b) for b in "grizy"])
 
         pfsDesign = dm_utils.makePfsDesign(tracts, patches, fiberIds, ras,
                                            decs, catIds, objIds, fiberMags, filterNames)
@@ -421,7 +452,8 @@ class Pfsspec(object):
                     if self.sky_sub_mode == 'systematic':
                         flux = []
                         for j in range(nexp):
-                            sky_res_fac = np.random.normal(0.0, self.sky_sub_err)
+                            sky_res_fac = np.random.normal(
+                                0.0, self.sky_sub_err)
                             skyres = skm_sysref[thisArm] * sky_res_fac
                             flux.append(fnu_in_njy[thisArm, i] + np.random.normal(0.0,
                                         abs(sigma1[thisArm, i]) * np.sqrt(nexp)) + skyres)
@@ -429,17 +461,21 @@ class Pfsspec(object):
                     elif self.sky_sub_mode == 'wavecalib':
                         flux = []
                         for j in range(nexp):
-                            wav_err_shift = np.random.normal(0.0, WAV_ERR_SHIFT)
+                            wav_err_shift = np.random.normal(
+                                0.0, WAV_ERR_SHIFT)
                             # skyres = (skm_sysref[thisArm] - np.roll(skm_sysref[thisArm], wav_err_shift))
                             skyres = skm_sysref[thisArm] - \
-                                np.interp(wav[thisArm] + wav_err_shift, wav[thisArm], skm_sysref[thisArm])
+                                np.interp(wav[thisArm] + wav_err_shift,
+                                          wav[thisArm], skm_sysref[thisArm])
                             flux.append(fnu_in_njy[thisArm, i] + np.random.normal(0.0,
                                         abs(sigma1[thisArm, i]) * np.sqrt(nexp)) + skyres)
                         dataflux.append(np.nanmean(flux, axis=0))
                     elif self.sky_sub_mode == 'psfvar':
                         flux = []
-                        wav_fine = np.linspace(min(wav[thisArm]), max(wav[thisArm]), len(wav[thisArm]) * 10)
-                        skm_sysref_fine = np.interp(wav_fine, wav[thisArm], skm_sysref[thisArm])
+                        wav_fine = np.linspace(min(wav[thisArm]), max(
+                            wav[thisArm]), len(wav[thisArm]) * 10)
+                        skm_sysref_fine = np.interp(
+                            wav_fine, wav[thisArm], skm_sysref[thisArm])
                         for j in range(nexp):
                             psf_var_sigma_pix = PSF_VAR_SIGMA / 0.07 * 10
                             gauss_kernel_sigma1 = np.random.uniform(
@@ -451,10 +487,13 @@ class Pfsspec(object):
                                              ) * np.exp(-1.0 * x**2 / (2 * gauss_kernel_sigma1**2))
                             gauss_kernel2 = (1.0 / np.sqrt(2 * np.pi * gauss_kernel_sigma2**2)
                                              ) * np.exp(-1.0 * x**2 / (2 * gauss_kernel_sigma2**2))
-                            skm_sysref_fine_conv1 = np.convolve(skm_sysref_fine, gauss_kernel1, mode='same')
-                            skm_sysref_fine_conv2 = np.convolve(skm_sysref_fine, gauss_kernel2, mode='same')
+                            skm_sysref_fine_conv1 = np.convolve(
+                                skm_sysref_fine, gauss_kernel1, mode='same')
+                            skm_sysref_fine_conv2 = np.convolve(
+                                skm_sysref_fine, gauss_kernel2, mode='same')
                             skyres_fine = skm_sysref_fine_conv1 - skm_sysref_fine_conv2
-                            skyres = np.interp(wav[thisArm], wav_fine, skyres_fine)
+                            skyres = np.interp(
+                                wav[thisArm], wav_fine, skyres_fine)
                             flux.append(fnu_in_njy[thisArm, i] + np.random.normal(0.0,
                                         abs(sigma1[thisArm, i]) * np.sqrt(nexp)) + skyres)
                         dataflux.append(np.nanmean(flux, axis=0))
@@ -472,28 +511,36 @@ class Pfsspec(object):
                     if self.sky_sub_mode == 'systematic':
                         flux = []
                         for j in range(nexp):
-                            sky_res_fac = np.random.normal(0.0, self.sky_sub_err)
+                            sky_res_fac = np.random.normal(
+                                0.0, self.sky_sub_err)
                             skyres = skm_sysref[thisArm] * sky_res_fac
                             flux.append(fnu_in_njy[thisArm, 0] + np.random.normal(0.0,
                                         abs(sigma1[thisArm, 0]) * np.sqrt(nexp)) + skyres)
                         dataflux.append(np.nanmean(flux, axis=0))
                     elif self.sky_sub_mode == 'wavecalib':
                         flux = []
-                        wav_fine = np.linspace(min(wav[thisArm]), max(wav[thisArm]), len(wav[thisArm]) * 10)
-                        skm_sysref_fine = np.interp(wav_fine, wav[thisArm], skm_sysref[thisArm])
+                        wav_fine = np.linspace(min(wav[thisArm]), max(
+                            wav[thisArm]), len(wav[thisArm]) * 10)
+                        skm_sysref_fine = np.interp(
+                            wav_fine, wav[thisArm], skm_sysref[thisArm])
                         for j in range(nexp):
-                            wav_err_shift = np.random.normal(0.0, WAV_ERR_SHIFT)
+                            wav_err_shift = np.random.normal(
+                                0.0, WAV_ERR_SHIFT)
                             # skyres = (skm_sysref[thisArm] - np.roll(skm_sysref[thisArm], wav_err_shift))
                             skyres_fine = skm_sysref_fine - \
-                                np.interp(wav_fine + wav_err_shift, wav_fine, skm_sysref_fine)
-                            skyres = np.interp(wav[thisArm], wav_fine, skyres_fine)
+                                np.interp(wav_fine + wav_err_shift,
+                                          wav_fine, skm_sysref_fine)
+                            skyres = np.interp(
+                                wav[thisArm], wav_fine, skyres_fine)
                             flux.append(fnu_in_njy[thisArm, 0] + np.random.normal(0.0,
                                         abs(sigma1[thisArm, 0]) * np.sqrt(nexp)) + skyres)
                         dataflux.append(np.nanmean(flux, axis=0))
                     elif self.sky_sub_mode == 'psfvar':
                         flux = []
-                        wav_fine = np.linspace(min(wav[thisArm]), max(wav[thisArm]), len(wav[thisArm]) * 10)
-                        skm_sysref_fine = np.interp(wav_fine, wav[thisArm], skm_sysref[thisArm])
+                        wav_fine = np.linspace(min(wav[thisArm]), max(
+                            wav[thisArm]), len(wav[thisArm]) * 10)
+                        skm_sysref_fine = np.interp(
+                            wav_fine, wav[thisArm], skm_sysref[thisArm])
                         for j in range(nexp):
                             psf_var_sigma_pix = PSF_VAR_SIGMA / 0.07 * 10
                             gauss_kernel_sigma1 = np.random.uniform(
@@ -505,10 +552,13 @@ class Pfsspec(object):
                                              ) * np.exp(-1.0 * x**2 / (2 * gauss_kernel_sigma1**2))
                             gauss_kernel2 = (1.0 / np.sqrt(2 * np.pi * gauss_kernel_sigma2**2)
                                              ) * np.exp(-1.0 * x**2 / (2 * gauss_kernel_sigma2**2))
-                            skm_sysref_fine_conv1 = np.convolve(skm_sysref_fine, gauss_kernel1, mode='same')
-                            skm_sysref_fine_conv2 = np.convolve(skm_sysref_fine, gauss_kernel2, mode='same')
+                            skm_sysref_fine_conv1 = np.convolve(
+                                skm_sysref_fine, gauss_kernel1, mode='same')
+                            skm_sysref_fine_conv2 = np.convolve(
+                                skm_sysref_fine, gauss_kernel2, mode='same')
                             skyres_fine = skm_sysref_fine_conv1 - skm_sysref_fine_conv2
-                            skyres = np.interp(wav[thisArm], wav_fine, skyres_fine)
+                            skyres = np.interp(
+                                wav[thisArm], wav_fine, skyres_fine)
                             flux.append(fnu_in_njy[thisArm, 0] + np.random.normal(0.0,
                                         abs(sigma1[thisArm, 0]) * np.sqrt(nexp)) + skyres)
                         dataflux.append(np.nanmean(flux, axis=0))
@@ -535,10 +585,11 @@ class Pfsspec(object):
             pfsArmSet.append(pfsArm)
         if self.plotArmSet:
             plotPfsArm(pfsArmSet)
+
         '''
             Time for I/O
         '''
-        ''' Fits '''
+        # writ to Fits
         if self.writeFits:
             print(f'pfsDesignId: {pfsDesign.pfsDesignId:#013x}')
             pfsDesign.write(dirName=self.outdir)  # pfsDesign file
@@ -546,13 +597,13 @@ class Pfsspec(object):
             if self.writePfsArm:                  # write pfsArm files
                 for pfsArm in pfsArmSet:
                     pfsArm.write(self.outdir)
-        ''' Ascii '''
+        # write to Ascii
         if self.asciiTable != "None":
             write_ascii(pfsArmSet, arms, self.asciiTable, self.outdir)
             # print("ASCII table %s was generated" % self.asciiTable)
-        '''
-            Now make the PfsObject from the PfsArmSet
-        '''
+
+        # Now make the PfsObject from the PfsArmSet
+
         visits = self.visit0 + np.arange(nexp)
         # identityList = [dm_utils.Identity(visit=v, arm=arm[0], spectrograph=self.spectrograph, pfsDesignId=pfsDesign.pfsDesignId).getDict() for v in visits]
         pfsObjects, pfsVisitHashes = dm_utils.makePfsObject(

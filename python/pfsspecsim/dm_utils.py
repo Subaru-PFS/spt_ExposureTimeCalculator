@@ -20,7 +20,7 @@ import collections
 import importlib
 
 HOME_DIR = path.dirname(path.abspath(__file__))
-''' import datamodel module '''
+# import datamodel module
 sys.path.append(HOME_DIR + "/datamodel/python")
 
 
@@ -72,13 +72,18 @@ def makePfsDesign(tracts, patches, fiberIds, ras, decs, catIds, objIds, fiberMag
     parallax = np.array([0.0 for _ in range(nFiber)], dtype='f4')
     proposalId = np.array(['S24B-001QN' for _ in range(nFiber)], dtype=object)
     obCode = np.array([f'{oid}' for oid in objIds], dtype=object)
-    fiberFlux = np.array([[np.nan for _ in fiberMags[i]] for i in range(nFiber)], dtype='f4')
-    fiberFluxErr = np.array([[np.nan for _ in fiberMags[i]] for i in range(nFiber)], dtype='f4')
-    psfFlux = np.array([[np.nan for _ in fiberMags[i]] for i in range(nFiber)], dtype='f4')
-    psfFluxErr = np.array([[np.nan for _ in fiberMags[i]] for i in range(nFiber)], dtype='f4')
+    fiberFlux = np.array([[np.nan for _ in fiberMags[i]]
+                         for i in range(nFiber)], dtype='f4')
+    fiberFluxErr = np.array([[np.nan for _ in fiberMags[i]]
+                            for i in range(nFiber)], dtype='f4')
+    psfFlux = np.array([[np.nan for _ in fiberMags[i]]
+                       for i in range(nFiber)], dtype='f4')
+    psfFluxErr = np.array([[np.nan for _ in fiberMags[i]]
+                          for i in range(nFiber)], dtype='f4')
     totalFlux = np.array([[10**(-0.4*(m-8.9))*1e+09 for m in fiberMags[i]]
                          for i in range(nFiber)], dtype='f4')
-    totalFluxErr = np.array([[0.0 for _ in fiberMags[i]] for i in range(nFiber)], dtype='f4')
+    totalFluxErr = np.array([[0.0 for _ in fiberMags[i]]
+                            for i in range(nFiber)], dtype='f4')
     pfiNominals = np.zeros((nFiber, 2))
     pfsDesignId = utils.calculate_pfsDesignId(fiberIds, ras, decs)
     return PfsDesign(pfsDesignId=pfsDesignId,
@@ -112,12 +117,17 @@ def makePfsConfig(pfsDesignId, visit0, tracts, patches, fiberIds, ras, decs, cat
     parallax = np.array([0.0 for _ in range(nFiber)])
     proposalId = np.array(['S24B-001QN' for _ in range(nFiber)])
     obCode = np.array([f'{oid}' for oid in objIds])
-    fiberFlux = np.array([[np.nan for _ in fiberMags[i]] for i in range(nFiber)])
-    fiberFluxErr = np.array([[np.nan for _ in fiberMags[i]] for i in range(nFiber)])
+    fiberFlux = np.array([[np.nan for _ in fiberMags[i]]
+                         for i in range(nFiber)])
+    fiberFluxErr = np.array([[np.nan for _ in fiberMags[i]]
+                            for i in range(nFiber)])
     psfFlux = np.array([[np.nan for _ in fiberMags[i]] for i in range(nFiber)])
-    psfFluxErr = np.array([[np.nan for _ in fiberMags[i]] for i in range(nFiber)])
-    totalFlux = np.array([[10**(-0.4*(m-8.9))*1e+09 for m in fiberMags[i]] for i in range(nFiber)])
-    totalFluxErr = np.array([[0.0 for _ in fiberMags[i]] for i in range(nFiber)])
+    psfFluxErr = np.array([[np.nan for _ in fiberMags[i]]
+                          for i in range(nFiber)])
+    totalFlux = np.array(
+        [[10**(-0.4*(m-8.9))*1e+09 for m in fiberMags[i]] for i in range(nFiber)])
+    totalFluxErr = np.array([[0.0 for _ in fiberMags[i]]
+                            for i in range(nFiber)])
     pfiNominals = np.zeros((nFiber, 2))
     pfiCenters = np.zeros((nFiber, 2))
     return PfsConfig(pfsDesignId=pfsDesignId, visit=visit0,
@@ -191,9 +201,11 @@ def makePfsObject(pfsConfig, pfsArmSet, visits, minWavelength, maxWavelength, dW
                              fill_value=fill, copy=True, assume_sorted=True)(toWavelength)
         intIndex = index.astype(int)
         result = np.full(toWavelength.shape, fill, dtype=fromMask.dtype)
-        intIndex[(intIndex == index) & (index > 0)] -= 1  # Linear interpolation takes the index before
+        # Linear interpolation takes the index before
+        intIndex[(intIndex == index) & (index > 0)] -= 1
         select = (intIndex >= 0) & (intIndex < length - 1)
-        result[select] = fromMask[intIndex[select]] | fromMask[intIndex[select] + 1]
+        result[select] = fromMask[intIndex[select]
+                                  ] | fromMask[intIndex[select] + 1]
         return result
 
     def resample(spectra, wavelength, fiberId=None):
@@ -218,12 +230,15 @@ def makePfsObject(pfsConfig, pfsArmSet, visits, minWavelength, maxWavelength, dW
         mask = np.empty((numSpectra, numSamples), dtype=spectra.mask.dtype)
         sky = np.empty((numSpectra, numSamples), dtype=spectra.sky.dtype)
         norm = np.ones((numSpectra, numSamples), dtype=spectra.sky.dtype)
-        covar = np.zeros((numSpectra, 3, numSamples), dtype=spectra.covar.dtype)
+        covar = np.zeros((numSpectra, 3, numSamples),
+                         dtype=spectra.covar.dtype)
 
         for ii, ff in enumerate(fiberId):
             jj = np.argwhere(spectra.fiberId == ff)[0][0]
-            flux[ii] = interpolateFlux(spectra.wavelength[jj], spectra.flux[jj], wavelength)
-            sky[ii] = interpolateFlux(spectra.wavelength[jj], spectra.sky[jj], wavelength)
+            flux[ii] = interpolateFlux(
+                spectra.wavelength[jj], spectra.flux[jj], wavelength)
+            sky[ii] = interpolateFlux(
+                spectra.wavelength[jj], spectra.sky[jj], wavelength)
             # XXX dropping covariance on the floor: just doing the variance for now
             covar[ii][0] = interpolateFlux(
                 spectra.wavelength[jj], spectra.covar[jj][0], wavelength, fill=np.inf)
@@ -270,7 +285,8 @@ def makePfsObject(pfsConfig, pfsArmSet, visits, minWavelength, maxWavelength, dW
         for ss in spectra:
             with np.errstate(invalid="ignore", divide="ignore"):
                 variance = ss.variance/ss.norm**2
-                good = ((ss.mask & ss.flags.get(*["NO_DATA"])) == 0) & (variance > 0)
+                good = ((ss.mask & ss.flags.get(
+                    *["NO_DATA"])) == 0) & (variance > 0)
 
             weight = np.zeros_like(ss.flux)
             weight[good] = 1.0/variance[good]
@@ -293,7 +309,8 @@ def makePfsObject(pfsConfig, pfsArmSet, visits, minWavelength, maxWavelength, dW
             mask[~good] |= ss.mask[~good]
         mask[~good] |= flags["NO_DATA"]
         covar2 = np.zeros((1, 1), dtype=archetype.covar.dtype)
-        Struct = collections.namedtuple('Struct', 'wavelength flux sky norm covar mask covar2')
+        Struct = collections.namedtuple(
+            'Struct', 'wavelength flux sky norm covar mask covar2')
         with np.errstate(invalid="ignore"):
             return Struct(wavelength=archetype.wavelength, flux=flux*norm, sky=sky*norm, norm=norm,
                           covar=covar*norm[:, np.newaxis, :]**2, mask=mask, covar2=covar2)
@@ -377,8 +394,10 @@ def makePfsObject(pfsConfig, pfsArmSet, visits, minWavelength, maxWavelength, dW
         result : `pfs.datamodel.TargetData`
             ``TargetData`` for this target
         """
-        ra = np.array([pfsConfig.ra[ii] for pfsConfig, ii in zip(pfsConfigList, indices)], dtype='f8')
-        dec = np.array([pfsConfig.dec[ii] for pfsConfig, ii in zip(pfsConfigList, indices)], dtype='f8')
+        ra = np.array([pfsConfig.ra[ii] for pfsConfig,
+                      ii in zip(pfsConfigList, indices)], dtype='f8')
+        dec = np.array([pfsConfig.dec[ii] for pfsConfig,
+                       ii in zip(pfsConfigList, indices)], dtype='f8')
         ra = ra.mean()
         dec = dec.mean()
         # radec = averageSpherePoint(radec)
@@ -386,7 +405,8 @@ def makePfsObject(pfsConfig, pfsArmSet, visits, minWavelength, maxWavelength, dW
         targetType = collections.Counter([pfsConfig.targetType[ii]
                                          for pfsConfig, ii in zip(pfsConfigList, indices)])
         if len(targetType) > 1:
-            print("Multiple targetType for target %s (%s); using most common" % (target, targetType))
+            print("Multiple targetType for target %s (%s); using most common" %
+                  (target, targetType))
         targetType = targetType.most_common(1)[0][0]
 
         fiberMags = collections.defaultdict(list)
@@ -424,14 +444,19 @@ def makePfsObject(pfsConfig, pfsArmSet, visits, minWavelength, maxWavelength, dW
         """
         visit = np.array([ident["visit"] for ident in identityList])
         arm = [ident["arm"] for ident in identityList]
-        spectrograph = np.array([ident["spectrograph"] for ident in identityList])
-        pfsDesignId = np.array([pfsConfig.pfsDesignId for pfsConfig in pfsConfigList])
-        fiberId = np.array([pfsConfig.fiberId[ii] for pfsConfig, ii in zip(pfsConfigList, indices)])
-        pfiNominal = np.array([pfsConfig.pfiNominal[ii] for pfsConfig, ii in zip(pfsConfigList, indices)])
-        pfiCenter = np.array([pfsConfig.pfiCenter[ii] for pfsConfig, ii in zip(pfsConfigList, indices)])
+        spectrograph = np.array([ident["spectrograph"]
+                                for ident in identityList])
+        pfsDesignId = np.array(
+            [pfsConfig.pfsDesignId for pfsConfig in pfsConfigList])
+        fiberId = np.array([pfsConfig.fiberId[ii]
+                           for pfsConfig, ii in zip(pfsConfigList, indices)])
+        pfiNominal = np.array([pfsConfig.pfiNominal[ii]
+                              for pfsConfig, ii in zip(pfsConfigList, indices)])
+        pfiCenter = np.array([pfsConfig.pfiCenter[ii]
+                             for pfsConfig, ii in zip(pfsConfigList, indices)])
         return Observations(visit, arm, spectrograph, pfsDesignId, fiberId, pfiNominal, pfiCenter)
 
-    ''' Main part '''
+    # Main part
     minWl = minWavelength
     maxWl = maxWavelength
     dWl = dWavelength
@@ -463,25 +488,32 @@ def makePfsObject(pfsConfig, pfsArmSet, visits, minWavelength, maxWavelength, dW
     spectra = collections.defaultdict(list)
     for dd in data:
         for ss, config in zip(dd.spectra, dd.pfsConfig):
-            spectra[(config.catId, config.tract, config.patch, config.objId)].append(ss)
-            targetList.append(Struct(config.catId, config.tract, config.patch, config.objId))
+            spectra[(config.catId, config.tract,
+                     config.patch, config.objId)].append(ss)
+            targetList.append(
+                Struct(config.catId, config.tract, config.patch, config.objId))
     pfsObjects = []
     pfsVisitHashes = []
     for i, target in enumerate(targetList):
         indices = [pfsConfig.selectTarget(target.catId, target.tract, target.patch, target.objId) for
                    pfsConfig in pfsConfigList]
         targetData = getTargetData(target, pfsConfigList, indices)
-        identityList = [{'visit': v, 'arm': 'merged', 'spectrograph': 1} for v in visits]
+        identityList = [{'visit': v, 'arm': 'merged',
+                         'spectrograph': 1} for v in visits]
         observations = getObservations(identityList, pfsConfigList, indices)
         ss = spectra[(target.catId, target.tract, target.patch, target.objId)]
-        spectrumList = spectra[(target.catId, target.tract, target.patch, target.objId)]
+        spectrumList = spectra[(
+            target.catId, target.tract, target.patch, target.objId)]
         flags = MaskHelper.fromMerge([ss.flags for ss in spectrumList])
         combination = combine(spectrumList, flags)
         # fluxTable = fluxTable.run(identityList, spectrumList, flags)
         fluxTable = FluxTable(np.array([d.wavelength[i] for d in pfsArmSet]).flatten(),
-                              np.array([d.flux[i] for d in pfsArmSet]).flatten(),
-                              np.array([d.covar[i][0] for d in pfsArmSet]).flatten(),
-                              np.array([d.mask[i] for d in pfsArmSet]).flatten(),
+                              np.array([d.flux[i]
+                                       for d in pfsArmSet]).flatten(),
+                              np.array([d.covar[i][0]
+                                       for d in pfsArmSet]).flatten(),
+                              np.array([d.mask[i]
+                                       for d in pfsArmSet]).flatten(),
                               MaskHelper(missing=1)
                               )
         # print(combination.covar2.shape)
