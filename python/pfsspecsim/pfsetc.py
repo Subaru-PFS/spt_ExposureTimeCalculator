@@ -42,6 +42,23 @@ def add_header(filename, seeing, zenith_ang, galactic_ext, moon_zenith_ang, moon
     return 0
 
 
+def calc_obscuration(dist):
+    """Calculate the obscuration by the detector and structures around it
+
+    The value depnds on the distance from the center on the telescope focal plane. See  https://pfspipe.ipmu.jp/jira/browse/PIPE2D-980 for more deitals.
+
+    Parameters
+    ----------
+    dist : `float`
+        The distance from the center on the focal plane.
+
+    Returns
+    -------
+    obscuration : `float'
+        The fraction of light obscuration by the detector anad it's strucuture.
+    """
+
+
 class Etc(object):
 
     def __init__(self, omp_num_threads=16):
