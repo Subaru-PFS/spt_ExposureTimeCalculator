@@ -5,7 +5,7 @@ from __future__ import print_function, division
 import sys
 import os
 from os import path
-import scipy as sp
+import numpy as np
 import time
 import subprocess
 import multiprocessing
@@ -87,8 +87,8 @@ class Etc(object):
         else:
             self.omp_num_threads=1
             self.ETC_SRC = os.path.join(self.HOME_DIR, self.params['BINDIR'], "gsetc.x")
-#        if not os.path.exists(self.HOME_DIR + '/bin'):
-#            os.mkdir(self.HOME_DIR + '/bin')
+        #        if not os.path.exists(self.HOME_DIR + '/bin'):
+        #            os.mkdir(self.HOME_DIR + '/bin')
         if not os.path.exists(self.ETC_SRC):
             exit("Unable to find ETC engine; please run make first and try again")
         return None
@@ -145,11 +145,13 @@ class Etc(object):
             self.mag_file = os.path.join(self.params['TMPDIR'], 'mag_%s.dat' % (self.params['MAG_FILE']))
         except:
             ## interpolation so that the resolution is slightly higher than that of instrument ##
-            _lam, _mag = sp.loadtxt(self.params['MAG_FILE'], usecols=(0, 1), unpack=True)
-            lam = sp.arange(300., 1300., 0.05)
-            mag = sp.interp(lam, _lam, _mag)
+            _lam, _mag = np.loadtxt(
+                self.params["MAG_FILE"], usecols=(0, 1), unpack=True
+            )
+            lam = np.arange(300.0, 1300.0, 0.05)
+            mag = np.interp(lam, _lam, _mag)
             self.mag_file = os.path.join(self.params['TMPDIR'], '%s' % (self.params['MAG_FILE'].split('/')[-1]))
-            sp.savetxt(self.mag_file, sp.array([lam, mag]).transpose(), fmt='%.4e')
+            np.savetxt(self.mag_file, np.array([lam, mag]).transpose(), fmt="%.4e")
         ''' check file overwritten '''
         C = 0
         if self.params['OVERWRITE'].lower() == 'no' or self.params['OVERWRITE'].lower() == 'n':
@@ -165,7 +167,7 @@ class Etc(object):
         if self.params['OVERWRITE'].lower() == 'yes' or self.params['OVERWRITE'].lower() == 'y':
             C = 0
         ''' run ETC '''
-        #print("Spectrograph setup : %s" % (self.INSTR_SETUP))
+        # print("Spectrograph setup : %s" % (self.INSTR_SETUP))
         if C != 0:
             exit('No execution of ETC')
         try:
@@ -205,7 +207,15 @@ class Etc(object):
         if self.params['OUTFILE_NOISE'] != '-':
             add_header(self.params['OUTFILE_NOISE'], self.params['SEEING'], self.params['ZENITH_ANG'], self.params['GALACTIC_EXT'], self.params['MOON_ZENITH_ANG'], self.params['MOON_TARGET_ANG'], self.params['MOON_PHASE'], self.params['EXP_TIME'], self.params['EXP_NUM'], self.params['FIELD_ANG'], self.params['MAG_FILE'], self.params['REFF'], self.params['LINE_FLUX'], self.params['LINE_WIDTH'])
             try:
-                self.nsm_arms, self.nsm_pixs, self.nsm_lams, self.nsm_nois, self.nsm_skys = sp.genfromtxt(self.params['OUTFILE_NOISE'], unpack=True, usecols=(0, 1, 2, 3, 4))
+                (
+                    self.nsm_arms,
+                    self.nsm_pixs,
+                    self.nsm_lams,
+                    self.nsm_nois,
+                    self.nsm_skys,
+                ) = np.genfromtxt(
+                    self.params["OUTFILE_NOISE"], unpack=True, usecols=(0, 1, 2, 3, 4)
+                )
             except:
                 print('OUTFILE_NOISE is not found ...')
                 pass
@@ -213,7 +223,23 @@ class Etc(object):
         if self.params['OUTFILE_SNC'] != '-':
             add_header(self.params['OUTFILE_SNC'], self.params['SEEING'], self.params['ZENITH_ANG'], self.params['GALACTIC_EXT'], self.params['MOON_ZENITH_ANG'], self.params['MOON_TARGET_ANG'], self.params['MOON_PHASE'], self.params['EXP_TIME'], self.params['EXP_NUM'], self.params['FIELD_ANG'], self.params['MAG_FILE'], self.params['REFF'], self.params['LINE_FLUX'], self.params['LINE_WIDTH'])
             try:
-                self.snc_arms, self.snc_pixs, self.snc_lams, self.snc_sncs, self.snc_sigs, self.snc_nois_mobj, self.snc_nois, self.snc_spin, self.snc_conv, self.snc_samp, self.snc_skys = sp.genfromtxt(self.params['OUTFILE_SNC'], unpack=True, usecols=(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10))
+                (
+                    self.snc_arms,
+                    self.snc_pixs,
+                    self.snc_lams,
+                    self.snc_sncs,
+                    self.snc_sigs,
+                    self.snc_nois_mobj,
+                    self.snc_nois,
+                    self.snc_spin,
+                    self.snc_conv,
+                    self.snc_samp,
+                    self.snc_skys,
+                ) = np.genfromtxt(
+                    self.params["OUTFILE_SNC"],
+                    unpack=True,
+                    usecols=(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10),
+                )
             except:
                 print('OUTFILE_SNC is not found ...')
                 pass
@@ -221,7 +247,19 @@ class Etc(object):
         if self.params['OUTFILE_SNL'] != '-':
             add_header(self.params['OUTFILE_SNL'], self.params['SEEING'], self.params['ZENITH_ANG'], self.params['GALACTIC_EXT'], self.params['MOON_ZENITH_ANG'], self.params['MOON_TARGET_ANG'], self.params['MOON_PHASE'], self.params['EXP_TIME'], self.params['EXP_NUM'], self.params['FIELD_ANG'], self.params['MAG_FILE'], self.params['REFF'], self.params['LINE_FLUX'], self.params['LINE_WIDTH'])
             try:
-                self.snl_lams, self.snl_fcov, self.snl_effa, self.snl_sna0, self.snl_sna1, self.snl_sna2, self.snl_snls = sp.genfromtxt(self.params['OUTFILE_SNL'], unpack=True, usecols=(0, 1, 2, 3, 4, 5, 6))
+                (
+                    self.snl_lams,
+                    self.snl_fcov,
+                    self.snl_effa,
+                    self.snl_sna0,
+                    self.snl_sna1,
+                    self.snl_sna2,
+                    self.snl_snls,
+                ) = np.genfromtxt(
+                    self.params["OUTFILE_SNL"],
+                    unpack=True,
+                    usecols=(0, 1, 2, 3, 4, 5, 6),
+                )
             except:
                 print('OUTFILE_SNL is not found ...')
                 pass
@@ -229,7 +267,21 @@ class Etc(object):
         if self.params['OUTFILE_OII'] != '-':
             add_header(self.params['OUTFILE_OII'], self.params['SEEING'], self.params['ZENITH_ANG'], self.params['GALACTIC_EXT'], self.params['MOON_ZENITH_ANG'], self.params['MOON_TARGET_ANG'], self.params['MOON_PHASE'], self.params['EXP_TIME'], self.params['EXP_NUM'], self.params['FIELD_ANG'], self.params['MAG_FILE'], self.params['REFF'], self.params['LINE_FLUX'], self.params['LINE_WIDTH'])
             try:
-                self.sno2_zsps, self.sno2_lam1, self.sno2_lam2, self.sno2_fcov, self.sno2_effa, self.sno2_sna0, self.sno2_sna1, self.sno2_sna2, self.sno2_sno2 = sp.genfromtxt(self.params['OUTFILE_OII'], unpack=True, usecols=(0, 1, 2, 3, 4, 5, 6, 7, 8))
+                (
+                    self.sno2_zsps,
+                    self.sno2_lam1,
+                    self.sno2_lam2,
+                    self.sno2_fcov,
+                    self.sno2_effa,
+                    self.sno2_sna0,
+                    self.sno2_sna1,
+                    self.sno2_sna2,
+                    self.sno2_sno2,
+                ) = np.genfromtxt(
+                    self.params["OUTFILE_OII"],
+                    unpack=True,
+                    usecols=(0, 1, 2, 3, 4, 5, 6, 7, 8),
+                )
             except:
                 print('OUTFILE_OII is not found ...')
                 pass
@@ -265,11 +317,13 @@ class Etc(object):
             self.mag_file = os.path.join(self.params['TMPDIR'], 'mag_%s.dat' % (self.params['MAG_FILE']))
         except:
             ## interpolation so that the resolution is slightly higher than that of instrument ##
-            _lam, _mag = sp.loadtxt(self.params['MAG_FILE'], usecols=(0, 1), unpack=True)
-            lam = sp.arange(300., 1300., 0.05)
-            mag = sp.interp(lam, _lam, _mag)
+            _lam, _mag = np.loadtxt(
+                self.params["MAG_FILE"], usecols=(0, 1), unpack=True
+            )
+            lam = np.arange(300.0, 1300.0, 0.05)
+            mag = np.interp(lam, _lam, _mag)
             self.mag_file = os.path.join(self.params['TMPDIR'], '%s' % (self.params['MAG_FILE'].split('/')[-1]))
-            sp.savetxt(self.mag_file, sp.array([lam, mag]).transpose(), fmt='%.4e')
+            np.savetxt(self.mag_file, np.array([lam, mag]).transpose(), fmt="%.4e")
         ''' check file overwritten '''
         C = 0
         if self.params['OVERWRITE'].lower() == 'no' or self.params['OVERWRITE'].lower() == 'n':
@@ -285,7 +339,7 @@ class Etc(object):
         if self.params['OVERWRITE'].lower() == 'yes' or self.params['OVERWRITE'].lower() == 'y':
             C = 0
         ''' run ETC '''
-        #print("Spectrograph setup : %s" % (self.INSTR_SETUP))
+        # print("Spectrograph setup : %s" % (self.INSTR_SETUP))
         if C != 0:
             exit('No execution of ETC')
         try:
@@ -325,7 +379,15 @@ class Etc(object):
         if self.params['OUTFILE_NOISE'] != '-':
             add_header(self.params['OUTFILE_NOISE'], self.params['SEEING'], self.params['ZENITH_ANG'], self.params['GALACTIC_EXT'], self.params['MOON_ZENITH_ANG'], self.params['MOON_TARGET_ANG'], self.params['MOON_PHASE'], self.params['EXP_TIME'], self.params['EXP_NUM'], self.params['FIELD_ANG'], self.params['MAG_FILE'], self.params['REFF'], self.params['LINE_FLUX'], self.params['LINE_WIDTH'])
             try:
-                self.nsm_arms, self.nsm_pixs, self.nsm_lams, self.nsm_nois, self.nsm_skys = sp.genfromtxt(self.params['OUTFILE_NOISE'], unpack=True, usecols=(0, 1, 2, 3, 4))
+                (
+                    self.nsm_arms,
+                    self.nsm_pixs,
+                    self.nsm_lams,
+                    self.nsm_nois,
+                    self.nsm_skys,
+                ) = np.genfromtxt(
+                    self.params["OUTFILE_NOISE"], unpack=True, usecols=(0, 1, 2, 3, 4)
+                )
             except:
                 print('OUTFILE_NOISE is not found ...')
                 pass
@@ -391,7 +453,23 @@ class Etc(object):
         if self.params['OUTFILE_SNC'] != '-':
             add_header(self.params['OUTFILE_SNC'], self.params['SEEING'], self.params['ZENITH_ANG'], self.params['GALACTIC_EXT'], self.params['MOON_ZENITH_ANG'], self.params['MOON_TARGET_ANG'], self.params['MOON_PHASE'], self.params['EXP_TIME'], self.params['EXP_NUM'], self.params['FIELD_ANG'], self.params['MAG_FILE'], self.params['REFF'], self.params['LINE_FLUX'], self.params['LINE_WIDTH'])
             try:
-                self.snc_arms, self.snc_pixs, self.snc_lams, self.snc_sncs, self.snc_sigs, self.snc_nois_mobj, self.snc_nois, self.snc_spin, self.snc_conv, self.snc_samp, self.snc_skys = sp.genfromtxt(self.params['OUTFILE_SNC'], unpack=True, usecols=(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10))
+                (
+                    self.snc_arms,
+                    self.snc_pixs,
+                    self.snc_lams,
+                    self.snc_sncs,
+                    self.snc_sigs,
+                    self.snc_nois_mobj,
+                    self.snc_nois,
+                    self.snc_spin,
+                    self.snc_conv,
+                    self.snc_samp,
+                    self.snc_skys,
+                ) = np.genfromtxt(
+                    self.params["OUTFILE_SNC"],
+                    unpack=True,
+                    usecols=(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10),
+                )
             except:
                 print('OUTFILE_SNC is not found ...')
                 pass
@@ -444,7 +522,19 @@ class Etc(object):
         if self.params['OUTFILE_SNL'] != '-':
             add_header(self.params['OUTFILE_SNL'], self.params['SEEING'], self.params['ZENITH_ANG'], self.params['GALACTIC_EXT'], self.params['MOON_ZENITH_ANG'], self.params['MOON_TARGET_ANG'], self.params['MOON_PHASE'], self.params['EXP_TIME'], self.params['EXP_NUM'], self.params['FIELD_ANG'], self.params['MAG_FILE'], self.params['REFF'], self.params['LINE_FLUX'], self.params['LINE_WIDTH'])
             try:
-                self.snl_lams, self.snl_fcov, self.snl_effa, self.snl_sna0, self.snl_sna1, self.snl_sna2, self.snl_snls = sp.genfromtxt(self.params['OUTFILE_SNL'], unpack=True, usecols=(0, 1, 2, 3, 4, 5, 6))
+                (
+                    self.snl_lams,
+                    self.snl_fcov,
+                    self.snl_effa,
+                    self.snl_sna0,
+                    self.snl_sna1,
+                    self.snl_sna2,
+                    self.snl_snls,
+                ) = np.genfromtxt(
+                    self.params["OUTFILE_SNL"],
+                    unpack=True,
+                    usecols=(0, 1, 2, 3, 4, 5, 6),
+                )
             except:
                 print('OUTFILE_SNL is not found ...')
                 pass
@@ -497,7 +587,21 @@ class Etc(object):
         if self.params['OUTFILE_OII'] != '-':
             add_header(self.params['OUTFILE_OII'], self.params['SEEING'], self.params['ZENITH_ANG'], self.params['GALACTIC_EXT'], self.params['MOON_ZENITH_ANG'], self.params['MOON_TARGET_ANG'], self.params['MOON_PHASE'], self.params['EXP_TIME'], self.params['EXP_NUM'], self.params['FIELD_ANG'], self.params['MAG_FILE'], self.params['REFF'], self.params['LINE_FLUX'], self.params['LINE_WIDTH'])
             try:
-                self.sno2_zsps, self.sno2_lam1, self.sno2_lam2, self.sno2_fcov, self.sno2_effa, self.sno2_sna0, self.sno2_sna1, self.sno2_sna2, self.sno2_sno2 = sp.genfromtxt(self.params['OUTFILE_OII'], unpack=True, usecols=(0, 1, 2, 3, 4, 5, 6, 7, 8))
+                (
+                    self.sno2_zsps,
+                    self.sno2_lam1,
+                    self.sno2_lam2,
+                    self.sno2_fcov,
+                    self.sno2_effa,
+                    self.sno2_sna0,
+                    self.sno2_sna1,
+                    self.sno2_sna2,
+                    self.sno2_sno2,
+                ) = np.genfromtxt(
+                    self.params["OUTFILE_OII"],
+                    unpack=True,
+                    usecols=(0, 1, 2, 3, 4, 5, 6, 7, 8),
+                )
             except:
                 print('OUTFILE_OII is not found ...')
                 pass
