@@ -68,6 +68,7 @@ class Etc(object):
                        'SKY_SUB_FLOOR': '0.01',
                        'DIFFUSE_STRAY': '0.02',
                        'throughput_model': '20211220',
+                       'spectrograph': 'ave',
                        'OUTDIR': 'out',
                        'TMPDIR': 'tmp',
                        'BINDIR': 'bin',
@@ -119,9 +120,18 @@ class Etc(object):
         if not os.path.exists(self.params['TMPDIR']):
             os.mkdir(self.params['TMPDIR'])
 
+        ''' define spectrograph '''
+        self.spectrograph = self.params['spectrograph'].lower()
+
         ''' select throughput model '''
-        self.INSTR_SETUP = self.HOME_DIR + '/config/PFS.%s.dat' % (self.params['throughput_model'])
-        self.INSTR_SETUP_MR = self.HOME_DIR + '/config/PFS.redMR.%s.dat' % (self.params['throughput_model'])
+        self.throughput_model = self.params['throughput_model']
+        if self.spectrograph in ['sm1', 'sm2', 'sm3', 'sm4']:
+            self.INSTR_SETUP = self.HOME_DIR + '/config/PFS.%s.%s.dat' % (self.throughput_model, self.spectrograph)
+            self.INSTR_SETUP_MR = self.HOME_DIR + '/config/PFS.redMR.%s.%s.dat' % (self.throughput_model, self.spectrograph)
+        else:
+            self.INSTR_SETUP = self.HOME_DIR + '/config/PFS.%s.dat' % (self.throughput_model)
+            self.INSTR_SETUP_MR = self.HOME_DIR + '/config/PFS.redMR.%s.dat' % (self.throughput_model)
+
         ''' Noise reuse flag '''
         flag = '0'
         if self.params['NOISE_REUSED'].lower() == 'y':
