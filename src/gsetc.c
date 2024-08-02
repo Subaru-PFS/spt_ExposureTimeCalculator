@@ -31,7 +31,7 @@
 #define MAXNTHR 1024
 
 /* Spectrograph PSF length (must be even) */
-#define SP_PSF_LEN 64
+#define SP_PSF_LEN 32
 
 /* Spectrograph attributes structure */
 typedef struct {
@@ -801,12 +801,20 @@ void gsGetNoise(SPECTRO_ATTRIB *spectro, OBS_ATTRIB *obs, int i_arm, double fiel
            */
           count *= airmass/1.1  * exp(-gsAtmContOp(obs,lambda,flags)*airmass/1.086);
 
+          iref = (long)floor(pos-(SP_PSF_LEN/2-0.5));
+          if (iref<0) iref=0;
+          if (iref>Npix-SP_PSF_LEN) iref=Npix-SP_PSF_LEN;
+          gsSpectroDist(spectro,obs,i_arm,lambda,pos-iref,0,SP_PSF_LEN,FR);
+          for(j=0;j<SP_PSF_LEN;j++)
+            Noise[iref+j] += count*FR[j]*sample_factor;
+          /*
           iref = (long)floor(pos-7.5);
           if (iref<0) iref=0;
           if (iref>Npix-16) iref=Npix-16;
           gsSpectroDist(spectro,obs,i_arm,lambda,pos-iref,0,16,FR);
           for(j=0;j<16;j++)
             Noise[iref+j] += count*FR[j]*sample_factor;
+          */
         }
       }
 
@@ -858,7 +866,7 @@ void gsGetNoise(SPECTRO_ATTRIB *spectro, OBS_ATTRIB *obs, int i_arm, double fiel
     lambda = lmin + (ipix+0.5)*dl;   
     printf("      --> %.0f percent done ...\r",0.02441*ipix);
     /* Atmospheric transmission -- used to remap the continuum model */
-    gsSpectroDist(spectro,obs,i_arm,lambda,7.5,0,SP_PSF_LEN,FR);
+    gsSpectroDist(spectro,obs,i_arm,lambda,SP_PSF_LEN/2-0.5,0,SP_PSF_LEN,FR);
     num = den = 0.;
     for(j=0;j<5*SP_PSF_LEN;j++) {
       trans = gsAtmTrans(obs,lambda+(0.2*j-SP_PSF_LEN/2+0.5)*dl,flags);
@@ -905,13 +913,25 @@ void gsGetNoise(SPECTRO_ATTRIB *spectro, OBS_ATTRIB *obs, int i_arm, double fiel
         continuum *= airmass * trans;
         break;
 
-	/* Fit to Jim Gunn spectrum (modified) */
-	/*Added by Kiyoto Yabe and modified by Yuki Moritani 20150608*/
+	  /* Fit to Jim Gunn spectrum (modified) */
+    /*Added by Kiyoto Yabe and modified by Yuki Moritani 20150608*/
     case 0x5:
       //fprintf(stderr, "Modified JG\n");
       mag = (lambda>600?24.316:27.166) + (lambda>600?-5.199e-03:-1.419e-02)*lambda + (lambda>600?1.465e-06:8.541e-06)*lambda*lambda - 0.55*exp(-0.005*(lambda-594)*(lambda-594)) - 6.14656e9/lambda/lambda/lambda/lambda;
       continuum = 0.01089*pow(10, 0.4*(22.5-mag)) * 1e6/lambda/lambda;
       continuum *= 1e-11 * PHOTONS_PER_ERG_1NM*lambda;
+      continuum *= airmass * trans;
+      break;
+
+    /* Fit to Jim Gunn spectrum (modified) */
+    /* Added by Kiyoto Yabe and modified by Yuki Moritani 20150608 */
+    /* Updated based on commissioning data 20240714 */
+    case 0x6:
+      // fprintf(stderr, "Modified JG\n");
+      mag = (lambda > 600 ? 24.316 : 27.166) + (lambda > 600 ? -5.199e-03 : -1.419e-02) * lambda + (lambda > 600 ? 1.465e-06 : 8.541e-06) * lambda * lambda - 0.55 * exp(-0.005 * (lambda - 594) * (lambda - 594)) - 6.14656e9 / lambda / lambda / lambda / lambda;
+      continuum = 0.01089 * pow(10, 0.4 * (22.5 - mag)) * 1e6 / lambda / lambda;
+      continuum *=  (lambda > 800 ? 1.0 : (-1.02278215e-03 * lambda + 1.77400498e+00));
+      continuum *= 1e-11 * PHOTONS_PER_ERG_1NM * lambda;
       continuum *= airmass * trans;
       break;
 
@@ -1369,7 +1389,7 @@ void gsGetSNR_Continuum(SPECTRO_ATTRIB *spectro, OBS_ATTRIB *obs, int i_arm, dou
         mag = ((lambda-lambda_inmag2[p1])*mag_inmag2[p2] + (lambda_inmag2[p2]-lambda)*mag_inmag2[p1])/(lambda_inmag2[p2]-lambda_inmag2[p1]);
       }
       /* Atmospheric transmission */
-      gsSpectroDist(spectro,obs,i_arm,lambda,7.5,0,SP_PSF_LEN,FR);
+      gsSpectroDist(spectro,obs,i_arm,lambda,SP_PSF_LEN/2-0.5,0,SP_PSF_LEN,FR);
       num = den = 0.;
       for(j=0;j<5*SP_PSF_LEN;j++) {
         trans = gsAtmTrans(obs,lambda+(0.2*j-SP_PSF_LEN/2+0.5)*dl,flags);
@@ -1713,7 +1733,7 @@ int main(void) {
 
   //printf("Enter observational conditions [hexadecimal code; suggested=11005]: ");
   if(scanf("%lx", &(obs.skytype))==EOF)
-    obs.skytype = 0x10005;
+    obs.skytype = 0x10006;
 /*
 #if 0
   obs.skytype = 0x10005;
