@@ -410,29 +410,31 @@ sim.set_param('plotArmSet','f')
 sim.make_sim_spec_multi(nproc=3, params=params)
 ```
 
-Cautions
+Cautions and known issues
 -----------
-1. The ETC is validated using observed data for a limited type of objects taken during the commissionig, but the validation is still on-going.
+- The ETC has been partly validated using observed data for a limited type of objects taken during the commissionig, but the validation is still on-going.
 
-2. We have not verified yet a long integration for faint targets (i.e. if the signal-to-noise ratio may not be in proportional to sqrt(t)).
+- The throughput model is based on data taken during commissioning. However, there is a slight chromatic difference between the model predictions based on lab measurements and the actual observations. We are investigating the cause of this discrepancy.
 
-3. Data Reduction Pipeline is still under development, so the processed data itself has also not yet been fully validated. Especially, the validation of ETC in NIR regime is still uncertain.
+- We have not verified yet a long integration for faint targets (i.e. whether the signal-to-noise ratio is proportional to the square root of the integration time).
 
-4. The nominal (default) values are mostly chosen based on statistics or typical values, but the quality of individual spectrum depends on e.g. the fiber configuration, guide quality, the location of the focal plane, etc., so please note that the actual observing result may not be the same as ETC returns.
+- Data Reduction Pipeline is still under development, so the processed data itself has also not yet been fully validated. In particular, the validation of the ETC in the NIR regime remains uncertain.
+
+- The nominal (default) values are mostly chosen based on statistics and typical values. However, the quality of individual spectra depends on various factors such as fiber configuration, guiding quality, and the location within the focal plane. Therefore, please note that actual observing results may differ from the ETC predictions.
 
 Other notes
 -----------
-1. The other parameters that are implemented in the Chris Hirata's ETC are indicated in the run_etc.py including instrument setups and sky subtraction floor. Users can change these parameters on your own responsibility.
+- The other parameters that are implemented in the Chris Hirata's ETC are indicated in the run_etc.py including instrument setups and sky subtraction floor. Users can change these parameters on your own responsibility.
 
-2. The fraction of light covered by fiber aperture may be overestimated by up to 10% depending on the field angle compared to the ray-tracing calculation by using the PFS optical model including the telescope and the wide-field corrector.
+- The fraction of light covered by fiber aperture may be overestimated by up to 10% depending on the field angle compared to the ray-tracing calculation by using the PFS optical model including the telescope and the wide-field corrector.
 
-3. We assumed no fiber central position offset, additional 1% systematic sky subtraction error (on each 1D pixel), and additional 2% diffuse stray light (the entire 2D detector surface) for the noise model calculation.
+- We assumed no fiber central position offset, additional 1% systematic sky subtraction error (on each 1D pixel), and additional 2% diffuse stray light (the entire 2D detector surface) for the noise model calculation.
 
-4. As a fiducial sky continuum model, we use a sky model generated based on the observations in the SDSS/BOSS in optical and MOSFIRE data in NIR and adjusted slightly with PFS commissioning data at <800 nm. We use the sky emission line model taken from UVES visible line atlas and theoretical model (Rousselot et al. 2000, A&A, 354, 1134) in NIR. As a fiducial atmospheric transmission model, we use Kitt Peak model for <900nm and a simulated ATRAN model with 3 mm PWV at longer wavelengths.
+- As a fiducial sky continuum model, we use a sky model generated based on the observations in the SDSS/BOSS in optical and MOSFIRE data in NIR and adjusted slightly with PFS commissioning data at <800 nm. We use the sky emission line model taken from UVES visible line atlas and theoretical model (Rousselot et al. 2000, A&A, 354, 1134) in NIR. As a fiducial atmospheric transmission model, we use Kitt Peak model for <900nm and a simulated ATRAN model with 3 mm PWV at longer wavelengths.
 
-5. The ETC engine code (gsetc.c) developed by Chris Hirata, which is partially modified by some people listed at the top of this page, can be found in the src directory. The manual for the code (Manual_v5.pdf) may be useful for understanding some assumptions in the noise calculation.
+- The ETC engine code (gsetc.c) developed by Chris Hirata, which is partially modified by some people listed at the top of this page, can be found in the src directory. The manual for the code (Manual_v5.pdf) may be useful for understanding some assumptions in the noise calculation.
 
-6. The latest throughput model includes observed results of flux standard stars in the commissioning runs, which is avarage over all spectrographs.
+- The latest throughput model includes observed results of flux standard stars in the commissioning runs, which is avarage over all spectrographs.
 
 Any feedback is highly appreciated!
 --------------------------------------------------
