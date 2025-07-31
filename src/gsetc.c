@@ -42,7 +42,7 @@ typedef struct {
   double rms_spot[5];         /* RMS spot size per axis: 5 values from center to edge (microns) */
   double vignette[5];         /* Vignetting factor: 5 values from center to edge */
   int N_arms;                 /* Number of arms */
-  int MR;                     /* True iff we are configured to use the medium resolution grating */
+  int MR;                     /* True if we are configured to use the medium resolution grating */
 
   double lmin[MAXARM];        /* Min wavelength in nm */
   double lmax[MAXARM];        /* Max wavelength in nm */
@@ -711,6 +711,17 @@ double gsFracTrace(SPECTRO_ATTRIB *spectro, OBS_ATTRIB *obs, int i_arm, double l
 
 /* --- ROUTINES TO COMPUTE THE SIGNAL AND THE NOISE --- */
 
+/* adjustment based on previous observations */
+/* 
+ * Empirical noise adjustment factors for each spectrograph arm, derived from previous observations.
+ * These factors are used to correct the estimated noise variance.
+ * The values correspond to the [Blue, RedLR/RedMR, NIR] arms, respectively.
+ * - adjust_noise_LR: Factors for Low Resolution (LR) mode.
+ * - adjust_noise_MR: Factors for Medium Resolution (MR) mode.
+ */
+static float adjust_noise_LR[] = {0.752, 0.722, 2.694};
+static float adjust_noise_MR[] = {0.752, 1.015, 2.694};
+
 /* Routine to construct the noise in a given spectrograph arm.
  * Returns noise variance in counts^2 per l-pixel.
  * Here t_exp = exposure time (in seconds)
@@ -1027,6 +1038,21 @@ void gsGetNoise(SPECTRO_ATTRIB *spectro, OBS_ATTRIB *obs, int i_arm, double fiel
         * spectro->width[i_arm];
   for(ipix=0;ipix<Npix;ipix++)
      Noise[ipix] += var;
+
+  /* Adjust noise based on previous observations */
+
+    if (!spectro->MR)
+    {
+      for(ipix=0; ipix<Npix; ipix++) {
+          Noise[ipix] *= adjust_noise_LR[i_arm];
+      }
+    }
+    else
+    {
+      for(ipix=0; ipix<Npix; ipix++) {
+          Noise[ipix] *= adjust_noise_MR[i_arm];
+    }
+  }
 
   free((char*)sky);
   return;
@@ -1421,6 +1447,17 @@ void gsGetSNR_Continuum(SPECTRO_ATTRIB *spectro, OBS_ATTRIB *obs, int i_arm, dou
 
 /* --- I/O FUNCTIONS --- */
 
+/* adjustment based on previous observations */
+/* 
+ * Empirical throughput adjustment factors for each spectrograph arm, derived from previous observations.
+ * These factors are used to correct the throughput.
+ * The values correspond to the [Blue, RedLR/RedMR, NIR] arms, respectively.
+ * - adjust_throughput_LR: Factors for Low Resolution (LR) mode.
+ * - adjust_throughput_MR: Factors for Medium Resolution (MR) mode.
+ */
+static float adjust_throughput_LR[] = {1.08, 1.05, 1.24};
+static float adjust_throughput_MR[] = {1.08, 1.20, 1.24};
+
 /* Read a spectrograph configuration file.
  * Format:
  * # all lines starting with # are ignored.
@@ -1568,7 +1605,13 @@ void gsReadSpectrographConfig(char FileName[], SPECTRO_ATTRIB *spectro, double d
             fprintf(stderr, "Error: gsReadSpectrographConfig: illegal throughput table line: %d/6 arguments assigned.\n", args);
             exit(1);
           }
-          spectro->T[i] = temp[0]*temp[1]*temp[2]*temp[3]*temp[4]*degrade;
+          if (!spectro->MR){
+            spectro->T[i] = temp[0] * temp[1] * temp[2] * temp[3] * temp[4] * degrade * adjust_throughput_LR[i_arm];
+          }
+          else{
+            spectro->T[i] = temp[0] * temp[1] * temp[2] * temp[3] * temp[4] * degrade * adjust_throughput_MR[i_arm];
+          }
+
           i++;
         }
         if (count==1000000) {
