@@ -65,7 +65,7 @@ def main():
         author="Kiyoto Yabe",
         author_email="kiyoto.yabe@ipmu.jp",
         url="",
-        install_requires=["scipy", "matplotlib"],
+        install_requires=["numpy>=2.0", "scipy", "matplotlib"],
         zip_safe=False,
         include_package_data=True,
         license="",  # temporarily set to an empty string as installation failed.
