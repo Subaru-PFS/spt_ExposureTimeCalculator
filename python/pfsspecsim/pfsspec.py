@@ -40,8 +40,8 @@ def calculateFiberMagnitude(wav, mag, filterName):
 
     counts = np.exp(-mag)
     bandpass = np.where(np.logical_and(wav >= wav0, wav <= wav1), peak, 0)
-    fiberMag = -np.log(np.trapz(bandpass * counts, wav) /
-                       np.trapz(bandpass, wav))
+    fiberMag = -np.log(np.trapezoid(bandpass * counts, wav) /
+                       np.trapezoid(bandpass, wav))
     return fiberMag
 
 
