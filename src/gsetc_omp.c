@@ -925,7 +925,10 @@ void gsGetNoise(SPECTRO_ATTRIB *spectro, OBS_ATTRIB *obs, int i_arm, double fiel
         iref = Npix - SP_PSF_LEN;
         gsSpectroDist(spectro, obs, i_arm, lambda, pos - iref, 0, SP_PSF_LEN, FR);
         for(j = 0; j < SP_PSF_LEN; j++)
+        {
+          #pragma omp atomic
           Noise[iref+j] += count * FR[j] * sample_factor;
+        }
         /*
         iref = (long)floor(pos - 7.5);
         if (iref < 0)
@@ -977,8 +980,10 @@ void gsGetNoise(SPECTRO_ATTRIB *spectro, OBS_ATTRIB *obs, int i_arm, double fiel
 
         gsSpectroDist(spectro, obs, i_arm, lambda, pos - iref, 0, SP_PSF_LEN, FR);
         for (j = 0; j < SP_PSF_LEN; j++)
-
+        {
+          #pragma omp atomic
           Noise[iref + j] += count * FR[j] * sample_factor;
+        }
       }
     }
     break;
