@@ -999,7 +999,7 @@ void gsGetNoise(SPECTRO_ATTRIB *spectro, OBS_ATTRIB *obs, int i_arm, double fiel
   printf("  --> Computing Sky Continuum Contribution ...\n");
 
 // #pragma omp parallel for private(lambda, j, num, den, trans, mag, lunar_cont, lunarphase, scale_RS, scale_MS, kV, alpha, Istar, f1, f2, Bmoon, count, FR) reduction(+ : num, den) reduction(* : continuum)
-#pragma omp parallel for private(lambda, j, trans, mag, lunar_cont, lunarphase, scale_RS, scale_MS, kV, alpha, Istar, f1, f2, Bmoon, count, FR) reduction(+ : num, den) reduction(* : continuum)
+#pragma omp parallel for private(lambda, j, num, den, trans, mag, lunar_cont, lunarphase, scale_RS, scale_MS, kV, alpha, Istar, f1, f2, Bmoon, count, continuum, FR)
   for (ipix = 0; ipix < Npix; ipix++)
   {
     lambda = lmin + (ipix + 0.5) * dl;
