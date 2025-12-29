@@ -804,7 +804,7 @@ double gsFracTrace(SPECTRO_ATTRIB *spectro, OBS_ATTRIB *obs, int i_arm, double l
 /* --- ROUTINES TO COMPUTE THE SIGNAL AND THE NOISE --- */
 
 /* adjustment based on previous observations */
-/* 
+/*
  * Empirical noise adjustment factors for each spectrograph arm, derived from previous observations.
  * These factors are used to correct the estimated noise variance.
  * The values correspond to the [Blue, RedLR/RedMR, NIR] arms, respectively.
@@ -919,10 +919,10 @@ void gsGetNoise(SPECTRO_ATTRIB *spectro, OBS_ATTRIB *obs, int i_arm, double fiel
         count *= airmass / 1.1 * exp(-gsAtmContOp(obs, lambda, flags) * airmass / 1.086);
 
         iref = (long)floor(pos - (SP_PSF_LEN/2 - 0.5));
-        if (iref < 0) 
+        if (iref < 0)
           iref = 0;
-        if (iref > Npix - SP_PSF_LEN) 
-        iref = Npix - SP_PSF_LEN;
+        if (iref > Npix - SP_PSF_LEN)
+          iref = Npix - SP_PSF_LEN;
         gsSpectroDist(spectro, obs, i_arm, lambda, pos - iref, 0, SP_PSF_LEN, FR);
         for(j = 0; j < SP_PSF_LEN; j++)
         {
@@ -1206,7 +1206,7 @@ void gsGetNoise(SPECTRO_ATTRIB *spectro, OBS_ATTRIB *obs, int i_arm, double fiel
             Noise[ipix] *= adjust_noise_MR[i_arm];
     }
   }
-   
+
   free((char *)sky);
   return;
 }
@@ -1646,7 +1646,7 @@ void gsGetSNR_Continuum(SPECTRO_ATTRIB *spectro, OBS_ATTRIB *obs, int i_arm, dou
 /* --- I/O FUNCTIONS --- */
 
 /* adjustment based on previous observations */
-/* 
+/*
  * Empirical throughput adjustment factors for each spectrograph arm, derived from previous observations.
  * These factors are used to correct the throughput.
  * The values correspond to the [Blue, RedLR/RedMR, NIR] arms, respectively.
@@ -2330,7 +2330,7 @@ int main(void)
     {
       zarr[iz] = zmin + iz * dz;
     }
-#pragma omp parallel for ordered private(z, ia) reduction(+ : snrtot, Aeff)
+#pragma omp parallel for private(z, ia, snrtot, Aeff)
     for (int iz = 0; iz < nz; iz++)
     {
 #ifndef QUIET_FOR_OMP
@@ -2407,7 +2407,7 @@ int main(void)
       // printf("iz, zarr[iz]: %5d %.4f\n", iz, zarr[iz]);
     }
 
-#pragma omp parallel for ordered private(z, ia) reduction(+ : snrtot, Aeff)
+#pragma omp parallel for private(z, ia, snrtot, Aeff)
     for (int iz = 0; iz < nz; iz++)
     {
       z = zarr[iz];
