@@ -1576,7 +1576,7 @@ void gsGetSNR_Continuum(SPECTRO_ATTRIB *spectro, OBS_ATTRIB *obs, int i_arm, dou
     sample_factor = 1.2;
 #endif
 
-#pragma omp parallel for private(lambda, kk, p1, p2, mag, FR, trans, src_cont, counts, j) reduction(+ : num, den)
+#pragma omp parallel for private(lambda, kk, p1, p2, k, mag, FR, num, den, trans, src_cont, counts, j)
   for (ipix = 0; ipix < Npix; ipix++)
   {
 #ifndef QUIET_FOR_OMP
