@@ -10,7 +10,7 @@ python/pfsspecsim/bin/gsetc_omp.x
 src/gsetc.x
 src/gsetc_omp.x
 src/*.x
-src/*.o
+*.o
 python/pfsspecsim/*.pyc
 python/pfsspecsim.egg-info
 example/notebooks/tmp
