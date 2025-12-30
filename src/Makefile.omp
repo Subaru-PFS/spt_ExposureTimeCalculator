@@ -1,13 +1,27 @@
+# Allow user to override CC via environment variable
+CC ?= gcc
 
-# if it's macOS, use homebrew-ed gcc
-# I assume it is not important, but more sophisticated way must be used.
+# Platform detection for macOS
 UNAME_S := $(shell uname -s)
-UNAME_M := $(shell uname -m)
 
 ifeq ($(UNAME_S), Darwin)
-ifeq ($(UNAME_M), arm64)
-CC=/opt/homebrew/bin/gcc-12
-endif
+    # On macOS, try to find Homebrew-installed gcc
+    # Check common versions in descending order
+    HOMEBREW_PREFIX := $(shell brew --prefix 2>/dev/null || echo "")
+
+    ifneq ($(HOMEBREW_PREFIX),)
+        # Try gcc-15, gcc-14, gcc-13, gcc-12, gcc-11 in order (newest first)
+        GCC_CANDIDATES := gcc-15 gcc-14 gcc-13 gcc-12 gcc-11 gcc-10
+        GCC_FOUND := $(firstword $(foreach ver,$(GCC_CANDIDATES),$(shell which $(HOMEBREW_PREFIX)/bin/$(ver) 2>/dev/null)))
+
+        ifneq ($(GCC_FOUND),)
+            CC := $(GCC_FOUND)
+        else
+            $(error OpenMP-capable GCC not found on macOS. Please install GCC via Homebrew: brew install gcc)
+        endif
+    else
+        $(warning Homebrew not found. Attempting to use system compiler, but OpenMP may not be supported.)
+    endif
 endif
 
 OPT := -O3
