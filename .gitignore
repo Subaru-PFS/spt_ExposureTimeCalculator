@@ -7,6 +7,10 @@ pfs*.fits
 python/pfsspecsim/__pycache__
 python/pfsspecsim/bin/gsetc.x
 python/pfsspecsim/bin/gsetc_omp.x
+src/gsetc.x
+src/gsetc_omp.x
+src/*.x
+src/*.o
 python/pfsspecsim/*.pyc
 python/pfsspecsim.egg-info
 example/notebooks/tmp
