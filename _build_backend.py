@@ -7,20 +7,20 @@ from pathlib import Path
 from setuptools import build_meta as _orig
 
 __all__ = [
-    'get_requires_for_build_wheel',
-    'prepare_metadata_for_build_wheel',
-    'build_wheel',
-    'get_requires_for_build_sdist',
-    'build_sdist',
-    'get_requires_for_build_editable',
-    'prepare_metadata_for_build_editable',
-    'build_editable',
+    "get_requires_for_build_wheel",
+    "get_requires_for_build_sdist",
+    "get_requires_for_build_editable",
+    "prepare_metadata_for_build_wheel",
+    "prepare_metadata_for_build_editable",
+    "build_wheel",
+    "build_sdist",
+    "build_editable",
 ]
 
 get_requires_for_build_wheel = _orig.get_requires_for_build_wheel
 get_requires_for_build_sdist = _orig.get_requires_for_build_sdist
-prepare_metadata_for_build_wheel = _orig.prepare_metadata_for_build_wheel
 get_requires_for_build_editable = _orig.get_requires_for_build_editable
+prepare_metadata_for_build_wheel = _orig.prepare_metadata_for_build_wheel
 prepare_metadata_for_build_editable = _orig.prepare_metadata_for_build_editable
 
 
