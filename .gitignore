@@ -7,6 +7,7 @@ pfs*.fits
 python/pfsspecsim/__pycache__
 python/pfsspecsim/bin/gsetc.x
 python/pfsspecsim/bin/gsetc_omp.x
+python/pfsspecsim/_version.py
 src/gsetc.x
 src/gsetc_omp.x
 src/*.x
