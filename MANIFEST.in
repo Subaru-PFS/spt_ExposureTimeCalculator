@@ -1,4 +1,23 @@
+# Documentation
+include README.md
+include LICENSE
+
+# C source code and build system
+recursive-include src *.c *.h Makefile Makefile.omp
+include Makefile
+
+# Python build infrastructure
+include pyproject.toml
+include setup.py
+include _build_backend.py
+
+# Package data
 recursive-include python/pfsspecsim/config *
 recursive-include python/pfsspecsim/datamodel *
 recursive-include python/pfsspecsim/bin *
 
+# Scripts and configuration files
+recursive-include scripts *.py *.defaults
+
+# Exclude build artifacts
+global-exclude *.pyc *.o *~ __pycache__ .DS_Store

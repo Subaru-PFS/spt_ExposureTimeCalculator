@@ -1,0 +1,80 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "_build_backend"
+backend-path = ["."]
+
+[project]
+name = "pfsspecsim"
+version = "0.1"
+description = "PFS ETC and spectral simulator"
+readme = "README.md"
+requires-python = ">=3.9"
+license = {text = "MIT"}
+authors = [
+    {name = "Kiyoto Yabe", email = "kiyoto.yabe@ipmu.jp"}
+]
+
+dependencies = [
+    "numpy>=2.0",
+    "scipy",
+    "matplotlib",
+    "astropy",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "black>=23.7.0",
+    "ruff>=0.5.0",
+    "ty>=0.0.8"
+]
+
+[project.scripts]
+pfs-run-etc = "pfsspecsim.scripts.run_etc:main"
+pfs-gen-sim-spec = "pfsspecsim.scripts.gen_sim_spec:main"
+
+[tool.setuptools]
+zip-safe = false
+include-package-data = true
+packages = [
+    "pfsspecsim",
+    "pfsspecsim.datamodel.python.pfs",
+    "pfsspecsim.datamodel.python.pfs.datamodel",
+    "pfsspecsim.scripts",
+]
+
+[tool.setuptools.package-dir]
+"" = "python"
+"pfsspecsim.scripts" = "scripts"
+
+[tool.setuptools.package-data]
+pfsspecsim = [
+    "config/*.dat",
+    "bin/gsetc.x",
+    "bin/gsetc_omp.x",
+    "bin/Makefile",
+]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 88
+
+[tool.ruff.lint]
+ignore = [
+    "F401",   # module imported but unused
+    "F841",   # local variable is assigned to but never used
+    "E501",   # line too long, handled by black
+    "B008",   # do not perform function calls in argument defaults
+    "C901",   # too complex
+    "N802",   # function name should be lowercase
+    "N803",   # argument name should be lowercase
+    "N806",   # variable in function should be lowercase
+    "N815",   # variable in class should be lowercase
+    "N816",   # attribute in class should be lowercase
+    "EM101",  # use 'isinstance()' instead of comparing types directly
+    "TRY003", # unnecessary except block
+]
+
+[tool.black]
+line-length = 88
+target-version = ["py312"]
