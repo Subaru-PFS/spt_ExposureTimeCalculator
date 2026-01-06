@@ -67,7 +67,7 @@ def calc_obscuration(dist):
 
 
 class Etc(object):
-    """ PFS ETC
+    """PFS ETC
 
     See https://github.com/Subaru-PFS/spt_ExposureTimeCalculator for details
 
@@ -80,7 +80,7 @@ class Etc(object):
     -------
 
     Examples
-    ----------    
+    ----------
     """
 
     def __init__(self, omp_num_threads=16):
@@ -142,7 +142,7 @@ class Etc(object):
         return None
 
     def set_param(self, param_name, param_value):
-        """ Set ETC parameters
+        """Set ETC parameters
 
         Parameters
         ----------
@@ -153,7 +153,7 @@ class Etc(object):
         -------
 
         Examples
-        ----------    
+        ----------
         """
         if param_name in self.params.keys():
             try:
@@ -235,7 +235,7 @@ class Etc(object):
         C = 0
         if self.params['OVERWRITE'].lower() == 'no' or self.params['OVERWRITE'].lower() == 'n':
             if os.path.exists(self.params['OUTFILE_NOISE']):
-                print("Error: %s already exists... " % (args.OUTFILE_NOISE))
+                print("Error: %s already exists... " % (self.params["OUTFILE_NOISE"]))
                 C += 1
             if os.path.exists(self.params['OUTFILE_SNC']):
                 print("Error: %s already exists... " %
@@ -253,7 +253,7 @@ class Etc(object):
             obsc, corr = calc_obscuration(float(self.params['FIELD_ANG']))
             degrade = float(self.params['degrade']) * corr
             self.params['degrade'] = f'{degrade}'
-        #print('The throughput degrade: %s' % (self.params['degrade']))
+        # print('The throughput degrade: %s' % (self.params['degrade']))
 
         # run ETC
         # print("Spectrograph setup : %s" % (self.INSTR_SETUP))
@@ -431,7 +431,7 @@ class Etc(object):
         C = 0
         if self.params['OVERWRITE'].lower() == 'no' or self.params['OVERWRITE'].lower() == 'n':
             if os.path.exists(self.params['OUTFILE_NOISE']):
-                print("Error: %s already exists... " % (args.OUTFILE_NOISE))
+                print("Error: %s already exists... " % (self.params["OUTFILE_NOISE"]))
                 C += 1
             if os.path.exists(self.params['OUTFILE_SNC']):
                 print("Error: %s already exists... " %
