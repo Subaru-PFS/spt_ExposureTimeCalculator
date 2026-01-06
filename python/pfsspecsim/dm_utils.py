@@ -2,16 +2,10 @@
 
 from __future__ import print_function, division
 
-import sys
-import os
-from os import path
 import numpy as np
 import collections
-import importlib
 
-HOME_DIR = path.dirname(path.abspath(__file__))
 # import datamodel module
-sys.path.append(HOME_DIR + "/datamodel/python")
 from pfs.datamodel.wavelengthArray import WavelengthArray
 from pfs.datamodel import FluxTable
 from pfs.datamodel import utils

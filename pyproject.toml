@@ -19,6 +19,7 @@ dependencies = [
     "scipy",
     "matplotlib",
     "astropy",
+    "pfs.datamodel @ git+https://github.com/Subaru-PFS/datamodel.git@w.2024.06",
 ]
 
 [project.optional-dependencies]
@@ -38,8 +39,6 @@ zip-safe = false
 include-package-data = true
 packages = [
     "pfsspecsim",
-    "pfsspecsim.datamodel.python.pfs",
-    "pfsspecsim.datamodel.python.pfs.datamodel",
     "pfsspecsim.scripts",
 ]
 
