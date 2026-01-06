@@ -13,7 +13,6 @@ include _build_backend.py
 
 # Package data
 recursive-include python/pfsspecsim/config *
-recursive-include python/pfsspecsim/datamodel *
 recursive-include python/pfsspecsim/bin *
 
 # Scripts and configuration files

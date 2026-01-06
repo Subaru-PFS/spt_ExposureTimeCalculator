@@ -1,3 +1,0 @@
-[submodule "python/pfsspecsim/datamodel"]
-	path = python/pfsspecsim/datamodel
-	url = https://github.com/Subaru-PFS/datamodel.git

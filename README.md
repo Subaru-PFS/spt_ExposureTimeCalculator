@@ -31,30 +31,30 @@ Installation
 ------------
 To install the package, get the git repository by typing the following command on the terminal (if you have git installed):
 
-    git clone --recursive https://github.com/Subaru-PFS/spt_ExposureTimeCalculator.git
+    git clone https://github.com/Subaru-PFS/spt_ExposureTimeCalculator.git
     cd spt_ExposureTimeCalculator
     pip install .
 
 The C executables (gsetc.x and gsetc_omp.x) will be automatically compiled during the installation process.
 
+Note: The pfs.datamodel dependency will be automatically installed from GitHub during the pip install process.
+
 Once you clone the repository, you can pull updates from the next time on the directory like this:
 
     git pull
-    git submodule update --init
     pip install . --upgrade
 
 ### Alternative Installation with uv (Optional)
 
 If you prefer to use `uv` for package and dependency management:
 
-    git clone --recursive https://github.com/Subaru-PFS/spt_ExposureTimeCalculator.git
+    git clone https://github.com/Subaru-PFS/spt_ExposureTimeCalculator.git
     cd spt_ExposureTimeCalculator
     uv sync
 
 To update:
 
     git pull
-    git submodule update --init
     uv sync
 
 You also can get the zip or tar ball from the following page:
