@@ -18,6 +18,7 @@ Release Note
 Requirements
 ------------
 * Standard C compiler (e.g., GCC) with OpenMP support
+  * **macOS users**: Homebrew-installed GCC (versions 10-15) is required for OpenMP support. Install with `brew install gcc`
 * Python 3.9 or higher (Python2 is NOT supported)
 * numpy   (2.0 and higher)  see https://numpy.org/
 * scipy

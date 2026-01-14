@@ -1,43 +1,70 @@
-# Allow user to override CC via environment variable
+# Default compiler (overridden below on macOS)
 CC ?= gcc
 
-# Platform detection for macOS
+# --- Platform & Compiler Detection ---
 UNAME_S := $(shell uname -s)
 
 ifeq ($(UNAME_S), Darwin)
-    # On macOS, try to find Homebrew-installed gcc
-    # Check common versions in descending order
-    HOMEBREW_PREFIX := $(shell brew --prefix 2>/dev/null || echo "")
+    # Check Homebrew prefix (works for both M1/M2 and Intel)
+    HOMEBREW_PREFIX := $(shell brew --prefix 2>/dev/null)
 
     ifneq ($(HOMEBREW_PREFIX),)
-        # Try gcc-15, gcc-14, gcc-13, gcc-12, gcc-11 in order (newest first)
+        # Search for the newest available GCC
         GCC_CANDIDATES := gcc-15 gcc-14 gcc-13 gcc-12 gcc-11 gcc-10
-        GCC_FOUND := $(firstword $(foreach ver,$(GCC_CANDIDATES),$(shell which $(HOMEBREW_PREFIX)/bin/$(ver) 2>/dev/null)))
+
+        # Find the first candidate that exists in the brew bin directory
+        # (Using 'wildcard' is slightly faster/cleaner than shell which in loop)
+        GCC_FOUND := $(firstword $(foreach ver,$(GCC_CANDIDATES),$(wildcard $(HOMEBREW_PREFIX)/bin/$(ver))))
 
         ifneq ($(GCC_FOUND),)
             CC := $(GCC_FOUND)
         else
-            $(error OpenMP-capable GCC not found on macOS. Please install GCC via Homebrew: brew install gcc)
+            $(error OpenMP-capable GCC not found. Please install: brew install gcc)
         endif
     else
-        $(warning Homebrew not found. Attempting to use system compiler, but OpenMP may not be supported.)
+        $(warning Homebrew not found. Using system compiler (OpenMP might fail).)
     endif
 endif
 
-OPT := -O3
-CFLAGS = $(OPT) -fopenmp -DHGCDTE_SUTR -DMOONLIGHT_ -DQUIET_FOR_OMP
-LDFLAGS = -lm
+# --- Build Configuration ---
+OPT      := -O3
+OMP_FLAG := -fopenmp
 
-.c.o:
-	$(CC) -c -o $*.o $(CFLAGS) $*.c
+# Preprocessor flags (Defines, Includes)
+CPPFLAGS := -DHGCDTE_SUTR -DMOONLIGHT_ -DQUIET_FOR_OMP
 
-all: gsetc_omp.x
-	cp gsetc_omp.x ../python/pfsspecsim/bin/.
+# Compiler flags (Warnings, Optimization, Arch)
+CFLAGS   := $(OPT) $(OMP_FLAG)
 
-gsetc_omp.x : gsetc_omp.o
-	$(CC) gsetc_omp.o -fopenmp $(LDFLAGS) -o gsetc_omp.x
+# Linker flags (Library paths)
+LDFLAGS  := $(OMP_FLAG)
 
-gsetc_omp.o : modeldata.h
+# Libraries to link (Math lib, etc)
+LDLIBS   := -lm
 
-clean :
-	$(RM) gsetc_omp.x gsetc_omp.o *~
+TARGET   := gsetc_omp.x
+OBJS     := gsetc_omp.o
+
+# --- Rules ---
+
+.PHONY: all clean install
+
+all: $(TARGET)
+
+# Link rule: $(CC) $(LDFLAGS) objects $(LDLIBS) -o output
+$(TARGET): $(OBJS)
+	$(CC) $(LDFLAGS) $(OBJS) $(LDLIBS) -o $@
+
+# Compile rule: Modern pattern rule
+%.o: %.c
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+
+# Install rule (Renamed from the explicit cp command in 'all')
+install: $(TARGET)
+	cp $(TARGET) ../python/pfsspecsim/bin/
+
+# Dependencies
+gsetc_omp.o: modeldata.h
+
+clean:
+	$(RM) $(TARGET) $(OBJS) *~
