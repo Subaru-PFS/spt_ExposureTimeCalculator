@@ -18,9 +18,10 @@ Release Note
 Requirements
 ------------
 * Standard C compiler (e.g., GCC) with OpenMP support
-  * **macOS users**: Homebrew-installed GCC (versions 10-15) is required for OpenMP support. Install with `brew install gcc`
+  * **macOS users**: Homebrew-installed GCC is required for OpenMP support. Install with `brew install gcc`. The newest installed version (`gcc-N`) is detected automatically at build time; a specific compiler can be selected with the `CC` environment variable (see Installation section below)
 * Python 3.9 or higher (Python2 is NOT supported)
-* numpy   (2.0 and higher)  see https://numpy.org/
+* numpy   (2.0 and higher, but below 2.5)  see https://numpy.org/
+  * The upper bound is needed because the currently pinned pfs.datamodel version uses a legacy dtype alias that was removed in numpy 2.5
 * scipy
 * matplotlib (for plotting options)
 * astropy (for FITS file handling and the PFS datamodel package)
@@ -36,7 +37,11 @@ To install the package, get the git repository by typing the following command o
     cd spt_ExposureTimeCalculator
     pip install .
 
-The C executables (gsetc.x and gsetc_omp.x) will be automatically compiled during the installation process.
+The C executables (gsetc.x and gsetc_omp.x) will be automatically compiled during the installation process. On macOS, the newest Homebrew GCC (`gcc-N`) is detected and used automatically. To build with a specific compiler instead, set the `CC` environment variable:
+
+    CC=gcc-12 pip install .
+
+Note: if the executables were already built with another compiler, run `make clean` first so that they are recompiled.
 
 Note: The pfs.datamodel dependency will be automatically installed from GitHub during the pip install process.
 
