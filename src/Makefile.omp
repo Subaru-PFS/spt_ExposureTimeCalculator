@@ -9,17 +9,14 @@ ifeq ($(UNAME_S), Darwin)
     HOMEBREW_PREFIX := $(shell brew --prefix 2>/dev/null)
 
     ifneq ($(HOMEBREW_PREFIX),)
-        # Search for the newest available GCC
-        GCC_CANDIDATES := gcc-15 gcc-14 gcc-13 gcc-12 gcc-11 gcc-10
-
-        # Find the first candidate that exists in the brew bin directory
-        # (Using 'wildcard' is slightly faster/cleaner than shell which in loop)
-        GCC_FOUND := $(firstword $(foreach ver,$(GCC_CANDIDATES),$(wildcard $(HOMEBREW_PREFIX)/bin/$(ver))))
+        # Pick the newest Homebrew GCC (gcc-N) actually installed,
+        # so new major versions (gcc-16, gcc-17, ...) work without edits
+        GCC_FOUND := $(shell ls $(HOMEBREW_PREFIX)/bin/gcc-[0-9]* 2>/dev/null | sort -t- -k2,2nr | head -n1)
 
         ifneq ($(GCC_FOUND),)
             CC := $(GCC_FOUND)
         else
-            $(error OpenMP-capable GCC not found. Please install: brew install gcc)
+            $(error OpenMP-capable GCC not found. Install with 'brew install gcc', or specify one: make CC=/path/to/gcc)
         endif
     else
         $(warning Homebrew not found. Using system compiler (OpenMP might fail).)
