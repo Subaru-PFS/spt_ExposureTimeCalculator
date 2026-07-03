@@ -1,5 +1,5 @@
-# Default compiler (overridden below on macOS)
-CC ?= gcc
+# CC defaults to make's builtin ('cc'); on macOS the newest Homebrew GCC is
+# autodetected below unless the user supplies CC themselves.
 
 # --- Platform & Compiler Detection ---
 UNAME_S := $(shell uname -s)
