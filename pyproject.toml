@@ -15,7 +15,9 @@ authors = [
 ]
 
 dependencies = [
-    "numpy>=2.0",
+    # <2.5: datamodel w.2024.06 uses the 'a' dtype alias removed in numpy 2.5;
+    # drop this bound once the datamodel pin is updated past the '|S' fix
+    "numpy>=2.0,<2.5",
     "scipy",
     "matplotlib",
     "astropy",
