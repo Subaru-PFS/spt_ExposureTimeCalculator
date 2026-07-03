@@ -41,7 +41,7 @@ The C executables (gsetc.x and gsetc_omp.x) will be automatically compiled durin
 
     CC=gcc-12 pip install .
 
-Note: if the executables were already built with another compiler, run `make clean` first so that they are recompiled.
+The executables are recompiled from a clean state whenever the build runs, so switching compilers does not require a manual `make clean`.
 
 Note: The pfs.datamodel dependency will be automatically installed from GitHub during the pip install process.
 
@@ -57,11 +57,17 @@ If you prefer to use `uv` for package and dependency management:
     git clone https://github.com/Subaru-PFS/spt_ExposureTimeCalculator.git
     cd spt_ExposureTimeCalculator
     uv sync
+    # or, to install into an existing environment instead of the project .venv:
+    uv pip install .
 
 To update:
 
     git pull
     uv sync
+    # or
+    uv pip install . --upgrade
+
+Note: `uv sync` rebuilds the C executables only when it detects a change in the build inputs declared in `pyproject.toml` (`[tool.uv] cache-keys`: currently `pyproject.toml` itself, the C sources and Makefiles under `src/`, and the `CC` environment variable). To force a rebuild manually, run `uv sync --reinstall-package pfsspecsim`.
 
 You also can get the zip or tar ball from the following page:
 

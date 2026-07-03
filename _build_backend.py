@@ -32,7 +32,10 @@ def _compile_executables():
     print("Building C executables (gsetc.x and gsetc_omp.x)")
     print("=" * 60)
 
-    cmd = ["make", "-f", "Makefile", "all"]
+    # Build from clean: this function only runs when uv/pip decide a rebuild
+    # is needed (see [tool.uv] cache-keys), and a stale object file compiled
+    # with a different CC would otherwise be reused as-is
+    cmd = ["make", "-f", "Makefile", "clean", "all"]
 
     try:
         result = subprocess.run(

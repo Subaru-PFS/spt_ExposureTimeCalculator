@@ -32,6 +32,18 @@ dev = [
     "ty>=0.0.8"
 ]
 
+[tool.uv]
+# Rebuild the project (and thus the C executables via _build_backend.py) when
+# the C sources, Makefiles, or the CC environment variable change; by default
+# uv only watches pyproject.toml/setup.py/setup.cfg and would skip make
+cache-keys = [
+    { file = "pyproject.toml" },
+    { file = "src/**/*.c" },
+    { file = "src/**/*.h" },
+    { file = "src/Makefile*" },
+    { env = "CC" },
+]
+
 [project.scripts]
 pfs-run-etc = "pfsspecsim.scripts.run_etc:main"
 pfs-gen-sim-spec = "pfsspecsim.scripts.gen_sim_spec:main"
