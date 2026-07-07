@@ -51,7 +51,7 @@ def _compile_executables():
         raise RuntimeError(f"Failed to compile C executables: {e}")
 
     # Verify executables were created
-    bin_dir = root_dir / "python" / "pfsspecsim" / "bin"
+    bin_dir = root_dir / "src" / "pfsspecsim" / "bin"
     gsetc_serial = bin_dir / "gsetc.x"
     gsetc_omp = bin_dir / "gsetc_omp.x"
 

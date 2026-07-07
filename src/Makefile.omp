@@ -62,7 +62,7 @@ $(TARGET): $(OBJS)
 
 # Install rule (Renamed from the explicit cp command in 'all')
 install: $(TARGET)
-	cp $(TARGET) ../python/pfsspecsim/bin/
+	cp $(TARGET) pfsspecsim/bin/
 
 # Dependencies
 gsetc_omp.o: modeldata.h

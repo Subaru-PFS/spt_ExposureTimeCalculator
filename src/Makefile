@@ -6,7 +6,7 @@ LDFLAGS = -lm
 	$(CC) -c -o $*.o $(CFLAGS) $*.c
 
 all: gsetc.x
-	cp gsetc.x ../python/pfsspecsim/bin/.
+	cp gsetc.x pfsspecsim/bin/.
 
 gsetc.x: gsetc.o
 	$(CC) gsetc.o $(LDFLAGS) -o gsetc.x

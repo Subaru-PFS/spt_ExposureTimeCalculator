@@ -19,7 +19,7 @@ Requirements
 ------------
 * Standard C compiler (e.g., GCC) with OpenMP support
   * **macOS users**: Homebrew-installed GCC is required for OpenMP support. Install with `brew install gcc`. The newest installed version (`gcc-N`) is detected automatically at build time; a specific compiler can be selected with the `CC` environment variable (see Installation section below)
-* Python 3.9 or higher (Python2 is NOT supported)
+* Python 3.11 or higher (needed for `tomllib`; Python2 is NOT supported)
 * numpy   (2.0 and higher, but below 2.5)  see https://numpy.org/
   * The upper bound is needed because the currently pinned pfs.datamodel version uses a legacy dtype alias that was removed in numpy 2.5
 * scipy

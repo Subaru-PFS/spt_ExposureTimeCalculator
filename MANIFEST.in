@@ -12,8 +12,9 @@ include setup.py
 include _build_backend.py
 
 # Package data
-recursive-include python/pfsspecsim/config *
-recursive-include python/pfsspecsim/bin *
+recursive-include src/pfsspecsim/config *
+recursive-include src/pfsspecsim/bin *
+recursive-include src/pfsspecsim/etc/data *
 
 # Scripts and configuration files
 recursive-include scripts *.py *.defaults
