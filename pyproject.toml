@@ -32,6 +32,9 @@ dev = [
     "ty>=0.0.8"
 ]
 
+[dependency-groups]
+dev = ["pytest"]
+
 [tool.uv]
 # Rebuild the project (and thus the C executables via _build_backend.py) when
 # the C sources, Makefiles, or the CC environment variable change; by default
