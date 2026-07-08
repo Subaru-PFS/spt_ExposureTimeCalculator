@@ -2,18 +2,20 @@
 
 Ports the C engine `src/gsetc.c` to numpy/scipy/astropy. See the project
 plan (`PLAN-pure-python-etc.md`) for the module breakdown and task order.
-`run_etc` / `EtcResults` land with `engine.py` in a later task; for now
-this re-exports what already exists.
 """
 
 from __future__ import annotations
 
+from .engine import EtcResults, run_etc, run_etc_files
 from .params import EtcParams, MagSpec, calc_obscuration, load_params, resolve_degrade
 
 __all__ = [
     "EtcParams",
+    "EtcResults",
     "MagSpec",
     "calc_obscuration",
     "load_params",
     "resolve_degrade",
+    "run_etc",
+    "run_etc_files",
 ]
