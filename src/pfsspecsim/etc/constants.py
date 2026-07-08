@@ -60,6 +60,16 @@ DEG_TO_RAD = u.deg.to(u.rad)
 #: the C literal to full double precision.
 AB_ZEROPOINT_CGS = (3631.0 * u.Jy).to_value(u.erg / u.s / u.cm**2 / u.Hz)
 
+#: Photon energy conversion h*c in eV nm; ``hnu[eV] = HC_EV_NM / lambda[nm]``.
+#: Matches the C literal ``1.239842e-6`` eV m used in gsOP_Si_abslength
+#: (gsetc.c:262) to within ~1e-8 relative.
+HC_EV_NM = (const.h * const.c).to_value(u.eV * u.nm)
+
+#: Boltzmann constant in eV/K.
+#: Matches the C literal ``k = 8.617e-5`` eV/K (gsetc.c:245) to within
+#: ~4e-5 relative (well inside the ~1e-3 regression tolerance).
+K_B_EV_PER_K = const.k_B.to_value(u.eV / u.K)
+
 # --- Algorithm-specific literals (verbatim from gsetc.c; not physical) -----
 
 #: Ratio of half-light to scale radius for an exponential-profile galaxy
