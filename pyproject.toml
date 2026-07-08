@@ -35,6 +35,7 @@ dev = [
 
 [project.scripts]
 pfs-etc = "pfsspecsim.etc.cli:app"
+pfs-sim-spec = "pfsspecsim.cli:app"
 pfs-run-etc = "pfsspecsim.scripts.run_etc:main"
 pfs-gen-sim-spec = "pfsspecsim.scripts.gen_sim_spec:main"
 
