@@ -16,6 +16,7 @@ test session's warnings summary.
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import numpy as np
@@ -232,6 +233,49 @@ class TestMakeStepMethods:
         assert (tmp_path / "out" / "ref.snc.dat").is_file()
         assert not (tmp_path / "out" / "ref.snl.dat").exists()
         assert not (tmp_path / "out" / "ref.sno2.dat").exists()
+
+    def test_make_snc_reloads_noise_without_rewriting_file(
+        self, tmp_path, monkeypatch, etc_instance
+    ):
+        """The C engine's reload branch (gsetc.c:1980-2001) only ever
+        *reads* the noise file. So in the legacy chained pattern
+        `make_noise_model(); set_param(...); make_snc()`, make_snc must
+        (a) reload the noise vector from OUTFILE_NOISE rather than
+        recomputing it, and (b) leave the file itself byte-for-byte (and
+        mtime-) untouched -- its meta must keep describing the run that
+        actually produced it. Proven by tampering with the file's variance
+        column in between: the tampered values must flow into
+        `snc_nois_mobj`, and the tampered file must survive unchanged.
+        """
+        monkeypatch.chdir(tmp_path)
+        etc_instance.set_param("OUTFILE_SNL", "-")
+        etc_instance.set_param("OUTFILE_OII", "-")
+
+        etc_instance.make_noise_model()
+        noise_path = tmp_path / "out" / "ref.noise.dat"
+        assert noise_path.is_file()
+
+        # Tamper: scale the variance column so a reload is distinguishable
+        # from a recompute.
+        tampered = Table.read(noise_path, format="ascii.ecsv")
+        tampered["variance"] = np.asarray(tampered["variance"]) * 2.0
+        tampered.write(noise_path, format="ascii.ecsv", overwrite=True)
+
+        bytes_before = noise_path.read_bytes()
+        mtime_before = os.stat(noise_path).st_mtime_ns
+
+        # A param change between the two steps must NOT leak into the
+        # noise file (this is exactly the misdescribing-meta hazard).
+        etc_instance.set_param("MAG_FILE", 20.0)
+        etc_instance.make_snc()
+
+        # (a) reloaded, not recomputed: the tampered variance came through.
+        np.testing.assert_array_equal(
+            etc_instance.snc_nois_mobj, np.asarray(tampered["variance"])
+        )
+        # (b) not rewritten: content and mtime unchanged.
+        assert noise_path.read_bytes() == bytes_before
+        assert os.stat(noise_path).st_mtime_ns == mtime_before
 
 
 class TestRunMulti:

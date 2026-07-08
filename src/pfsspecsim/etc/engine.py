@@ -687,7 +687,10 @@ def run_etc_files(params: EtcParams) -> EtcResults:
     guard in the old wrapper either (the check simply never inspected
     them), so they are not checked here -- a preserved quirk, not an
     oversight: once past the guard, every write below always overwrites
-    (matching the C engine's unconditional `fopen(path, "w")`). Corollary
+    (matching the C engine's unconditional `fopen(path, "w")`) -- except
+    `outfile_noise` when `params.noise_reused` is set, which is *never*
+    (re)written: the C engine's reload branch (gsetc.c:1980-2001) only
+    reads the noise file, leaving its content and mtime untouched. Corollary
     (also verbatim legacy behavior): `overwrite=False` combined with
     `noise_reused=True` always raises, since the noise ECSV must already
     exist to be reloaded, and its existence is exactly what trips the guard.
@@ -718,7 +721,17 @@ def run_etc_files(params: EtcParams) -> EtcResults:
     results = run_etc(params)
     config_path = _resolve_config_path(params)
 
-    if noise_path is not None:
+    # gsetc.c:1980-2001 (flag_reused==1) only *reads* the noise file, it
+    # never rewrites it -- so skip the write when reloading. Rewriting
+    # here would be a no-op for the data (the reloaded table is written
+    # back unchanged) but would stamp the *current* call's params/meta and
+    # mtime onto a file whose contents were produced by an earlier run
+    # with possibly different params (e.g. the legacy chained pattern
+    # `make_noise_model(); set_param(...); make_snc()`). The
+    # overwrite=False pre-check above is unaffected (with
+    # noise_reused=True it necessarily raised already -- verbatim legacy
+    # behavior, see the docstring).
+    if noise_path is not None and not params.noise_reused:
         io.write_table(results.noise, noise_path, params, config_path, overwrite=True)
     if snc_path is not None and results.snc is not None:
         io.write_table(results.snc, snc_path, params, config_path, overwrite=True)
