@@ -1,89 +1,99 @@
 # -*- coding: utf-8 -*-
+"""Deprecated compatibility layer for the legacy stdin-driven C ETC engine.
 
-from __future__ import print_function, division
+`Etc` used to drive `bin/gsetc[_omp].x` as a subprocess, feeding it 27
+values over stdin and reading its plain-text output files back with
+`np.genfromtxt`. The C engine has been replaced by the pure-Python
+`pfsspecsim.etc` package (`pfsspecsim.etc.engine.run_etc_files`); this
+module is now a thin translation shim from the old ALL_CAPS `params` dict
+(and its 'Y'/'N'/'-' string conventions) to `pfsspecsim.etc.params.EtcParams`
+and back, so that existing scripts/notebooks built around
+``Etc(); set_param(...); run(); get_noise()`` keep working unmodified.
 
-import sys
+New code should use `pfsspecsim.etc` directly (`EtcParams`/`load_params`,
+`engine.run_etc_files`) or the `pfs-etc` CLI -- see the project README's
+old -> new parameter migration table. This module (and the `Etc` class in
+particular) is deprecated and may be removed in a future release; every
+`Etc()` construction emits a `DeprecationWarning`.
+
+The output *files* are still written at exactly the paths the caller
+configures via `OUTFILE_NOISE`/`OUTFILE_SNC`/`OUTFILE_SNL`/`OUTFILE_OII`
+(unchanged naming), but their *content* is now Astropy ECSV (with a
+`table.meta['params']` block recording every resolved input), not the old
+whitespace-delimited plain text.
+"""
+
+from __future__ import annotations
+
 import os
-from os import path
-import numpy as np
 import time
-import subprocess
-import multiprocessing
+import warnings
+from pathlib import Path
 
-### Some parameters ###########################
-### CAUTION: ##################################
-### CHANGE BELOW ON YOUR OWN RESPONSIBILITY ###
-###############################################
-SKYMODELS = '11006'
-OFFSET_FIB = '0.10'
-offset = 0.01
+import numpy as np
 
+from .etc import engine
+from .etc.params import EtcParams, calc_obscuration
 
-def add_header(filename, seeing, zenith_ang, galactic_ext, moon_zenith_ang, moon_target_ang, moon_phase, texp, nexp, field_ang, mag_file, reff, line_flux, line_width):
-    hdr = ''
-    hdr += '#  SEEING: %s\n' % (seeing)
-    hdr += '#  ZENITH_ANG: %s\n' % (zenith_ang)
-    hdr += '#  GALACTIC_EXT: %s\n' % (galactic_ext)
-    hdr += '#  MOON_ZENITH_ANG: %s\n' % (moon_zenith_ang)
-    hdr += '#  MOON_TARGET_ANG: %s\n' % (moon_target_ang)
-    hdr += '#  MOON_PHASE: %s\n' % (moon_phase)
-    hdr += '#  EXP_TIME: %s\n' % (texp)
-    hdr += '#  EXP_NUM: %s\n' % (nexp)
-    hdr += '#  FIELD_ANG: %s\n' % (field_ang)
-    hdr += '#  MAG_FILE: %s\n' % (mag_file)
-    hdr += '#  REFF: %s\n' % (reff)
-    hdr += '#  LINE_FLUX: %s\n' % (line_flux)
-    hdr += '#  LINE_WIDTH: %s\n' % (line_width)
-    with open(filename, 'r') as f:
-        dat = f.read()
-    with open(filename, 'w') as f:
-        f.write(hdr)
-        f.write(dat)
-    return 0
+__all__ = ["Etc", "calc_obscuration"]
+
+# Historical hardcoded constants from the old subprocess wrapper
+# (pfsetc.py:17-18). The new engine turns both into `EtcParams` fields
+# (`sky_type`, `fiber_offset`), but the old ALL_CAPS `params` dict never
+# exposed them as settable parameters, so this compatibility layer keeps
+# using the same fixed values -- which happen to equal `EtcParams`'s own
+# defaults for those two fields.
+SKYMODELS = "11006"
+OFFSET_FIB = "0.10"
 
 
-def calc_obscuration(dist):
-    """Calculate the obscuration by the detector and structures around it
+def _to_bool(value) -> bool:
+    """Old 'Y'/'N' (also accepts 'yes'/'no') string convention -> bool."""
+    return str(value).strip().lower() in ("y", "yes")
 
-    The value depnds on the distance from the center on the telescope focal plane. See  https://pfspipe.ipmu.jp/jira/browse/PIPE2D-980 for more deitals.
 
-    Parameters
-    ----------
-    dist : `float`
-        The distance from the center on the focal plane.
-
-    Returns
-    -------
-    obscuration : `float'
-        The fraction of light obscuration by the detector anad it's strucuture.
-    """
-    obsc_etc = 0.19    # obscuration assumed in ETC (independent of PFI location)
-    obsc_inner = 0.27  # obscuration at center (PIPE2D-980)
-    obsc_outer = 0.36  # obscuration at edge   (PIPE2D-980)
-    dist_edge = 0.675  # radius of FoV in deg. (FIELD_ANG)
-    obsc = (obsc_outer - obsc_inner) / dist_edge * dist + obsc_inner
-    corr = (1 - obsc) / (1 - obsc_etc)
-    return obsc, corr
+def _to_path_or_none(value):
+    """Old '-' sentinel convention (`INFILE_OIICat`, `OUTFILE_*`, ...) ->
+    `None`; anything else -> `Path`."""
+    return None if str(value) == "-" else Path(value)
 
 
 class Etc(object):
-    """PFS ETC
+    """Deprecated compatibility wrapper around `pfsspecsim.etc`.
 
-    See https://github.com/Subaru-PFS/spt_ExposureTimeCalculator for details
+    .. deprecated::
+        `Etc` reproduces the surface of the old subprocess-driven ETC
+        wrapper (`params` dict with ALL_CAPS keys, `set_param`/`run`/
+        `make_snc`/etc.) on top of the pure-Python `pfsspecsim.etc` engine.
+        New code should call `pfsspecsim.etc.params.load_params` +
+        `pfsspecsim.etc.engine.run_etc_files` directly, or use the
+        `pfs-etc` console script. Constructing `Etc` emits a
+        `DeprecationWarning`.
+
+    See https://github.com/Subaru-PFS/spt_ExposureTimeCalculator for
+    details.
 
     Parameters
     ----------
-    omp_num_threads : `int` (default:16)
-        The number of threads to use for parallelization.
-
-    Returns
-    -------
+    omp_num_threads : `int` (default: 16)
+        Deprecated, accepted for backward compatibility and ignored: the
+        pure-Python engine has no OpenMP thread pool to size.
 
     Examples
     ----------
     """
 
     def __init__(self, omp_num_threads=16):
+        warnings.warn(
+            "pfsspecsim.pfsetc.Etc is deprecated; it now wraps the "
+            "pure-Python pfsspecsim.etc engine. Use "
+            "pfsspecsim.etc.params.load_params + "
+            "pfsspecsim.etc.engine.run_etc_files (or the `pfs-etc` CLI) "
+            "in new code. `omp_num_threads` is accepted for backward "
+            "compatibility and ignored.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         self.params = {'SEEING': '0.80',
                        'ZENITH_ANG': '35.0',
                        'GALACTIC_EXT': '0.00',
@@ -122,23 +132,10 @@ class Etc(object):
         self.params['OUTFILE_OII'] = os.path.join(
             self.params['OUTDIR'], 'ref.sno2.dat')
 
-        self.HOME_DIR = path.dirname(path.abspath(__file__))
-        if os.path.exists(os.path.join(self.HOME_DIR, self.params['BINDIR'], "gsetc_omp.x")):
-            self.ETC_SRC = os.path.join(
-                self.HOME_DIR, self.params['BINDIR'], "gsetc_omp.x")
-            n_cpu = multiprocessing.cpu_count()
-            OMP_MAX_THREADS = 32 if int(
-                n_cpu * 1.5) >= 32 else int(n_cpu * 1.5)
-            self.omp_num_threads = omp_num_threads if omp_num_threads <= OMP_MAX_THREADS else OMP_MAX_THREADS
-            print(
-                f"Use OpenMP version of gsetc with {self.omp_num_threads} threads")
-        else:
-            self.omp_num_threads = 1
-            self.ETC_SRC = os.path.join(self.HOME_DIR, self.params['BINDIR'], "gsetc.x")
-        #        if not os.path.exists(self.HOME_DIR + '/bin'):
-        #            os.mkdir(self.HOME_DIR + '/bin')
-        if not os.path.exists(self.ETC_SRC):
-            exit("Unable to find ETC engine; please run make first and try again")
+        # Deprecated no-op attribute, kept only for backward compatibility
+        # with code that reads it back; the pure-Python engine has no
+        # thread pool to size.
+        self.omp_num_threads = omp_num_threads
         return None
 
     def set_param(self, param_name, param_value):
@@ -171,219 +168,150 @@ class Etc(object):
                 self.params[a[0]] = a[1]
         return 0
 
+    def _to_new_params(self, **field_overrides) -> EtcParams:
+        """Translate the legacy `self.params` dict into an `EtcParams`.
+
+        Follows the old -> new parameter migration table (see the project
+        README / task brief): `MAG_FILE` splits into the mutually
+        exclusive `mag` (if it parses as a `float`) / `mag_file` (the path,
+        otherwise) -- reproducing pfsetc.py:217-233's old
+        float-succeeds-vs-fails branch, but without ever writing a
+        temporary resampled file (the new `MagSpec` handles that
+        in-memory). `'-'` -> `None`; `'Y'`/`'N'` (and `'yes'`/`'no'`) ->
+        `bool`. `TMPDIR`/`BINDIR` have no effect and are not consulted --
+        historical no-ops preserved only as dict keys.
+
+        `outdir` is always `'.'` and every `OUTFILE_*`/`OUTFILE_OIICat`
+        path is passed through unchanged (including any leading `OUTDIR`,
+        e.g. the default `'out/ref.snc.dat'`), so files land at exactly
+        the path the caller configured -- matching the old wrapper, which
+        always honored the literal `OUTFILE_*` string regardless of
+        `OUTDIR`.
+
+        `field_overrides` lets `make_noise_model`/`make_snc`/`make_snl`/
+        `make_sno2` reproduce the old wrapper's per-method output
+        selection and `NOISE_REUSED` overrides (pfsetc.py:397-490,
+        548-578, 627-657, 705-734) on top of the common translation.
+        """
+        p = self.params
+        mag_raw = p["MAG_FILE"]
+        try:
+            mag = float(mag_raw)
+            mag_file = None
+        except (TypeError, ValueError):
+            mag = None
+            mag_file = Path(mag_raw)
+
+        kwargs = dict(
+            seeing=float(p["SEEING"]),
+            zenith_ang=float(p["ZENITH_ANG"]),
+            galactic_ext=float(p["GALACTIC_EXT"]),
+            field_ang=float(p["FIELD_ANG"]),
+            fiber_offset=float(OFFSET_FIB),
+            moon_zenith_ang=float(p["MOON_ZENITH_ANG"]),
+            moon_target_ang=float(p["MOON_TARGET_ANG"]),
+            moon_phase=float(p["MOON_PHASE"]),
+            exp_time=float(p["EXP_TIME"]),
+            exp_num=int(float(p["EXP_NUM"])),
+            mag=mag,
+            mag_file=mag_file,
+            reff=float(p["REFF"]),
+            line_flux=float(p["LINE_FLUX"]),
+            line_width=float(p["LINE_WIDTH"]),
+            mr_mode=_to_bool(p["MR_MODE"]),
+            throughput_model=p["throughput_model"],
+            spectrograph=p["spectrograph"],
+            degrade=float(p["degrade"]),
+            obsc_fov_dep=_to_bool(p["obscFoVDep"]),
+            sky_type=SKYMODELS,
+            sky_sub_floor=float(p["SKY_SUB_FLOOR"]),
+            diffuse_stray=float(p["DIFFUSE_STRAY"]),
+            oii_cat_in=_to_path_or_none(p["INFILE_OIICat"]),
+            oii_cat_out=_to_path_or_none(p["OUTFILE_OIICat"]),
+            min_snr=float(p["minSNR"]),
+            noise_reused=_to_bool(p["NOISE_REUSED"]),
+            overwrite=_to_bool(p["OVERWRITE"]),
+            outdir=Path("."),
+            outfile_noise=_to_path_or_none(p["OUTFILE_NOISE"]),
+            outfile_snc=_to_path_or_none(p["OUTFILE_SNC"]),
+            outfile_snl=_to_path_or_none(p["OUTFILE_SNL"]),
+            outfile_oii=_to_path_or_none(p["OUTFILE_OII"]),
+        )
+        kwargs.update(field_overrides)
+        return EtcParams(**kwargs)
+
+    # -- Old-attribute restoration -------------------------------------
+    #
+    # Ports pfsetc.py's np.genfromtxt column unpacking (run: 297-384,
+    # make_noise_model: 494-510, make_snc: 581-605, make_snl: 661-681,
+    # make_sno2: 738-760) to read the same columns back out of the new
+    # engine's Astropy Tables instead of re-parsing plain text. Column
+    # order/semantics verified 1:1 against gsetc.c's fprintf calls
+    # (gsetc.c:2010, 2048-2053, 2084-2087, 2109-2110).
+
+    def _restore_noise(self, results):
+        tbl = results.noise
+        self.nsm_arms = np.asarray(tbl["arm"])
+        self.nsm_pixs = np.asarray(tbl["pixel"])
+        self.nsm_lams = np.asarray(tbl["wavelength"])
+        self.nsm_nois = np.asarray(tbl["variance"])
+        self.nsm_skys = np.asarray(tbl["sky"])
+
+    def _restore_snc(self, results):
+        tbl = results.snc
+        if tbl is None:
+            return
+        self.snc_arms = np.asarray(tbl["arm"])
+        self.snc_pixs = np.asarray(tbl["pixel"])
+        self.snc_lams = np.asarray(tbl["wavelength"])
+        self.snc_sncs = np.asarray(tbl["snr"])
+        self.snc_sigs = np.asarray(tbl["signal"])
+        self.snc_nois_mobj = np.asarray(tbl["noise_variance"])
+        self.snc_nois = np.asarray(tbl["noise_variance_tot"])
+        self.snc_spin = np.asarray(tbl["input_mag"])
+        self.snc_conv = np.asarray(tbl["conversion_factor"])
+        self.snc_samp = np.asarray(tbl["sampling_factor"])
+        self.snc_skys = np.asarray(tbl["sky"])
+
+    def _restore_snl(self, results):
+        tbl = results.snl
+        if tbl is None:
+            return
+        self.snl_lams = np.asarray(tbl["wavelength"])
+        self.snl_fcov = np.asarray(tbl["fiber_aperture_factor"])
+        self.snl_effa = np.asarray(tbl["effective_area"])
+        self.snl_sna0 = np.asarray(tbl["snr_b"])
+        mid_col = "snr_m" if "snr_m" in tbl.colnames else "snr_r"
+        self.snl_sna1 = np.asarray(tbl[mid_col])
+        self.snl_sna2 = np.asarray(tbl["snr_n"])
+        self.snl_snls = np.asarray(tbl["snr_tot"])
+
+    def _restore_sno2(self, results):
+        tbl = results.oii_curve
+        if tbl is None:
+            return
+        self.sno2_zsps = np.asarray(tbl["z"])
+        self.sno2_lam1 = np.asarray(tbl["wavelength0"])
+        self.sno2_lam2 = np.asarray(tbl["wavelength1"])
+        self.sno2_fcov = np.asarray(tbl["fiber_aperture_factor"])
+        self.sno2_effa = np.asarray(tbl["effective_area"])
+        self.sno2_sna0 = np.asarray(tbl["snr_b"])
+        self.sno2_sna1 = np.asarray(tbl["snr_r"])
+        self.sno2_sna2 = np.asarray(tbl["snr_n"])
+        self.sno2_sno2 = np.asarray(tbl["snr_tot"])
+
     def run(self):
         start = time.time()
 
-        # create directories for output files
-        if not os.path.exists(self.params['OUTDIR']):
-            os.mkdir(self.params['OUTDIR'])
-        if not os.path.exists(self.params['TMPDIR']):
-            os.mkdir(self.params['TMPDIR'])
+        print('##### starting to run ETC ... (it takes a few min.) #####')
+        params = self._to_new_params()
+        results = engine.run_etc_files(params)
 
-        # define spectrograph
-        self.spectrograph = self.params['spectrograph'].lower()
+        self._restore_noise(results)
+        self._restore_snc(results)
+        self._restore_snl(results)
+        self._restore_sno2(results)
 
-        # select throughput model
-        self.throughput_model = self.params['throughput_model']
-        if self.spectrograph in ['sm1', 'sm2', 'sm3', 'sm4']:
-            self.INSTR_SETUP = self.HOME_DIR + \
-                '/config/PFS.%s.%s.dat' % (self.throughput_model,
-                                           self.spectrograph)
-            self.INSTR_SETUP_MR = self.HOME_DIR + \
-                '/config/PFS.redMR.%s.%s.dat' % (
-                    self.throughput_model, self.spectrograph)
-        else:
-            self.INSTR_SETUP = self.HOME_DIR + \
-                '/config/PFS.%s.dat' % (self.throughput_model)
-            self.INSTR_SETUP_MR = self.HOME_DIR + \
-                '/config/PFS.redMR.%s.dat' % (self.throughput_model)
-
-        # Noise reuse flag
-        flag = '0'
-        if self.params['NOISE_REUSED'].lower() == 'y':
-            flag = '1'
-        elif self.params['NOISE_REUSED'].lower() == 'n':
-            flag = '0'
-        self.NOISE_REUSED = flag
-
-        # Medium Resolution Mode ?
-        if self.params['MR_MODE'].lower() == 'yes' or self.params['MR_MODE'].lower() == 'y':
-            self.INSTR_SETUP = self.INSTR_SETUP_MR
-        else:
-            self.INSTR_SETUP = self.INSTR_SETUP
-        # make continuum magnitude file
-        if os.path.exists(self.params['TMPDIR']) is False:
-            os.mkdir(self.params['TMPDIR'])
-        try:
-            _mag = float(self.params['MAG_FILE'])
-            file = open(os.path.join(
-                self.params['TMPDIR'], 'mag_%s.dat' % (self.params['MAG_FILE'])), 'w')
-            file.write('300.0 %.2f\n 1300. %.2f\n' % (_mag, _mag))
-            file.close()
-            self.mag_file = os.path.join(
-                self.params['TMPDIR'], 'mag_%s.dat' % (self.params['MAG_FILE']))
-        except:
-            ## interpolation so that the resolution is slightly higher than that of instrument ##
-            _lam, _mag = np.loadtxt(
-                self.params["MAG_FILE"], usecols=(0, 1), unpack=True
-            )
-            lam = np.arange(300.0, 1300.0, 0.05)
-            mag = np.interp(lam, _lam, _mag)
-            self.mag_file = os.path.join(self.params['TMPDIR'], '%s' % (self.params['MAG_FILE'].split('/')[-1]))
-            np.savetxt(self.mag_file, np.array([lam, mag]).transpose(), fmt="%.4e")
-        ''' check file overwritten '''
-        C = 0
-        if self.params['OVERWRITE'].lower() == 'no' or self.params['OVERWRITE'].lower() == 'n':
-            if os.path.exists(self.params['OUTFILE_NOISE']):
-                print("Error: %s already exists... " % (self.params["OUTFILE_NOISE"]))
-                C += 1
-            if os.path.exists(self.params['OUTFILE_SNC']):
-                print("Error: %s already exists... " %
-                      (self.params['OUTFILE_SNC']))
-                C += 1
-            if os.path.exists(self.params['OUTFILE_SNL']):
-                print("Error: %s already exists... " %
-                      (self.params['OUTFILE_SNL']))
-                C += 1
-        if self.params['OVERWRITE'].lower() == 'yes' or self.params['OVERWRITE'].lower() == 'y':
-            C = 0
-
-        # apply camera obscuration depending of FoV location
-        if self.params['obscFoVDep'].lower() == 'yes' or self.params['obscFoVDep'].lower() == 'y':
-            obsc, corr = calc_obscuration(float(self.params['FIELD_ANG']))
-            degrade = float(self.params['degrade']) * corr
-            self.params['degrade'] = f'{degrade}'
-        # print('The throughput degrade: %s' % (self.params['degrade']))
-
-        # run ETC
-        # print("Spectrograph setup : %s" % (self.INSTR_SETUP))
-        if C != 0:
-            exit('No execution of ETC')
-        try:
-            print('##### starting to run ETC ... (it takes a few min.) #####')
-            proc = subprocess.Popen([self.ETC_SRC], stdin=subprocess.PIPE, env={
-                                    "OMP_NUM_THREADS": f"{self.omp_num_threads}"})
-            proc.communicate("\n".join([self.INSTR_SETUP,
-                                        self.params['degrade'],
-                                        SKYMODELS,
-                                        self.params['SEEING'],
-                                        self.params['ZENITH_ANG'],
-                                        self.params['GALACTIC_EXT'],
-                                        self.params['FIELD_ANG'],
-                                        OFFSET_FIB,
-                                        self.params['MOON_ZENITH_ANG'],
-                                        self.params['MOON_TARGET_ANG'],
-                                        self.params['MOON_PHASE'],
-                                        self.params['EXP_TIME'],
-                                        self.params['EXP_NUM'],
-                                        self.params['SKY_SUB_FLOOR'],
-                                        self.params['DIFFUSE_STRAY'],
-                                        self.NOISE_REUSED,
-                                        self.params['OUTFILE_NOISE'],
-                                        self.params['OUTFILE_OII'],
-                                        self.params['OUTFILE_SNL'],
-                                        self.params['LINE_FLUX'],
-                                        self.params['LINE_WIDTH'],
-                                        self.params['OUTFILE_SNC'],
-                                        self.params['INFILE_OIICat'],
-                                        self.params['OUTFILE_OIICat'],
-                                        self.params['minSNR'],
-                                        self.mag_file,
-                                        self.params['REFF']
-                                        ]).encode())
-        except OSError as e:
-            exit('Execution error of "%s" (%s)' % self.ETC_SRC, e)
-
-        # load OUTFILE_NOISE
-        if self.params['OUTFILE_NOISE'] != '-':
-            add_header(self.params['OUTFILE_NOISE'], self.params['SEEING'], self.params['ZENITH_ANG'], self.params['GALACTIC_EXT'], self.params['MOON_ZENITH_ANG'], self.params['MOON_TARGET_ANG'],
-                       self.params['MOON_PHASE'], self.params['EXP_TIME'], self.params['EXP_NUM'], self.params['FIELD_ANG'], self.params['MAG_FILE'], self.params['REFF'], self.params['LINE_FLUX'], self.params['LINE_WIDTH'])
-            try:
-                (
-                    self.nsm_arms,
-                    self.nsm_pixs,
-                    self.nsm_lams,
-                    self.nsm_nois,
-                    self.nsm_skys,
-                ) = np.genfromtxt(
-                    self.params["OUTFILE_NOISE"], unpack=True, usecols=(0, 1, 2, 3, 4)
-                )
-            except:
-                print('OUTFILE_NOISE is not found ...')
-                pass
-        # load OUTFILE_SNC
-        if self.params['OUTFILE_SNC'] != '-':
-            add_header(self.params['OUTFILE_SNC'], self.params['SEEING'], self.params['ZENITH_ANG'], self.params['GALACTIC_EXT'], self.params['MOON_ZENITH_ANG'], self.params['MOON_TARGET_ANG'],
-                       self.params['MOON_PHASE'], self.params['EXP_TIME'], self.params['EXP_NUM'], self.params['FIELD_ANG'], self.params['MAG_FILE'], self.params['REFF'], self.params['LINE_FLUX'], self.params['LINE_WIDTH'])
-            try:
-                (
-                    self.snc_arms,
-                    self.snc_pixs,
-                    self.snc_lams,
-                    self.snc_sncs,
-                    self.snc_sigs,
-                    self.snc_nois_mobj,
-                    self.snc_nois,
-                    self.snc_spin,
-                    self.snc_conv,
-                    self.snc_samp,
-                    self.snc_skys,
-                ) = np.genfromtxt(
-                    self.params["OUTFILE_SNC"],
-                    unpack=True,
-                    usecols=(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10),
-                )
-            except:
-                print('OUTFILE_SNC is not found ...')
-                pass
-
-        #  load OUTFILE_SNL
-        if self.params['OUTFILE_SNL'] != '-':
-            add_header(self.params['OUTFILE_SNL'], self.params['SEEING'], self.params['ZENITH_ANG'], self.params['GALACTIC_EXT'], self.params['MOON_ZENITH_ANG'], self.params['MOON_TARGET_ANG'],
-                       self.params['MOON_PHASE'], self.params['EXP_TIME'], self.params['EXP_NUM'], self.params['FIELD_ANG'], self.params['MAG_FILE'], self.params['REFF'], self.params['LINE_FLUX'], self.params['LINE_WIDTH'])
-            try:
-                (
-                    self.snl_lams,
-                    self.snl_fcov,
-                    self.snl_effa,
-                    self.snl_sna0,
-                    self.snl_sna1,
-                    self.snl_sna2,
-                    self.snl_snls,
-                ) = np.genfromtxt(
-                    self.params["OUTFILE_SNL"],
-                    unpack=True,
-                    usecols=(0, 1, 2, 3, 4, 5, 6),
-                )
-            except:
-                print('OUTFILE_SNL is not found ...')
-                pass
-
-        # load OUTFILE_OII
-        if self.params['OUTFILE_OII'] != '-':
-            add_header(self.params['OUTFILE_OII'], self.params['SEEING'], self.params['ZENITH_ANG'], self.params['GALACTIC_EXT'], self.params['MOON_ZENITH_ANG'], self.params['MOON_TARGET_ANG'],
-                       self.params['MOON_PHASE'], self.params['EXP_TIME'], self.params['EXP_NUM'], self.params['FIELD_ANG'], self.params['MAG_FILE'], self.params['REFF'], self.params['LINE_FLUX'], self.params['LINE_WIDTH'])
-            try:
-                (
-                    self.sno2_zsps,
-                    self.sno2_lam1,
-                    self.sno2_lam2,
-                    self.sno2_fcov,
-                    self.sno2_effa,
-                    self.sno2_sna0,
-                    self.sno2_sna1,
-                    self.sno2_sna2,
-                    self.sno2_sno2,
-                ) = np.genfromtxt(
-                    self.params["OUTFILE_OII"],
-                    unpack=True,
-                    usecols=(0, 1, 2, 3, 4, 5, 6, 7, 8),
-                )
-            except:
-                print('OUTFILE_OII is not found ...')
-                pass
-
-        # end of the process
         elapsed_time = time.time() - start
         print("##### finished (elapsed_time: %.1f[sec]) #####" % (
             elapsed_time))
@@ -393,123 +321,22 @@ class Etc(object):
     def make_noise_model(self):
         start = time.time()
 
-        # set Noise reuse flag
-        flag = '0'
-        if self.params['NOISE_REUSED'].lower() == 'y':
-            flag = '1'
-        elif self.params['NOISE_REUSED'].lower() == 'n':
-            flag = '0'
-        self.NOISE_REUSED = flag
+        print(
+            '##### starting to make a noise model ... (it takes about 2 min.) #####')
+        # QUIRK, preserved verbatim (pfsetc.py:478 hardcoded '0' regardless
+        # of `self.params['NOISE_REUSED']`): making a fresh noise model
+        # always (re)computes it, never reloads.
+        params = self._to_new_params(
+            noise_reused=False,
+            outfile_snc=None,
+            outfile_snl=None,
+            outfile_oii=None,
+            oii_cat_in=None,
+            oii_cat_out=None,
+        )
+        results = engine.run_etc_files(params)
+        self._restore_noise(results)
 
-        # Medium Resolution Mode ?
-        if self.params['MR_MODE'].lower() == 'yes' or self.params['MR_MODE'].lower() == 'y':
-            self.INSTR_SETUP = self.INSTR_SETUP_MR
-        else:
-            self.INSTR_SETUP = self.INSTR_SETUP
-
-        # make continuum magnitude file
-        try:
-            _mag = float(self.params['MAG_FILE'])
-            if os.path.exists(self.params['TMPDIR']) is False:
-                os.mkdir(self.params['TMPDIR'])
-            file = open(os.path.join(
-                self.params['TMPDIR'], 'mag_%s.dat' % (self.params['MAG_FILE'])), 'w')
-            file.write('300.0 %.2f\n 1300. %.2f\n' % (_mag, _mag))
-            file.close()
-            self.mag_file = os.path.join(
-                self.params['TMPDIR'], 'mag_%s.dat' % (self.params['MAG_FILE']))
-        except:
-            ## interpolation so that the resolution is slightly higher than that of instrument ##
-            _lam, _mag = np.loadtxt(
-                self.params["MAG_FILE"], usecols=(0, 1), unpack=True
-            )
-            lam = np.arange(300.0, 1300.0, 0.05)
-            mag = np.interp(lam, _lam, _mag)
-            self.mag_file = os.path.join(self.params['TMPDIR'], '%s' % (self.params['MAG_FILE'].split('/')[-1]))
-            np.savetxt(self.mag_file, np.array([lam, mag]).transpose(), fmt="%.4e")
-        ''' check file overwritten '''
-        C = 0
-        if self.params['OVERWRITE'].lower() == 'no' or self.params['OVERWRITE'].lower() == 'n':
-            if os.path.exists(self.params['OUTFILE_NOISE']):
-                print("Error: %s already exists... " % (self.params["OUTFILE_NOISE"]))
-                C += 1
-            if os.path.exists(self.params['OUTFILE_SNC']):
-                print("Error: %s already exists... " %
-                      (self.params['OUTFILE_SNC']))
-                C += 1
-            if os.path.exists(self.params['OUTFILE_SNL']):
-                print("Error: %s already exists... " %
-                      (self.params['OUTFILE_SNL']))
-                C += 1
-        if self.params['OVERWRITE'].lower() == 'yes' or self.params['OVERWRITE'].lower() == 'y':
-            C = 0
-
-        # apply camera obscuration depending of FoV location
-        if self.params['obscFoVDep'].lower() == 'yes' or self.params['obscFoVDep'].lower() == 'y':
-            obsc, corr = calc_obscuration(float(self.params['FIELD_ANG']))
-            degrade = float(self.params['degrade']) * corr
-            self.params['degrade'] = f'{degrade}'
-        print('The throughput degrade: %s' % (self.params['degrade']))
-
-        # run ETC
-        # print("Spectrograph setup : %s" % (self.INSTR_SETUP))
-        if C != 0:
-            exit('No execution of ETC')
-        try:
-            print(
-                '##### starting to make a noise model ... (it takes about 2 min.) #####')
-            proc = subprocess.Popen([self.ETC_SRC], stdin=subprocess.PIPE, env={
-                                    "OMP_NUM_THREADS": f"{self.omp_num_threads}"})
-            proc.communicate("\n".join([self.INSTR_SETUP,
-                                        self.params['degrade'],
-                                        SKYMODELS,
-                                        self.params['SEEING'],
-                                        self.params['ZENITH_ANG'],
-                                        self.params['GALACTIC_EXT'],
-                                        self.params['FIELD_ANG'],
-                                        OFFSET_FIB,
-                                        self.params['MOON_ZENITH_ANG'],
-                                        self.params['MOON_TARGET_ANG'],
-                                        self.params['MOON_PHASE'],
-                                        self.params['EXP_TIME'],
-                                        self.params['EXP_NUM'],
-                                        self.params['SKY_SUB_FLOOR'],
-                                        self.params['DIFFUSE_STRAY'],
-                                        '0',
-                                        self.params['OUTFILE_NOISE'],
-                                        '-',
-                                        '-',
-                                        self.params['LINE_FLUX'],
-                                        self.params['LINE_WIDTH'],
-                                        '-',
-                                        '-',
-                                        '-',
-                                        self.params['minSNR'],
-                                        self.mag_file,
-                                        self.params['REFF']
-                                        ]).encode())
-        except OSError as e:
-            exit('Execution error of "%s" (%s)' % self.ETC_SRC, e)
-
-        # load OUTFILE_NOISE
-        if self.params['OUTFILE_NOISE'] != '-':
-            add_header(self.params['OUTFILE_NOISE'], self.params['SEEING'], self.params['ZENITH_ANG'], self.params['GALACTIC_EXT'], self.params['MOON_ZENITH_ANG'], self.params['MOON_TARGET_ANG'],
-                       self.params['MOON_PHASE'], self.params['EXP_TIME'], self.params['EXP_NUM'], self.params['FIELD_ANG'], self.params['MAG_FILE'], self.params['REFF'], self.params['LINE_FLUX'], self.params['LINE_WIDTH'])
-            try:
-                (
-                    self.nsm_arms,
-                    self.nsm_pixs,
-                    self.nsm_lams,
-                    self.nsm_nois,
-                    self.nsm_skys,
-                ) = np.genfromtxt(
-                    self.params["OUTFILE_NOISE"], unpack=True, usecols=(0, 1, 2, 3, 4)
-                )
-            except:
-                print('OUTFILE_NOISE is not found ...')
-                pass
-
-        # end of process
         elapsed_time = time.time() - start
         print("##### finished (elapsed_time: %.1f[sec]) #####" % (
             elapsed_time))
@@ -535,75 +362,22 @@ class Etc(object):
         return self.nsm_lams, self.nsm_nois
 
     def make_snc(self):
-        # apply camera obscuration depending of FoV location
-        if self.params['obscFoVDep'].lower() == 'yes' or self.params['obscFoVDep'].lower() == 'y':
-            obsc, corr = calc_obscuration(float(self.params['FIELD_ANG']))
-            degrade = float(self.params['degrade']) * corr
-            self.params['degrade'] = f'{degrade}'
-        print('The throughput degrade: %s' % (self.params['degrade']))
-
-        # run ETC
+        # QUIRK, preserved verbatim (pfsetc.py:566 hardcoded '1' regardless
+        # of `self.params['NOISE_REUSED']`): making an SNC curve always
+        # reloads the noise vector previously written to `OUTFILE_NOISE`
+        # (by `run()` or `make_noise_model()`) rather than recomputing it.
         start = time.time()
-        try:
-            print('##### starting to make an SNC model ... (it takes about 1 min.) #####')
-            proc = subprocess.Popen([self.ETC_SRC], stdin=subprocess.PIPE, env={
-                                    "OMP_NUM_THREADS": f"{self.omp_num_threads}"})
-            proc.communicate("\n".join([self.INSTR_SETUP,
-                                        self.params['degrade'],
-                                        SKYMODELS,
-                                        self.params['SEEING'],
-                                        self.params['ZENITH_ANG'],
-                                        self.params['GALACTIC_EXT'],
-                                        self.params['FIELD_ANG'],
-                                        OFFSET_FIB,
-                                        self.params['MOON_ZENITH_ANG'],
-                                        self.params['MOON_TARGET_ANG'],
-                                        self.params['MOON_PHASE'],
-                                        self.params['EXP_TIME'],
-                                        self.params['EXP_NUM'],
-                                        self.params['SKY_SUB_FLOOR'],
-                                        self.params['DIFFUSE_STRAY'],
-                                        '1',
-                                        self.params['OUTFILE_NOISE'],
-                                        '-',
-                                        '-',
-                                        self.params['LINE_FLUX'],
-                                        self.params['LINE_WIDTH'],
-                                        self.params['OUTFILE_SNC'],
-                                        '-',
-                                        '-',
-                                        self.params['minSNR'],
-                                        self.mag_file,
-                                        self.params['REFF']
-                                        ]).encode())
-        except OSError as e:
-            exit('Execution error of "%s" (%s)' % self.ETC_SRC, e)
-        # load OUTFILE_SNC
-        if self.params['OUTFILE_SNC'] != '-':
-            add_header(self.params['OUTFILE_SNC'], self.params['SEEING'], self.params['ZENITH_ANG'], self.params['GALACTIC_EXT'], self.params['MOON_ZENITH_ANG'], self.params['MOON_TARGET_ANG'],
-                       self.params['MOON_PHASE'], self.params['EXP_TIME'], self.params['EXP_NUM'], self.params['FIELD_ANG'], self.params['MAG_FILE'], self.params['REFF'], self.params['LINE_FLUX'], self.params['LINE_WIDTH'])
-            try:
-                (
-                    self.snc_arms,
-                    self.snc_pixs,
-                    self.snc_lams,
-                    self.snc_sncs,
-                    self.snc_sigs,
-                    self.snc_nois_mobj,
-                    self.snc_nois,
-                    self.snc_spin,
-                    self.snc_conv,
-                    self.snc_samp,
-                    self.snc_skys,
-                ) = np.genfromtxt(
-                    self.params["OUTFILE_SNC"],
-                    unpack=True,
-                    usecols=(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10),
-                )
-            except:
-                print('OUTFILE_SNC is not found ...')
-                pass
-        # end of process
+        print('##### starting to make an SNC model ... (it takes about 1 min.) #####')
+        params = self._to_new_params(
+            noise_reused=True,
+            outfile_snl=None,
+            outfile_oii=None,
+            oii_cat_in=None,
+            oii_cat_out=None,
+        )
+        results = engine.run_etc_files(params)
+        self._restore_snc(results)
+
         elapsed_time = time.time() - start
         print("##### finished (elapsed_time: %.1f[sec]) #####" % (
             elapsed_time))
@@ -614,73 +388,20 @@ class Etc(object):
         return self.snc_lams, self.snc_sncs
 
     def make_snl(self):
-        # apply camera obscuration depending of FoV location
-        if self.params['obscFoVDep'].lower() == 'yes' or self.params['obscFoVDep'].lower() == 'y':
-            obsc, corr = calc_obscuration(float(self.params['FIELD_ANG']))
-            degrade = float(self.params['degrade']) * corr
-            self.params['degrade'] = f'{degrade}'
-        print('The throughput degrade: %s' % (self.params['degrade']))
-
-        # run ETC
+        # QUIRK, preserved verbatim (pfsetc.py:645, same as `make_snc`):
+        # always reloads the noise vector rather than recomputing it.
         start = time.time()
-        try:
-            print('##### starting to make an SNL model ... (it takes about 1 min.) #####')
-            proc = subprocess.Popen([self.ETC_SRC], stdin=subprocess.PIPE, env={
-                                    "OMP_NUM_THREADS": f"{self.omp_num_threads}"})
-            proc.communicate("\n".join([self.INSTR_SETUP,
-                                        self.params['degrade'],
-                                        SKYMODELS,
-                                        self.params['SEEING'],
-                                        self.params['ZENITH_ANG'],
-                                        self.params['GALACTIC_EXT'],
-                                        self.params['FIELD_ANG'],
-                                        OFFSET_FIB,
-                                        self.params['MOON_ZENITH_ANG'],
-                                        self.params['MOON_TARGET_ANG'],
-                                        self.params['MOON_PHASE'],
-                                        self.params['EXP_TIME'],
-                                        self.params['EXP_NUM'],
-                                        self.params['SKY_SUB_FLOOR'],
-                                        self.params['DIFFUSE_STRAY'],
-                                        '1',
-                                        self.params['OUTFILE_NOISE'],
-                                        '-',
-                                        self.params['OUTFILE_SNL'],
-                                        self.params['LINE_FLUX'],
-                                        self.params['LINE_WIDTH'],
-                                        '-',
-                                        '-',
-                                        '-',
-                                        self.params['minSNR'],
-                                        self.mag_file,
-                                        self.params['REFF']
-                                        ]).encode())
-        except OSError as e:
-            exit('Execution error of "%s" (%s)' % self.ETC_SRC, e)
+        print('##### starting to make an SNL model ... (it takes about 1 min.) #####')
+        params = self._to_new_params(
+            noise_reused=True,
+            outfile_snc=None,
+            outfile_oii=None,
+            oii_cat_in=None,
+            oii_cat_out=None,
+        )
+        results = engine.run_etc_files(params)
+        self._restore_snl(results)
 
-        # load OUTFILE_SNL
-        if self.params['OUTFILE_SNL'] != '-':
-            add_header(self.params['OUTFILE_SNL'], self.params['SEEING'], self.params['ZENITH_ANG'], self.params['GALACTIC_EXT'], self.params['MOON_ZENITH_ANG'], self.params['MOON_TARGET_ANG'],
-                       self.params['MOON_PHASE'], self.params['EXP_TIME'], self.params['EXP_NUM'], self.params['FIELD_ANG'], self.params['MAG_FILE'], self.params['REFF'], self.params['LINE_FLUX'], self.params['LINE_WIDTH'])
-            try:
-                (
-                    self.snl_lams,
-                    self.snl_fcov,
-                    self.snl_effa,
-                    self.snl_sna0,
-                    self.snl_sna1,
-                    self.snl_sna2,
-                    self.snl_snls,
-                ) = np.genfromtxt(
-                    self.params["OUTFILE_SNL"],
-                    unpack=True,
-                    usecols=(0, 1, 2, 3, 4, 5, 6),
-                )
-            except:
-                print('OUTFILE_SNL is not found ...')
-                pass
-
-        # end of process
         elapsed_time = time.time() - start
         print("##### finished (elapsed_time: %.1f[sec]) #####" % (
             elapsed_time))
@@ -691,75 +412,20 @@ class Etc(object):
         return self.snl_lams, self.snl_snls
 
     def make_sno2(self):
-        # apply camera obscuration depending of FoV location
-        if self.params['obscFoVDep'].lower() == 'yes' or self.params['obscFoVDep'].lower() == 'y':
-            obsc, corr = calc_obscuration(float(self.params['FIELD_ANG']))
-            degrade = float(self.params['degrade']) * corr
-            self.params['degrade'] = f'{degrade}'
-        print('The throughput degrade: %s' % (self.params['degrade']))
-
-        # run ETC
+        # QUIRK, preserved verbatim (pfsetc.py:722, same as `make_snc`):
+        # always reloads the noise vector rather than recomputing it.
         start = time.time()
-        try:
-            print('##### starting to make an OII model ... (it takes about 2 min.) #####')
-            proc = subprocess.Popen([self.ETC_SRC], stdin=subprocess.PIPE, env={
-                                    "OMP_NUM_THREADS": f"{self.omp_num_threads}"})
-            proc.communicate("\n".join([self.INSTR_SETUP,
-                                        self.params['degrade'],
-                                        SKYMODELS,
-                                        self.params['SEEING'],
-                                        self.params['ZENITH_ANG'],
-                                        self.params['GALACTIC_EXT'],
-                                        self.params['FIELD_ANG'],
-                                        OFFSET_FIB,
-                                        self.params['MOON_ZENITH_ANG'],
-                                        self.params['MOON_TARGET_ANG'],
-                                        self.params['MOON_PHASE'],
-                                        self.params['EXP_TIME'],
-                                        self.params['EXP_NUM'],
-                                        self.params['SKY_SUB_FLOOR'],
-                                        self.params['DIFFUSE_STRAY'],
-                                        '1',
-                                        self.params['OUTFILE_NOISE'],
-                                        self.params['OUTFILE_OII'],
-                                        '-',
-                                        self.params['LINE_FLUX'],
-                                        self.params['LINE_WIDTH'],
-                                        '-',
-                                        '-',
-                                        '-',
-                                        self.params['minSNR'],
-                                        self.mag_file,
-                                        self.params['REFF'],
-                                        ]).encode())
-        except OSError as e:
-            exit('Execution error of "%s" (%s)' % self.ETC_SRC, e)
+        print('##### starting to make an OII model ... (it takes about 2 min.) #####')
+        params = self._to_new_params(
+            noise_reused=True,
+            outfile_snc=None,
+            outfile_snl=None,
+            oii_cat_in=None,
+            oii_cat_out=None,
+        )
+        results = engine.run_etc_files(params)
+        self._restore_sno2(results)
 
-        # load OUTFILE_OII
-        if self.params['OUTFILE_OII'] != '-':
-            add_header(self.params['OUTFILE_OII'], self.params['SEEING'], self.params['ZENITH_ANG'], self.params['GALACTIC_EXT'], self.params['MOON_ZENITH_ANG'], self.params['MOON_TARGET_ANG'],
-                       self.params['MOON_PHASE'], self.params['EXP_TIME'], self.params['EXP_NUM'], self.params['FIELD_ANG'], self.params['MAG_FILE'], self.params['REFF'], self.params['LINE_FLUX'], self.params['LINE_WIDTH'])
-            try:
-                (
-                    self.sno2_zsps,
-                    self.sno2_lam1,
-                    self.sno2_lam2,
-                    self.sno2_fcov,
-                    self.sno2_effa,
-                    self.sno2_sna0,
-                    self.sno2_sna1,
-                    self.sno2_sna2,
-                    self.sno2_sno2,
-                ) = np.genfromtxt(
-                    self.params["OUTFILE_OII"],
-                    unpack=True,
-                    usecols=(0, 1, 2, 3, 4, 5, 6, 7, 8),
-                )
-            except:
-                print('OUTFILE_OII is not found ...')
-                pass
-
-        # end of process
         elapsed_time = time.time() - start
         print("##### finished (elapsed_time: %.1f[sec]) #####" % (
             elapsed_time))
