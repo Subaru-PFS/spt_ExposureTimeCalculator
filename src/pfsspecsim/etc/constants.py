@@ -92,6 +92,14 @@ ZMIN_OII = 0.10
 NZ_OII = 24
 DZ_OII = 0.10
 
+#: Magnitude-to-nepers conversion, ``2.5/ln(10)`` rounded to 3 decimals
+#: (gsetc.c:813, 851-852: ``exp(-k*airmass/1.086)``). The C source itself
+#: hardcodes the rounded ``1.086``, not the exact ``2.5/np.log(10) =
+#: 1.085736...``, so this is an algorithm-defining literal (kept verbatim
+#: for bit-for-bit regression fidelity) rather than an astropy-derived
+#: conversion factor.
+MAG_TO_NEP_APPROX = 1.086
+
 #: Empirical noise-variance adjustment factors per spectrograph arm, indexed
 #: by the internal arm index `ia` (0=Blue, 1=Red[LR/MR], 2=NIR), derived
 #: from past observations (gsetc.c:722-723).
