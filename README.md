@@ -84,10 +84,10 @@ writes `out/ref.noise.ecsv`, `out/ref.snc.ecsv`, and `out/ref.snl.ecsv` (the [OI
 
 ### TOML configuration files
 
-Instead of (or in addition to) individual options, you can collect parameters in a TOML file and pass it with `--config`. TOML keys are the same snake_case names as the CLI options (with `-` replaced by `_`):
+Instead of (or in addition to) individual options, you can collect parameters in a TOML file and pass it with `--config`. TOML keys are the same snake_case names as the CLI options (with `-` replaced by `_`). A ready-to-run copy of the example below is committed at `examples/pfs_etc_example.toml`:
 
 ```toml
-# etc_params.toml
+# examples/pfs_etc_example.toml
 seeing = 0.80
 zenith_ang = 35.00
 galactic_ext = 0.00
@@ -110,9 +110,9 @@ outfile_snc = "ref.snc.ecsv"
 outfile_snl = "ref.snl.ecsv"
 ```
 
-    pfs-etc --config etc_params.toml
+    pfs-etc --config examples/pfs_etc_example.toml
     # override just one field on top of the TOML file:
-    pfs-etc --config etc_params.toml --mag 23.0
+    pfs-etc --config examples/pfs_etc_example.toml --mag 23.0
 
 `mag` (a flat AB magnitude) and `mag_file` (a 2-column wavelength[nm]/magnitude file) are mutually exclusive -- passing both (from any combination of CLI/TOML) is an error. Please note that the ETC does not convolve the instrument resolution into a `mag_file` spectrum, so the resolution should already be included in the input spectrum; also note that the wavelength is resampled with a sampling of 0.5 Angstrom (slightly larger than the PFS detector's own pixel sampling of ~0.7A/~0.8A/~0.8A for blue/red/NIR). Do not include "NaN" or other non-numeric values in the input file.
 
