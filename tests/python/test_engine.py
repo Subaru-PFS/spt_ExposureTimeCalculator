@@ -357,6 +357,49 @@ class TestMRMode:
         assert set(np.unique(results.noise["arm"])) == {0, 2, 3}
 
 
+class TestOiiNgtotQuirk:
+    def test_detected_object_outside_histogram_range_not_counted(self, tmp_path):
+        # gsetc.c:2160-2165 QUIRK: `ngtot++` (and `ngal[j]++`) sit *inside*
+        # the `if (j>=0 && j<NZ_OII)` bin-range check, so a detected object
+        # with z outside [0.1, 2.5) is written to the output catalog but
+        # counted in neither the histogram nor ngtot. Reachable with the
+        # packaged LR config: at z=0.05 the doublet sits at ~391nm, inside
+        # the blue arm's SNR gate (373.8*1.05 = 392.5 > lmin = 380), yet
+        # bins to floor((0.05-0.1)/0.1) = -1.
+        #
+        # The catalog also deliberately mixes rows sharing one r_eff (rows
+        # 1/2: a multi-row vectorized group within one arm gate -- the case
+        # that exposed the array-r_eff broadcast bug against snr.snr_oii's
+        # scalar-r_eff contract) with a row at a different r_eff (row 3,
+        # exercising the unique-r_eff grouping loop).
+        cat = tmp_path / "oii_cat_lowz.txt"
+        cat.write_text(
+            "1 0.05 0.30 1.0 5.0e-15 0.0 70\n"  # detected, z below ZMIN_OII
+            "2 0.50 0.30 1.0 5.0e-15 0.0 70\n"  # detected, in histogram range
+            "3 0.45 0.15 1.0 5.0e-15 0.0 70\n"  # detected, different r_eff
+        )
+        params = _base_params(
+            tmp_path,
+            outfile_snc=None,
+            outfile_snl=None,
+            outfile_oii=None,
+            oii_cat_in=cat,
+        )
+        results = engine.run_etc(params)
+
+        # All three objects pass the min_snr cut and land in the catalog...
+        assert set(results.oii_catalog["obj_id"]) == {1, 2, 3}
+        # ...but only the in-range ones are counted (ngtot == histogram
+        # sum, strictly smaller than the catalog length here).
+        assert results.oii_n_targets == 2
+        assert results.oii_histogram.sum() == 2
+        assert results.oii_n_targets < len(results.oii_catalog)
+        # And the in-range objects landed in their bins:
+        # z=0.45 -> bin 3, z=0.5 -> bin 4.
+        assert results.oii_histogram[3] == 1
+        assert results.oii_histogram[4] == 1
+
+
 class TestMapMasked:
     def test_only_masked_positions_evaluated(self):
         n = 6

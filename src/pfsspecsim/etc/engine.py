@@ -90,8 +90,13 @@ class EtcResults:
         unless `EtcParams.oii_cat_in` is set. Bin `j` covers
         ``[ZMIN_OII + j*DZ_OII, ZMIN_OII + (j+1)*DZ_OII)``.
     oii_n_targets : int or None
-        Total number of catalog objects surviving the `min_snr` cut
-        (gsetc.c's ``ngtot``), `None` unless `EtcParams.oii_cat_in` is set.
+        gsetc.c's ``ngtot``: the number of detected catalog objects whose
+        redshift also falls inside the histogram range (equivalently,
+        ``oii_histogram.sum()``) -- *not* necessarily ``len(oii_catalog)``,
+        since gsetc.c:2160-2165 counts ``ngtot`` only inside the
+        ``j>=0 && j<NZ_OII`` histogram-bin check while still writing every
+        detected object to the catalog (preserved quirk). `None` unless
+        `EtcParams.oii_cat_in` is set.
     """
 
     noise: Table
@@ -506,30 +511,34 @@ def _compute_oii_catalog(
             & (spectro.lmin[ia] < _OII_GATE_HI_REST * (1.0 + z))
             & (_OII_GATE_LO_REST * (1.0 + z) < spectro.lmax[ia])
         )
-        raw = _map_masked(
-            n,
-            gate,
-            Z_CHUNK,
-            lambda zc, fc, rc, cc, oc, ia=ia: snr.snr_oii(
-                params,
-                spectro,
-                ia,
-                zc,
-                fc,
-                70.0,
-                rc,
-                cc,
-                oc,
-                noise_arrays[ia],
-                snr_type=2,
-            ),
-            z,
-            foii,
-            r_eff,
-            cont_oii,
-            roii,
-        )
-        snr_arms[ia] = raw * sqrt_nexp
+        # `snr.snr_oii`'s `r_eff` is a *scalar* per call, exactly like the
+        # C original's (gsetc.c:2154 calls gsGetSNR_OII once per catalog
+        # row with that row's r_eff; `psf.geometric_throughput` likewise
+        # takes one r_eff per call) -- so gated rows are grouped by unique
+        # r_eff value and each group vectorized over its rows (chunked by
+        # Z_CHUNK, as elsewhere). Real catalogs quote r_eff at coarse
+        # precision (the C output format is %5.3lf), so groups are
+        # typically large; the worst case degenerates to the C code's own
+        # one-call-per-row behavior.
+        gated = np.flatnonzero(gate)
+        for r_val in np.unique(r_eff[gated]):
+            rows = gated[r_eff[gated] == r_val]
+            for start in range(0, rows.size, Z_CHUNK):
+                sl = rows[start : start + Z_CHUNK]
+                snr_arms[ia][sl] = snr.snr_oii(
+                    params,
+                    spectro,
+                    ia,
+                    z[sl],
+                    foii[sl],
+                    70.0,
+                    float(r_val),
+                    cont_oii[sl],
+                    roii[sl],
+                    noise_arrays[ia],
+                    snr_type=2,
+                )
+        snr_arms[ia] *= sqrt_nexp
 
     snrtot = np.sqrt(np.sum(snr_arms**2, axis=0))
     detected = snrtot >= params.min_snr
@@ -538,7 +547,15 @@ def _compute_oii_catalog(
     bin_idx = np.floor((z - ZMIN_OII) / DZ_OII).astype(np.int64)
     in_hist_range = detected & (bin_idx >= 0) & (bin_idx < NZ_OII)
     np.add.at(histogram, bin_idx[in_hist_range], 1)
-    n_targets = int(np.count_nonzero(detected))
+    # gsetc.c:2160-2165 QUIRK, preserved verbatim: `ngtot++` sits *inside*
+    # the `if (j>=0 && j<NZ_OII)` histogram-range check, so a detected
+    # object whose redshift falls outside [ZMIN_OII, ZMIN_OII+NZ_OII*DZ_OII)
+    # is written to the output catalog but counted in neither ngal[] nor
+    # ngtot -- i.e. n_targets == histogram.sum(), which may be less than
+    # len(catalog). Reachable: with the packaged LR config (blue arm
+    # lmin=380nm) an [OII] emitter at z ~ 0.02-0.099 passes the arm gate
+    # (373.8*(1+z) > 380) yet bins to j < 0.
+    n_targets = int(np.count_nonzero(in_hist_range))
 
     catalog = Table(
         {
@@ -670,7 +687,10 @@ def run_etc_files(params: EtcParams) -> EtcResults:
     guard in the old wrapper either (the check simply never inspected
     them), so they are not checked here -- a preserved quirk, not an
     oversight: once past the guard, every write below always overwrites
-    (matching the C engine's unconditional `fopen(path, "w")`).
+    (matching the C engine's unconditional `fopen(path, "w")`). Corollary
+    (also verbatim legacy behavior): `overwrite=False` combined with
+    `noise_reused=True` always raises, since the noise ECSV must already
+    exist to be reloaded, and its existence is exactly what trips the guard.
     """
     outdir = Path(params.outdir)
     noise_path = (
