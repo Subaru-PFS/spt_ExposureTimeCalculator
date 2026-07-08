@@ -1,20 +1,17 @@
 #!/usr/bin/env python
 
-"""Console-script copy of the repo-root ``scripts/run_etc.py``.
+"""Deprecated argparse/`@file`-style entry point for the legacy ``Etc``
+compatibility layer (backs the ``pfs-run-etc`` console script).
 
-This is a temporary duplicate kept so that the ``pfs-run-etc`` entry point
-(``pfsspecsim.scripts.run_etc:main``) keeps working after the src-layout
-migration (T2). The repo-root ``scripts/run_etc.py`` remains the primary
-entry point for ``python scripts/run_etc.py`` usage described in the
-README. T13/T14 will consolidate these into a single implementation.
+This is the single implementation; the repo-root ``scripts/run_etc.py`` is
+now only a thin shim that calls :func:`main` here (kept for the historical
+``python scripts/run_etc.py ...`` invocation and its ``.defaults`` file).
+New code should prefer the ``pfs-etc`` CLI (`pfsspecsim.etc.cli`) or the
+pure-Python engine directly (`pfsspecsim.etc.engine.run_etc_files`); see
+the README's old -> new parameter migration table.
 """
 
-import os
-import sys
 import argparse
-import time
-import subprocess
-import numpy as np
 
 from pfsspecsim import pfsetc
 

@@ -1,19 +1,16 @@
 #!/usr/bin/env python
 
-"""Console-script copy of the repo-root ``scripts/gen_sim_spec.py``.
+"""Deprecated argparse/`@file`-style entry point for `pfsspecsim.pfsspec`
+(backs the ``pfs-gen-sim-spec`` console script).
 
-This is a temporary duplicate kept so that the ``pfs-gen-sim-spec`` entry
-point (``pfsspecsim.scripts.gen_sim_spec:main``) keeps working after the
-src-layout migration (T2). The repo-root ``scripts/gen_sim_spec.py`` remains
-the primary entry point for ``python scripts/gen_sim_spec.py`` usage
-described in the README. T13/T14 will consolidate these into a single
-implementation.
+This is the single implementation; the repo-root ``scripts/gen_sim_spec.py``
+is now only a thin shim that calls :func:`main` here (kept for the
+historical ``python scripts/gen_sim_spec.py ...`` invocation and its
+``.defaults`` file). New code should prefer the ``pfs-sim-spec`` CLI
+(`pfsspecsim.cli`); see the README's old -> new parameter migration table.
 """
 
-import os
-import sys
 import argparse
-import numpy as np
 
 from pfsspecsim import pfsspec
 
