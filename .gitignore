@@ -5,13 +5,7 @@ build
 dist
 pfs*.fits
 src/pfsspecsim/__pycache__
-src/pfsspecsim/bin/gsetc.x
-src/pfsspecsim/bin/gsetc_omp.x
 src/pfsspecsim/_version.py
-src/gsetc.x
-src/gsetc_omp.x
-src/*.x
-*.o
 src/pfsspecsim/*.pyc
 pfsspecsim.egg-info
 src/pfsspecsim.egg-info
