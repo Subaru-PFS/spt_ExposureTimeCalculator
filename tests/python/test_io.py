@@ -17,7 +17,7 @@ from astropy import units as u
 from astropy.table import Table
 
 from pfsspecsim.etc import io
-from pfsspecsim.etc.params import EtcParams
+from pfsspecsim.etc.params import EtcParams, resolve_degrade
 
 
 @pytest.fixture
@@ -41,6 +41,19 @@ class TestBuildMeta:
         assert meta["created"]
         assert meta["instr_config"] == "PFS.20240714.dat"
         assert isinstance(meta["params"], dict)
+        # Top-level resolved degrade (mirroring the resolved `instr_config`
+        # precedent); `meta["params"]["degrade"]` stays the raw input.
+        assert meta["degrade_resolved"] == pytest.approx(resolve_degrade(params))
+        assert meta["params"]["degrade"] == params.degrade
+
+    def test_degrade_resolved_tracks_obsc_fov_dep(self):
+        corrected = io.build_meta(EtcParams(degrade=2.0, obsc_fov_dep=True), "PFS.dat")
+        uncorrected = io.build_meta(
+            EtcParams(degrade=2.0, obsc_fov_dep=False), "PFS.dat"
+        )
+        assert corrected["degrade_resolved"] < 2.0
+        assert uncorrected["degrade_resolved"] == 2.0
+        assert corrected["params"]["degrade"] == 2.0  # raw input unchanged
 
     def test_path_fields_stringified(self):
         params = EtcParams(

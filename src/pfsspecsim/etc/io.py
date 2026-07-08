@@ -3,9 +3,10 @@
 Implements the "ECSV 出力スキーマ" section of the task brief: every table
 `run_etc_files` writes carries a common `table.meta` block (package
 version, UTC creation timestamp, resolved spectrograph config filename,
-and every resolved `EtcParams` field -- `Path` values stringified, `None`
-values passed through as-is since ECSV's YAML-header meta block already
-renders a Python `None` as `null`). Column units (`nm`, `m**2`,
+the resolved effective `degrade_resolved` throughput factor, and every
+resolved `EtcParams` field -- `Path` values stringified, `None` values
+passed through as-is since ECSV's YAML-header meta block already renders
+a Python `None` as `null`). Column units (`nm`, `m**2`,
 `electron`/`electron**2`, ...) are attached here (and nowhere else --
 `engine.py`'s computational kernels stay in plain `ndarray`s, per
 `constants.py`'s unit discipline note) immediately before writing.
@@ -28,7 +29,7 @@ from pathlib import Path
 
 from astropy.table import Table
 
-from .params import EtcParams
+from .params import EtcParams, resolve_degrade
 
 #: Distribution name to look up for `etc_version` (see `pyproject.toml`).
 _PKG_NAME = "pfsspecsim"
@@ -76,12 +77,24 @@ def build_meta(params: EtcParams, instr_config: str | Path) -> dict:
     -------
     dict
         ``{"etc_version": ..., "created": ..., "instr_config": ...,
-        "params": {...}}``.
+        "degrade_resolved": ..., "params": {...}}``.
+
+    Notes
+    -----
+    ``params["degrade"]`` records the *raw input* degrade value (the
+    CLI > TOML > default merge result), while the top-level
+    ``degrade_resolved`` key records `params.resolve_degrade`'s output --
+    the value actually applied to the throughput model, including the
+    `calc_obscuration` field-angle correction when
+    `EtcParams.obsc_fov_dep` is set (equal to the raw value otherwise).
+    This mirrors the ``instr_config`` precedent: resolved, run-effective
+    values live at the top level; user inputs live under ``params``.
     """
     return {
         "etc_version": _package_version(),
         "created": datetime.now(timezone.utc).isoformat(),
         "instr_config": Path(instr_config).name,
+        "degrade_resolved": resolve_degrade(params),
         "params": _params_to_meta(params),
     }
 

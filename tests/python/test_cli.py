@@ -20,6 +20,7 @@ from typer.testing import CliRunner
 
 from pfsspecsim.etc import engine
 from pfsspecsim.etc.cli import app
+from pfsspecsim.etc.params import load_params, resolve_degrade
 
 _TINY_Z = np.array([0.3, 0.8, 1.6])
 
@@ -101,12 +102,12 @@ class TestTomlAndCliOverridePriority:
         assert params_meta["mag"] == 20.0  # TOML kept (no CLI override)
 
     def test_cli_degrade_override_lands_in_meta_unresolved(self, tmp_path):
-        """`table.meta["params"]["degrade"]` records the resolved
-        (CLI > TOML > default) *input* value of `degrade`, not the
-        further obscuration-corrected value `params.resolve_degrade`
-        computes internally for the throughput model (`field_ang`/
-        `obsc_fov_dep` are separately recorded in meta, so the corrected
-        value remains reconstructible).
+        """Both degrade values are recorded in the written meta block:
+        `meta["params"]["degrade"]` is the raw (CLI > TOML > default)
+        *input* value, while the top-level `meta["degrade_resolved"]` is
+        `params.resolve_degrade`'s output -- the obscuration-corrected
+        value actually applied to the throughput model (mirroring the
+        resolved top-level `instr_config` precedent).
         """
         outdir = tmp_path / "out"
         result = runner.invoke(app, ["--degrade", "2.0", "--outdir", str(outdir)])
@@ -114,6 +115,23 @@ class TestTomlAndCliOverridePriority:
         table = Table.read(outdir / "ref.noise.ecsv", format="ascii.ecsv")
         assert table.meta["params"]["degrade"] == 2.0
         assert table.meta["params"]["obsc_fov_dep"] is True
+        # Defaults: field_ang=0.45, obsc_fov_dep=True -> resolved value is
+        # raw * calc_obscuration(0.45)'s correction factor.
+        expected = resolve_degrade(load_params(overrides={"degrade": 2.0}))
+        assert table.meta["degrade_resolved"] == pytest.approx(expected)
+        assert table.meta["degrade_resolved"] < 2.0  # correction shrinks it
+
+    def test_degrade_resolved_equals_raw_when_obsc_fov_dep_off(self, tmp_path):
+        outdir = tmp_path / "out"
+        result = runner.invoke(
+            app,
+            ["--degrade", "2.0", "--no-obsc-fov-dep", "--outdir", str(outdir)],
+        )
+        assert result.exit_code == 0, result.output
+        table = Table.read(outdir / "ref.noise.ecsv", format="ascii.ecsv")
+        assert table.meta["params"]["degrade"] == 2.0
+        assert table.meta["params"]["obsc_fov_dep"] is False
+        assert table.meta["degrade_resolved"] == 2.0
 
     def test_unknown_toml_key_is_a_clean_cli_error(self, tmp_path):
         toml_path = tmp_path / "bad.toml"
