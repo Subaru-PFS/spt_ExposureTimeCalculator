@@ -12,54 +12,18 @@ pixels, per column (col 3 = noise variance, col 4 = sky), across all arms.
 
 from __future__ import annotations
 
-from pathlib import Path
-
 import numpy as np
 import pytest
 
 from pfsspecsim.etc.config import load_spectrograph_config
 from pfsspecsim.etc.noise import compute_noise
-from pfsspecsim.etc.params import EtcParams
 
-TESTS_DIR = Path(__file__).resolve().parents[1]
-# Protected fixtures; never modify (see task brief).
-CONFIG_FIXTURE = TESTS_DIR / "PFS.20211220.dat"
-REFERENCE_FIXTURE = TESTS_DIR / "master_results" / "noise_omp.dat"
+from conftest import CONFIG_FIXTURE, MASTER_RESULTS_DIR, reference_params
+
+REFERENCE_FIXTURE = MASTER_RESULTS_DIR / "noise_omp.dat"
 
 RTOL = 1.5e-3
 MIN_PASS_FRACTION = 0.999
-
-
-def _reference_params() -> EtcParams:
-    """Parameters matching tests/gsetc_params.txt (see task brief).
-
-    The C run used config PFS.20211220.dat, degrade=1.0, sky_type='11005',
-    seeing=0.8, zenith_ang=45.0, galactic_ext=0.0, field_ang=0.675,
-    fiber_offset=0.0, moon=(30, 60, 0.0), exp_time=900, exp_num=8,
-    sky_sub_floor=0.01, diffuse_stray=0.02. obsc_fov_dep=False because the
-    C engine has no calc_obscuration correction (that was applied by the
-    old Python wrapper, not by gsetc.x, and the fixture was produced by
-    driving gsetc.x directly).
-    """
-    return EtcParams(
-        seeing=0.8,
-        zenith_ang=45.0,
-        galactic_ext=0.0,
-        field_ang=0.675,
-        fiber_offset=0.0,
-        moon_zenith_ang=30.0,
-        moon_target_ang=60.0,
-        moon_phase=0.0,
-        exp_time=900.0,
-        exp_num=8,
-        mag=22.5,
-        sky_type="11005",
-        sky_sub_floor=0.01,
-        diffuse_stray=0.02,
-        degrade=1.0,
-        obsc_fov_dep=False,
-        hgcdte_sutr=True,
-    )
 
 
 @pytest.mark.slow
@@ -69,7 +33,7 @@ def test_noise_matches_c_reference():
 
     spectro = load_spectrograph_config(CONFIG_FIXTURE, degrade=1.0)
     assert spectro.MR is False  # LR config: output arm id == internal ia.
-    result = compute_noise(_reference_params(), spectro)
+    result = compute_noise(reference_params(), spectro)
 
     failures = []
     for ia in range(spectro.N_arms):
