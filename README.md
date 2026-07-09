@@ -265,7 +265,7 @@ The pre-2.0 subprocess/C engine has been fully replaced by the pure-Python `pfss
 - **`pfsspecsim.pfsetc.Etc`** (`set_param`/`run`/`make_noise_model`/`make_snc`/`make_snl`/`make_sno2`/`run_multi`/...): same ALL_CAPS `params` dict as before, but `run()` now calls the pure-Python engine and every output *file* is now Astropy ECSV rather than the old whitespace-delimited plain text (the file name you configure via `OUTFILE_*` is unchanged; only the content format changed).
 - **`pfs-run-etc`/`pfs-gen-sim-spec`** console scripts (and the equivalent `python scripts/run_etc.py`/`python scripts/gen_sim_spec.py @file` invocations): unchanged argparse interfaces on top of the same `Etc`/`Pfsspec` compatibility layers.
 
-New code should use `pfs-etc`/`pfs-sim-spec` (or `pfsspecsim.etc.params.load_params` + `pfsspecsim.etc.engine.run_etc_files` directly) instead.
+New code should use `pfs-etc`/`pfs-sim-spec` (or `pfsspecsim.etc.load_params` + `run_etc_files`, and `pfsspecsim.simspec.load_params` + `run_sim_spec`, directly -- see "Calling the modern API directly from Python" below) instead.
 
 **Known behavioral difference in the chained `make_noise_model(); make_snc()` pattern**: the old C engine had no field-angle-dependent obscuration correction at all (`calc_obscuration` was applied only by the old *Python* wrapper on top of it, inconsistently, across the two calls in some scripts). The pure-Python engine resolves `degrade` (via `resolve_degrade`/`obsc_fov_dep`) exactly once per run and does not replicate that old double-application/compounding bug. Concretely, at the default `field_ang=0.45`, the obscuration correction factor is `calc_obscuration(0.45)[1] ~= 0.83`, so outputs produced through the compatibility layer's chained calls can differ from old, buggy, doubly-corrected runs by around that factor -- this is intentional; it is the C-parity path (single application of `resolve_degrade`) that was verified against the frozen C reference outputs (see "Numerical accuracy" below), not the old wrapper's compounding behavior.
 
@@ -299,6 +299,48 @@ sim.make_sim_spec()
 ```
 
 See `example/notebooks/ETC Example.ipynb` for a fuller example (the `omp_num_threads=` constructor argument on `Etc` is still accepted for backward compatibility but has no effect -- there is no OpenMP thread pool any more).
+
+### Calling the modern API directly from Python
+
+New scripts do not need the compatibility layers above. Both engines expose a
+snake_case dataclass of parameters plus a `run_*` function that returns the
+results in memory (and, for the ETC, a `run_*_files` variant that also writes
+the ECSV outputs):
+
+```python
+from pfsspecsim.etc import load_params, run_etc_files
+
+params = load_params(overrides={
+    "mag": 23.0,
+    "exp_time": 900,
+    "exp_num": 4,
+    "outdir": "out",
+})
+results = run_etc_files(params)  # writes out/ref.{noise,snc,snl}.ecsv
+print(results.snc)  # astropy.table.Table
+```
+
+```python
+from pfsspecsim.simspec import SimSpecParams, run_sim_spec
+
+params = SimSpecParams(
+    etc_file="out/ref.snc.ecsv",  # an outfile_snc ECSV written by pfs-etc
+    mag=20.0,
+    exp_num=4,
+    nrealize=1,
+    ascii_table="test",
+    write_fits=False,  # skip pfsArm/pfsObject FITS output
+)
+sim = run_sim_spec(params)
+print(sim.outdir, sim.asciiTable)  # 'out' 'test'
+```
+
+`load_params(toml_path=..., overrides=...)` (ETC) and
+`SimSpecParams(...)`/`simspec.load_params(toml_path=..., overrides=...)`
+(simulator) both accept the same snake_case TOML files and CLI-priority
+merging as the `pfs-etc`/`pfs-sim-spec` command-line tools -- see the "Full
+parameter reference" table above for the ETC's fields and
+`pfsspecsim/simspec.py`'s `SimSpecParams` dataclass for the simulator's.
 
 ## Multi processing
 
