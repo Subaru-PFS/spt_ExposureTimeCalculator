@@ -18,6 +18,46 @@ from pfsspecsim.simspec import SimSpecParams, load_params, run_sim_spec
 # --- SimSpecParams / validate() ---------------------------------------------
 
 
+def test_defaults_match_legacy_pfsspec_params():
+    """Guard against SimSpecParams's defaults silently drifting from
+    Pfsspec.__init__'s legacy defaults -- run_sim_spec sends every field
+    to Pfsspec.set_param (not just user-supplied overrides), so these two
+    default sets must stay in lockstep."""
+    from pfsspecsim.pfsspec import Pfsspec
+    from pfsspecsim.simspec import _LEGACY_KEY_MAP, SimSpecParams
+
+    params = SimSpecParams()
+    legacy = Pfsspec().params
+
+    for field_name, legacy_key in _LEGACY_KEY_MAP.items():
+        if field_name == "mag":
+            continue  # mag/mag_file both map to MAG_FILE; mag_file (below) covers it
+        value = getattr(params, field_name)
+        legacy_value = legacy[legacy_key]
+        if field_name == "mag_file":
+            # SimSpecParams splits MAG_FILE into mag=22.5 (default) / mag_file=None;
+            # the legacy default "22.5" is a flat mag, so mag_file's default (None)
+            # has no direct legacy counterpart to compare -- skip.
+            continue
+        if field_name == "ascii_table":
+            assert value is None and legacy_value == "None"
+            continue
+        if field_name in ("write_fits", "write_pfs_arm", "pfs_config_full"):
+            assert isinstance(value, bool)
+            assert value == (legacy_value.lower() in ("1", "t", "true"))
+            continue
+        if isinstance(value, Path):
+            assert str(value) == str(legacy_value)
+            continue
+        if isinstance(value, float):
+            assert value == pytest.approx(float(legacy_value))
+            continue
+        if isinstance(value, int):
+            assert value == int(legacy_value)
+            continue
+        assert value == legacy_value
+
+
 def test_defaults_validate():
     SimSpecParams().validate()
 

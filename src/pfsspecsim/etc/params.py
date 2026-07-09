@@ -187,6 +187,18 @@ def load_params(
             raise ValueError(f"Unknown override key(s): {sorted(unknown_overrides)}")
         values.update(overrides)
 
+    # If exactly one of `mag`/`mag_file` was actually supplied (by the TOML
+    # file and/or overrides) and the other was not mentioned at all, force
+    # the unmentioned one to `None` -- otherwise it would silently fall back
+    # to `EtcParams`'s own default (`mag=22.5`), spuriously colliding with
+    # the one the caller *did* specify and tripping `validate()`'s XOR
+    # check.
+    if ("mag" in values) != ("mag_file" in values):
+        if "mag" in values:
+            values["mag_file"] = None
+        else:
+            values["mag"] = None
+
     for name in _PATH_FIELDS:
         if values.get(name) is not None:
             values[name] = Path(values[name])

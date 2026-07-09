@@ -5,8 +5,8 @@ picklable dataclass of every `pfsspecsim.pfsspec.Pfsspec.params` entry
 (replacing the legacy mixed-case `EXP_NUM`/`MAG_FILE`/`outDir`/... dict keys
 with predictable snake_case field names), and `load_params` builds one with
 CLI-overrides > TOML > dataclass-default priority (same contract as
-`pfsspecsim.etc.params.load_params`). See `run_sim_spec` (added in a later
-task) for how a `SimSpecParams` drives the (unchanged) `Pfsspec` class.
+`pfsspecsim.etc.params.load_params`). See `run_sim_spec` (below) for how a
+`SimSpecParams` drives the (unchanged) `Pfsspec` class.
 
 `mag`/`mag_file` are split into two mutually-exclusive fields, exactly as
 `EtcParams.mag`/`mag_file` split the single legacy `MAG_FILE` parameter (see
