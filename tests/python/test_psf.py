@@ -198,6 +198,47 @@ class TestSpectroDist:
         np.testing.assert_allclose(via_mtf, internal, rtol=1e-12)
 
 
+class TestSpectroDistFastPathEquivalence:
+    """Pins `spectro_dist`'s closed-form fast path (scalar `pos` and
+    `sigma`, both `np.ndim(...) == 0`) against the pre-existing general
+    vectorized path, forced by supplying `pos`/`sigma` as length-L arrays
+    (see the module docstring's "When `pos` and `sigma` are both scalars"
+    closed-form derivation). Guards the Phase-1 performance optimization
+    (single `mtf @ W` matmul) against a silent transcription error, the
+    same way `TestSpectroDistScalarTranscription` guards the original
+    vectorization.
+    """
+
+    @pytest.mark.parametrize("i_arm", [ARM_SI, ARM_HGCDTE])
+    @pytest.mark.parametrize("sigma", [0.0, 0.3])
+    def test_scalar_sigma_matches_pos_array_path(self, spectro, i_arm, sigma):
+        lam = np.linspace(spectro.lmin[i_arm] + 5.0, spectro.lmax[i_arm] - 5.0, 50)
+        pos = 2.5
+        N = 8
+        fast = psf.spectro_dist(spectro, i_arm, lam, pos, sigma, N)
+        generic = psf.spectro_dist(
+            spectro, i_arm, lam, np.full(lam.size, pos), sigma, N
+        )
+        np.testing.assert_allclose(fast, generic, rtol=1e-12, atol=1e-15)
+
+    @pytest.mark.parametrize("i_arm", [ARM_SI, ARM_HGCDTE])
+    def test_array_sigma_matches_pos_and_sigma_array_path(self, spectro, i_arm):
+        lam = np.linspace(spectro.lmin[i_arm] + 5.0, spectro.lmax[i_arm] - 5.0, 50)
+        pos = 2.5
+        sigma = 0.3
+        N = 8
+        fast = psf.spectro_dist(spectro, i_arm, lam, pos, sigma, N)
+        generic = psf.spectro_dist(
+            spectro,
+            i_arm,
+            lam,
+            np.full(lam.size, pos),
+            np.full(lam.size, sigma),
+            N,
+        )
+        np.testing.assert_allclose(fast, generic, rtol=1e-12, atol=1e-15)
+
+
 class TestFracTrace:
     def test_including_adjacent_traces_captures_more_flux(self, spectro):
         lam = np.array([450.0, 550.0, 620.0])
@@ -209,6 +250,33 @@ class TestFracTrace:
         lam = np.array([450.0, 550.0, 620.0, 640.0])
         frac = psf.frac_trace(spectro, ARM_SI, lam, tr=1)
         assert frac.shape == lam.shape
+
+
+class TestFracTraceClosedFormEquivalence:
+    """Pins `frac_trace`'s closed-form single `mtf @ w` matvec (Phase-1
+    performance optimization) against a reference that reproduces the
+    pre-optimization implementation via `spectro_dist`'s general path:
+    sum `spectro_dist(..., pos_j, 0.0, N).sum(axis=1)` over the
+    `2*tr+1` trace positions `pos_j = 0.5*(N-1) + j*sep_pix` -- see
+    `frac_trace`'s docstring for the closed-form derivation this pins.
+    """
+
+    @pytest.mark.parametrize("i_arm", [ARM_SI, ARM_HGCDTE])
+    @pytest.mark.parametrize("tr", [0, 1])
+    def test_matches_summed_spectro_dist_reference(self, spectro, i_arm, tr):
+        lam = np.linspace(spectro.lmin[i_arm] + 5.0, spectro.lmax[i_arm] - 5.0, 50)
+        N = int(spectro.width[i_arm])
+        sep_pix = spectro.sep[i_arm] / spectro.pix[i_arm]
+
+        reference = np.zeros(lam.size)
+        for j in range(-tr, tr + 1):
+            pos_j = 0.5 * (N - 1) + j * sep_pix
+            reference += psf.spectro_dist(
+                spectro, i_arm, lam, np.full(lam.size, pos_j), 0.0, N
+            ).sum(axis=1)
+
+        result = psf.frac_trace(spectro, i_arm, lam, tr=tr)
+        np.testing.assert_allclose(result, reference, rtol=1e-12)
 
 
 class TestGeometricThroughput:

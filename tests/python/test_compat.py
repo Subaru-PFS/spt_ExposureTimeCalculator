@@ -54,12 +54,23 @@ class TestDeprecation:
         with pytest.warns(DeprecationWarning, match="deprecated"):
             pfsetc.Etc()
 
-    def test_omp_num_threads_accepted_and_ignored(self):
+    @pytest.mark.parametrize(
+        "omp_num_threads,expected_n_workers",
+        [
+            (2, 2),  # within [1, 3]: passed through
+            (16, 3),  # legacy default: capped at the 3 spectrograph arms
+            (1, 1),  # serial
+            (0, 1),  # subprocess-era harmless value: floored, not a crash
+        ],
+    )
+    def test_omp_num_threads_maps_to_n_workers(
+        self, omp_num_threads, expected_n_workers
+    ):
         with pytest.warns(DeprecationWarning):
-            etc = pfsetc.Etc(omp_num_threads=2)
-        assert etc.omp_num_threads == 2
-        # ... and doesn't otherwise influence anything: no ETC_SRC/HOME_DIR
-        # subprocess-era attribute is created.
+            etc = pfsetc.Etc(omp_num_threads=omp_num_threads)
+        assert etc.omp_num_threads == omp_num_threads
+        assert etc._to_new_params().n_workers == expected_n_workers
+        # ... and no ETC_SRC/HOME_DIR subprocess-era attribute is created.
         assert not hasattr(etc, "ETC_SRC")
 
 
@@ -89,9 +100,7 @@ class TestLoadParamFile:
     def test_old_style_keys_land_in_params(self, etc_instance, tmp_path):
         param_file = tmp_path / "old_style.par"
         param_file.write_text(
-            "# a comment line, ignored\n"
-            "SEEING 1.20\n"
-            "EXP_TIME 1200\n"
+            "# a comment line, ignored\n" "SEEING 1.20\n" "EXP_TIME 1200\n"
         )
         result = etc_instance.load_param_file(str(param_file))
         assert result == 0
@@ -158,9 +167,7 @@ class TestRunProducesEcsvAtOldDefaultPath:
         monkeypatch.chdir(tmp_path)
         etc_instance.run()
 
-        noise_tbl = Table.read(
-            tmp_path / "out" / "ref.noise.dat", format="ascii.ecsv"
-        )
+        noise_tbl = Table.read(tmp_path / "out" / "ref.noise.dat", format="ascii.ecsv")
         np.testing.assert_array_equal(
             etc_instance.nsm_arms, np.asarray(noise_tbl["arm"])
         )
@@ -178,9 +185,7 @@ class TestRunProducesEcsvAtOldDefaultPath:
         )
 
         snc_tbl = Table.read(tmp_path / "out" / "ref.snc.dat", format="ascii.ecsv")
-        np.testing.assert_array_equal(
-            etc_instance.snc_sncs, np.asarray(snc_tbl["snr"])
-        )
+        np.testing.assert_array_equal(etc_instance.snc_sncs, np.asarray(snc_tbl["snr"]))
         np.testing.assert_array_equal(
             etc_instance.snc_sigs, np.asarray(snc_tbl["signal"])
         )
@@ -209,9 +214,7 @@ class TestRunProducesEcsvAtOldDefaultPath:
         np.testing.assert_array_equal(
             etc_instance.sno2_sno2, np.asarray(sno2_tbl["snr_tot"])
         )
-        np.testing.assert_array_equal(
-            etc_instance.sno2_zsps, np.asarray(sno2_tbl["z"])
-        )
+        np.testing.assert_array_equal(etc_instance.sno2_zsps, np.asarray(sno2_tbl["z"]))
 
     def test_get_accessors_match_restored_attributes(
         self, tmp_path, monkeypatch, etc_instance

@@ -75,8 +75,11 @@ class Etc:
     Parameters
     ----------
     omp_num_threads : `int` (default: 16)
-        Deprecated, accepted for backward compatibility and ignored: the
-        pure-Python engine has no OpenMP thread pool to size.
+        Deprecated: the pure-Python engine has no OpenMP thread pool to
+        size, but `omp_num_threads` is still honored, mapped to the new
+        engine's `pfsspecsim.etc.params.EtcParams.n_workers` (arm-level
+        `ThreadPoolExecutor` parallelism), capped at 3 -- the number of
+        spectrograph arms, beyond which more workers cannot help.
 
     Examples
     ----------
@@ -88,8 +91,9 @@ class Etc:
             "pure-Python pfsspecsim.etc engine. Use "
             "pfsspecsim.etc.params.load_params + "
             "pfsspecsim.etc.engine.run_etc_files (or the `pfs-etc` CLI) "
-            "in new code. `omp_num_threads` is accepted for backward "
-            "compatibility and ignored.",
+            "in new code. `omp_num_threads` is now mapped to the new "
+            "engine's `n_workers` (arm-parallel thread count, capped at 3) "
+            "instead of being ignored.",
             DeprecationWarning,
             stacklevel=2,
         )
@@ -129,9 +133,9 @@ class Etc:
         self.params["OUTFILE_SNL"] = str(outdir / "ref.snl.dat")
         self.params["OUTFILE_OII"] = str(outdir / "ref.sno2.dat")
 
-        # Deprecated no-op attribute, kept only for backward compatibility
-        # with code that reads it back; the pure-Python engine has no
-        # thread pool to size.
+        # Deprecated attribute, kept readable for backward compatibility;
+        # `_to_new_params` maps it to `EtcParams.n_workers` (arm-parallel
+        # thread count, clamped to [1, 3]).
         self.omp_num_threads = omp_num_threads
 
     def set_param(self, param_name, param_value):
@@ -189,6 +193,10 @@ class Etc:
         `make_sno2` reproduce the old wrapper's per-method output
         selection and `NOISE_REUSED` overrides (pfsetc.py:397-490,
         548-578, 627-657, 705-734) on top of the common translation.
+
+        `omp_num_threads` (the `__init__` argument, stored on `self`) maps
+        to `EtcParams.n_workers`, capped at 3 (the number of spectrograph
+        arms -- see `__init__`'s docstring).
         """
         p = self.params
         mag_raw = p["MAG_FILE"]
@@ -233,6 +241,10 @@ class Etc:
             outfile_snc=_to_path_or_none(p["OUTFILE_SNC"]),
             outfile_snl=_to_path_or_none(p["OUTFILE_SNL"]),
             outfile_oii=_to_path_or_none(p["OUTFILE_OII"]),
+            # Clamp to [1, 3]: legacy callers could pass any int (0 or
+            # negative was a harmless no-op in the subprocess era) and must
+            # not trip EtcParams.validate()'s n_workers >= 1 check.
+            n_workers=max(1, min(self.omp_num_threads, 3)),
         )
         kwargs.update(field_overrides)
         return EtcParams(**kwargs)

@@ -46,6 +46,19 @@ materialized (see the memory-discipline note in the task brief). Likewise
 the 6-depth-point Si-defocus loop in `spectro_mtf` accumulates into an
 `(L, Nu)` pair of running sums rather than materializing `(L, 6, Nu)`.
 
+When `pos` and `sigma` are both scalars (one shared feature position and
+smearing width for every wavelength -- e.g. `frac_trace`'s window centers,
+or `noise.smoothed_transmission`'s fixed half-window `pos`), the identity
+factors further: every lambda-independent term folds into a single
+`(Nu, N)` weight matrix ``W[iu, ip] = 2*du * exp(-2*pi^2*sigma^2*u^2) *
+cos(2*pi*u*(pos-ip))`` and the whole distribution collapses to one
+``mtf @ W`` product -- no `(L, Nu)` trig/exp evaluation at all.
+`frac_trace` goes one step more: its sum over the `N`-pixel window and the
+`2*tr+1` trace positions is likewise lambda-independent, so the total
+captured fraction is a single matrix-vector product ``mtf @ w`` against a
+precomputable `(Nu,)` weight vector. Both closed forms are exact
+reassociations of the same sums (identical up to float rounding, ~1e-15).
+
 For very large `L` (e.g. an all-sky-lines call with `L` ~ a few thousand),
 callers can precompute `spectro_mtf` in `L`-chunks (see `constants.L_CHUNK`)
 and pass each chunk's MTF array in via `spectro_dist`'s/`frac_trace`'s `mtf`
@@ -210,12 +223,15 @@ def spectro_dist(
     The C code's `fr[ip] = sum_u 2*du*cos(2*pi*u*(pos-ip))*mtf1d` is
     rewritten via the cosine angle-addition identity as two `(L, Nu) @
     (Nu, N)` matrix products, so the underlying `(L, Nu, N)` triple-loop
-    tensor is never materialized (see module docstring).
+    tensor is never materialized. When `pos` and `sigma` are both scalars,
+    every lambda-independent factor folds into one `(Nu, N)` weight matrix
+    and the result is the single product `mtf @ W` -- an exact
+    reassociation of the same sum (see module docstring).
     """
     lam = np.atleast_1d(np.asarray(lam, dtype=np.float64))
     L = lam.size
-    pos = np.broadcast_to(np.asarray(pos, dtype=np.float64), (L,))
-    sigma = np.broadcast_to(np.asarray(sigma, dtype=np.float64), (L,))
+    scalar_pos = np.ndim(pos) == 0
+    scalar_sigma = np.ndim(sigma) == 0
 
     u = U_GRID
     if mtf is None:
@@ -227,9 +243,32 @@ def spectro_dist(
         )
 
     ip = np.arange(N, dtype=np.float64)
-    M = mtf * np.exp(-2.0 * np.pi**2 * sigma[:, None] ** 2 * u[None, :] ** 2)  # (L,Nu)
     cm = np.cos(2.0 * np.pi * np.outer(u, ip))  # (Nu, N), shared across lines
     sm = np.sin(2.0 * np.pi * np.outer(u, ip))  # (Nu, N)
+
+    if scalar_pos and scalar_sigma:
+        # Fast path (see module docstring): one shared (pos, sigma) for all
+        # lambda -> fold the trig/smearing terms into a lambda-independent
+        # (Nu, N) weight matrix and collapse to a single matmul.
+        ang_u = 2.0 * np.pi * u * float(pos)  # (Nu,)
+        w = np.cos(ang_u)[:, None] * cm + np.sin(ang_u)[:, None] * sm  # (Nu, N)
+        if float(sigma) != 0.0:
+            w *= np.exp(-2.0 * np.pi**2 * float(sigma) ** 2 * u**2)[:, None]
+        return 2.0 * _MTF_DU * (mtf @ w)  # (L, N)
+
+    pos = np.broadcast_to(np.asarray(pos, dtype=np.float64), (L,))
+    if scalar_sigma:
+        # Per-u smearing factor is shared by every lambda: apply it as a
+        # (Nu,)-row scale instead of a full (L, Nu) exp evaluation.
+        if float(sigma) != 0.0:
+            M = mtf * np.exp(-2.0 * np.pi**2 * float(sigma) ** 2 * u**2)[None, :]
+        else:
+            M = mtf
+    else:
+        sigma = np.broadcast_to(np.asarray(sigma, dtype=np.float64), (L,))
+        M = mtf * np.exp(
+            -2.0 * np.pi**2 * sigma[:, None] ** 2 * u[None, :] ** 2
+        )  # (L,Nu)
 
     ang = 2.0 * np.pi * u[None, :] * pos[:, None]  # (L, Nu)
     fr = 2.0 * _MTF_DU * ((M * np.cos(ang)) @ cm + (M * np.sin(ang)) @ sm)  # (L, N)
@@ -270,6 +309,16 @@ def frac_trace(
     -------
     ndarray, shape (L,)
         Fraction of flux captured, summed over the window and all traces.
+
+    Notes
+    -----
+    The window/trace double sum is lambda-independent (each trace's `pos`
+    is one scalar for every wavelength), so it folds into a single `(Nu,)`
+    weight vector ``w(u) = 2*du * sum_j [cos(2*pi*u*pos_j)*sum_ip
+    cos(2*pi*u*ip) + sin(2*pi*u*pos_j)*sum_ip sin(2*pi*u*ip)]`` and the
+    total captured fraction is the single matrix-vector product `mtf @ w`
+    -- an exact reassociation of the per-trace `spectro_dist` window sums
+    (see module docstring).
     """
     lam = np.atleast_1d(np.asarray(lam, dtype=np.float64))
     N = int(spectro.width[i_arm])
@@ -281,13 +330,18 @@ def frac_trace(
             f"{(lam.size, U_GRID.size)} (L=lam.size, Nu=U_GRID.size)"
         )
 
+    u = U_GRID
+    ip = np.arange(N, dtype=np.float64)
+    cm_sum = np.cos(2.0 * np.pi * np.outer(u, ip)).sum(axis=1)  # (Nu,)
+    sm_sum = np.sin(2.0 * np.pi * np.outer(u, ip)).sum(axis=1)  # (Nu,)
+
     sep_pix = spectro.sep[i_arm] / spectro.pix[i_arm]
-    total = np.zeros(lam.size)
+    w = np.zeros(u.size)
     for j in range(-tr, tr + 1):
         pos = 0.5 * (N - 1) + j * sep_pix
-        fr = spectro_dist(spectro, i_arm, lam, pos, 0.0, N, mtf=mtf)
-        total += fr.sum(axis=1)
-    return total
+        ang_u = 2.0 * np.pi * u * pos
+        w += np.cos(ang_u) * cm_sum + np.sin(ang_u) * sm_sum
+    return 2.0 * _MTF_DU * (mtf @ w)
 
 
 def geometric_throughput(

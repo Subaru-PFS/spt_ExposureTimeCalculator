@@ -64,6 +64,7 @@ def test_invalid_spectrograph_raises():
         ("line_width", 0.0),
         ("degrade", 0.0),
         ("min_snr", 0.0),
+        ("n_workers", 0),
     ],
 )
 def test_out_of_range_raises(field, value):

@@ -51,6 +51,7 @@ import dataclasses
 import numpy as np
 
 from . import psf
+from ._parallel import map_arms
 from .atmosphere import _sky_type_int, airmass, cont_opacity
 from .atmosphere import transmission as atm_transmission
 from .config import Spectrograph, field_interp
@@ -503,7 +504,23 @@ def compute_noise_arm(params: EtcParams, spectro: Spectrograph, i_arm: int) -> A
 def compute_noise(params: EtcParams, spectro: Spectrograph) -> NoiseResult:
     """Noise/sky vectors for every spectrograph arm (`gsGetNoise`, called
     once per arm by gsetc.c's `main`, gsetc.c:2004-2006).
+
+    Arms are independent, so this maps `compute_noise_arm` across
+    `params.n_workers` threads (`_parallel.map_arms`), collecting results in
+    `ia` order for bit-identical output regardless of `n_workers`. When the
+    sky-line model is enabled (`_line_model(params.sky_type) == 0x1`, the
+    same gate `compute_noise_arm` itself checks), `load_sky_lines()` is
+    warmed up once here, serially, before the parallel region: it is
+    `lru_cache`d, and doing the first (file-loading) call from a single
+    thread avoids relying on `lru_cache`'s own thread-safety for the
+    concurrent first calls that would otherwise all race on a cache miss.
     """
+    if _line_model(params.sky_type) == 0x1:
+        load_sky_lines()
     return NoiseResult(
-        arms=[compute_noise_arm(params, spectro, ia) for ia in range(spectro.N_arms)]
+        arms=map_arms(
+            lambda ia: compute_noise_arm(params, spectro, ia),
+            spectro.N_arms,
+            params.n_workers,
+        )
     )

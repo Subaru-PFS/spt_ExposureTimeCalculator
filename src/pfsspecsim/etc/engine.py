@@ -29,6 +29,7 @@ from astropy import units as u
 from astropy.table import Table, vstack
 
 from . import io, psf, snr
+from ._parallel import map_arms
 from .config import (
     MAXARM,
     Spectrograph,
@@ -264,13 +265,11 @@ def _compute_oii_curve(
         spectro, lam_mid, params.reff, params.fiber_offset, 0.0, params.seeing
     )
 
-    aeff = np.zeros(n, dtype=np.float64)
-    snr_arms = np.zeros((spectro.N_arms, n), dtype=np.float64)
-    for ia in range(spectro.N_arms):
+    def _arm(ia: int) -> tuple[np.ndarray, np.ndarray]:
         # Aeff gate (gsetc.c:2045): centered on the doublet midpoint,
         # distinct from the SNR gate below.
         aeff_gate = (spectro.lmin[ia] < lam_mid) & (lam_mid < spectro.lmax[ia])
-        aeff += np.where(
+        aeff_contrib = np.where(
             aeff_gate, psf.effective_area(spectro, ia, lam_mid, params.field_ang), 0.0
         )
 
@@ -296,7 +295,19 @@ def _compute_oii_curve(
             ),
             z,
         )
-        snr_arms[ia] = raw * sqrt_nexp
+        return aeff_contrib, raw * sqrt_nexp
+
+    aeff = np.zeros(n, dtype=np.float64)
+    snr_arms = np.zeros((spectro.N_arms, n), dtype=np.float64)
+    # Aggregated in fixed ia=0,1,2 order (map_arms preserves input order
+    # regardless of n_workers), so `aeff`'s running sum -- and thus the
+    # exact floating-point result -- matches the serial code path bit for
+    # bit (see _parallel.py's module docstring).
+    for ia, (aeff_contrib, snr_row) in enumerate(
+        map_arms(_arm, spectro.N_arms, params.n_workers)
+    ):
+        aeff += aeff_contrib
+        snr_arms[ia] = snr_row
 
     snr_tot = np.sqrt(np.sum(snr_arms**2, axis=0))
 
@@ -337,11 +348,9 @@ def _compute_snl(
         spectro, lam, params.reff, params.fiber_offset, params.field_ang, params.seeing
     )
 
-    aeff = np.zeros(n, dtype=np.float64)
-    snr_arms = np.zeros((spectro.N_arms, n), dtype=np.float64)
-    for ia in range(spectro.N_arms):
+    def _arm(ia: int) -> tuple[np.ndarray, np.ndarray]:
         gate = (spectro.lmin[ia] < lam) & (lam < spectro.lmax[ia])
-        aeff += np.where(
+        aeff_contrib = np.where(
             gate, psf.effective_area(spectro, ia, lam, params.field_ang), 0.0
         )
 
@@ -364,7 +373,16 @@ def _compute_snl(
             z,
             mag_at_lam,
         )
-        snr_arms[ia] = raw * sqrt_nexp
+        return aeff_contrib, raw * sqrt_nexp
+
+    aeff = np.zeros(n, dtype=np.float64)
+    snr_arms = np.zeros((spectro.N_arms, n), dtype=np.float64)
+    # ia=0,1,2 aggregation order, see _compute_oii_curve's comment above.
+    for ia, (aeff_contrib, snr_row) in enumerate(
+        map_arms(_arm, spectro.N_arms, params.n_workers)
+    ):
+        aeff += aeff_contrib
+        snr_arms[ia] = snr_row
 
     snr_tot = np.sqrt(np.sum(snr_arms**2, axis=0))
 
@@ -393,8 +411,8 @@ def _compute_snc(
     magspec: MagSpec,
 ) -> Table:
     sqrt_nexp = math.sqrt(params.exp_num)
-    tables = []
-    for ia in range(spectro.N_arms):
+
+    def _arm(ia: int) -> Table:
         npix = int(spectro.npix[ia])
         # QUIRK, preserved verbatim (gsetc.c:2109, snr.snr_continuum's own
         # convention): pixel *left edge*, unlike the noise table's pixel
@@ -406,23 +424,25 @@ def _compute_snc(
             params, spectro, ia, mag_at_lam, params.reff, noise_arrays[ia]
         )
 
-        tables.append(
-            Table(
-                {
-                    "arm": np.full(npix, spectro_arm(ia, spectro.MR), dtype=np.int64),
-                    "pixel": np.arange(npix, dtype=np.int64),
-                    "wavelength": lam * u.nm,
-                    "snr": result.snr * sqrt_nexp,
-                    "signal": result.counts * u.electron,
-                    "noise_variance": noise_arrays[ia] * u.electron**2,
-                    "noise_variance_tot": result.noise * u.electron**2,
-                    "input_mag": result.mag,
-                    "conversion_factor": result.trans,
-                    "sampling_factor": result.sample_factor,
-                    "sky": sky_arrays[ia] * u.electron,
-                }
-            )
+        return Table(
+            {
+                "arm": np.full(npix, spectro_arm(ia, spectro.MR), dtype=np.int64),
+                "pixel": np.arange(npix, dtype=np.int64),
+                "wavelength": lam * u.nm,
+                "snr": result.snr * sqrt_nexp,
+                "signal": result.counts * u.electron,
+                "noise_variance": noise_arrays[ia] * u.electron**2,
+                "noise_variance_tot": result.noise * u.electron**2,
+                "input_mag": result.mag,
+                "conversion_factor": result.trans,
+                "sampling_factor": result.sample_factor,
+                "sky": sky_arrays[ia] * u.electron,
+            }
         )
+
+    # map_arms returns results in ia order, so this vstack is identical to
+    # the serial ia=0,1,2 loop's (see _parallel.py's module docstring).
+    tables = map_arms(_arm, spectro.N_arms, params.n_workers)
     return vstack(tables)
 
 
@@ -442,8 +462,7 @@ def _compute_mdlf(
     n = z.size
     sqrt_nexp = math.sqrt(params.exp_num)
 
-    snr_arms = np.zeros((spectro.N_arms, n), dtype=np.float64)
-    for ia in range(spectro.N_arms):
+    def _arm(ia: int) -> np.ndarray:
         gate = (spectro.lmin[ia] < _OII_GATE_HI_REST * (1.0 + z)) & (
             _OII_GATE_LO_REST * (1.0 + z) < spectro.lmax[ia]
         )
@@ -466,7 +485,11 @@ def _compute_mdlf(
             ),
             z,
         )
-        snr_arms[ia] = raw * sqrt_nexp / 1.6
+        return raw * sqrt_nexp / 1.6
+
+    snr_arms = np.zeros((spectro.N_arms, n), dtype=np.float64)
+    for ia, row in enumerate(map_arms(_arm, spectro.N_arms, params.n_workers)):
+        snr_arms[ia] = row
 
     snrtot = np.sqrt(np.sum(snr_arms**2, axis=0))
     snrmax16 = max(1.0, float(np.max(snrtot)) if snrtot.size else 1.0)
@@ -505,13 +528,13 @@ def _compute_oii_catalog(
     # (implicitly 0, so they fail the `min_snr` cut below regardless).
     eligible = (foii >= mdlf) & (r_eff >= 0.0)
 
-    snr_arms = np.zeros((spectro.N_arms, n), dtype=np.float64)
-    for ia in range(spectro.N_arms):
+    def _arm(ia: int) -> np.ndarray:
         gate = (
             eligible
             & (spectro.lmin[ia] < _OII_GATE_HI_REST * (1.0 + z))
             & (_OII_GATE_LO_REST * (1.0 + z) < spectro.lmax[ia])
         )
+        row = np.zeros(n, dtype=np.float64)
         # `snr.snr_oii`'s `r_eff` is a *scalar* per call, exactly like the
         # C original's (gsetc.c:2154 calls gsGetSNR_OII once per catalog
         # row with that row's r_eff; `psf.geometric_throughput` likewise
@@ -526,7 +549,7 @@ def _compute_oii_catalog(
             rows = gated[r_eff[gated] == r_val]
             for start in range(0, rows.size, Z_CHUNK):
                 sl = rows[start : start + Z_CHUNK]
-                snr_arms[ia][sl] = snr.snr_oii(
+                row[sl] = snr.snr_oii(
                     params,
                     spectro,
                     ia,
@@ -539,7 +562,12 @@ def _compute_oii_catalog(
                     noise_arrays[ia],
                     snr_type=2,
                 )
-        snr_arms[ia] *= sqrt_nexp
+        row *= sqrt_nexp
+        return row
+
+    snr_arms = np.zeros((spectro.N_arms, n), dtype=np.float64)
+    for ia, row in enumerate(map_arms(_arm, spectro.N_arms, params.n_workers)):
+        snr_arms[ia] = row
 
     snrtot = np.sqrt(np.sum(snr_arms**2, axis=0))
     detected = snrtot >= params.min_snr

@@ -13,6 +13,7 @@ test suites already exercise that at full size without a runtime problem.
 
 from __future__ import annotations
 
+import dataclasses
 from pathlib import Path
 
 import numpy as np
@@ -25,6 +26,8 @@ from pfsspecsim.etc.config import (
     spectro_arm,
 )
 from pfsspecsim.etc.params import EtcParams
+
+from conftest import CONFIG_FIXTURE, MAG_FILE_FIXTURE, reference_params
 
 _TINY_Z = np.array([0.3, 0.8, 1.6])
 
@@ -423,3 +426,39 @@ class TestMapMasked:
             5, np.zeros(5, dtype=bool), 2, lambda c: c, np.arange(5, dtype=np.float64)
         )
         np.testing.assert_array_equal(out, np.zeros(5))
+
+
+class TestArmParallelism:
+    def test_serial_and_parallel_are_bit_identical(self, monkeypatch):
+        # Small, fixed z grids (module-local, distinct from the
+        # module-autouse `_tiny_z_grids` fixture's `_TINY_Z`, per the task
+        # brief) -- just enough points to exercise every column-assembly
+        # code path without the full-resolution sweep cost.
+        tiny_z = np.arange(0.4, 0.5, 0.01)
+        monkeypatch.setattr(engine, "_oii_curve_z_grid", lambda: tiny_z)
+        monkeypatch.setattr(engine, "_snl_z_grid", lambda: tiny_z)
+
+        base = reference_params(
+            instr_config=CONFIG_FIXTURE,
+            mag=None,
+            mag_file=MAG_FILE_FIXTURE,
+            reff=0.3,
+            outfile_oii=Path("oii_curve.ecsv"),
+        )
+
+        serial = engine.run_etc(dataclasses.replace(base, n_workers=1))
+        parallel = engine.run_etc(dataclasses.replace(base, n_workers=3))
+
+        for name in ("noise", "snc", "snl", "oii_curve"):
+            serial_table = getattr(serial, name)
+            parallel_table = getattr(parallel, name)
+            assert serial_table.colnames == parallel_table.colnames
+            for col in serial_table.colnames:
+                # Bit-identical, not merely close: arm-level parallelism
+                # must not perturb floating-point aggregation order (see
+                # `_parallel.py`'s module docstring).
+                np.testing.assert_array_equal(
+                    np.asarray(serial_table[col]),
+                    np.asarray(parallel_table[col]),
+                    err_msg=f"table={name!r} column={col!r}",
+                )

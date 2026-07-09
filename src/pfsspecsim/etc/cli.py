@@ -159,6 +159,11 @@ def main(
         None, help="Minimum SNR for [OII] catalog detection (default: 9.0)."
     ),
     # --- Execution control / output ----------------------------------------
+    n_workers: int | None = typer.Option(
+        None,
+        help="Arm-parallel thread count; 1=serial (default: 3). Results are "
+        "identical regardless of this value.",
+    ),
     noise_reused: bool | None = typer.Option(
         None,
         "--noise-reused/--no-noise-reused",
@@ -221,7 +226,9 @@ def main(
 
     try:
         results = engine.run_etc_files(params)
-    except Exception as exc:  # noqa: BLE001 -- surface any engine failure as a clean CLI error
+    except (
+        Exception
+    ) as exc:  # noqa: BLE001 -- surface any engine failure as a clean CLI error
         typer.echo(f"Error: {exc}", err=True)
         raise typer.Exit(code=1) from exc
 

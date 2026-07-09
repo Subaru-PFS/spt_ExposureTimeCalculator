@@ -209,6 +209,7 @@ def _continuum_counts_at(
     src_cont: np.ndarray,
     trans: np.ndarray,
     apply_sample_factor: bool = True,
+    mtf: np.ndarray | None = None,
 ) -> np.ndarray:
     """Detected per-pixel continuum counts from a source of flux density
     `src_cont` (erg/cm2/s/Hz) at `lam_eval`, shared by `snr_single`,
@@ -223,6 +224,15 @@ def _continuum_counts_at(
     `snr_continuum` keeps its `sample_factor` separate from the returned
     `.counts` curve (gsetc.c:1440-1441), so it passes
     `apply_sample_factor=False` and applies the factor itself afterwards.
+
+    Parameters
+    ----------
+    mtf : ndarray, shape (lam_eval.size, Nu), optional
+        Precomputed `psf.spectro_mtf(spectro, i_arm, lam_eval, psf.U_GRID)`,
+        forwarded to `psf.frac_trace`; computed internally there if omitted.
+        Callers that also need the MTF elsewhere at the same
+        `(spectro, i_arm, lam_eval)` should pass it in to share the one
+        expensive MTF evaluation.
     """
     dl = spectro.dl[i_arm]
     counts = (
@@ -237,7 +247,7 @@ def _continuum_counts_at(
             params.field_ang,
             params.seeing,
         )
-        * psf.frac_trace(spectro, i_arm, lam_eval, tr=0)
+        * psf.frac_trace(spectro, i_arm, lam_eval, tr=0, mtf=mtf)
         * PHOTONS_PER_ERG_1NM
         * lam_eval
         * params.exp_time
@@ -258,6 +268,7 @@ def get_signal(
     F,
     sigma_v,
     r_eff: float,
+    mtf: np.ndarray | None = None,
 ) -> tuple[np.ndarray, np.ndarray]:
     """Per-feature signal window, `gsGetSignal` (gsetc.c:1071-1118).
 
@@ -275,6 +286,12 @@ def get_signal(
         Velocity dispersion, km/s.
     r_eff : float
         Source effective radius, arcsec (0 for a point source).
+    mtf : ndarray, shape (lam.size, Nu), optional
+        Precomputed `psf.spectro_mtf(spectro, i_arm, lam, psf.U_GRID)`,
+        shared between the `psf.frac_trace` and `psf.spectro_dist` calls
+        below; computed once internally if omitted. Callers that need the
+        MTF elsewhere at the same `(spectro, i_arm, lam)` (e.g. `snr_single`
+        sharing it with `_continuum_counts_at`) should pass it in.
 
     Returns
     -------
@@ -304,6 +321,9 @@ def get_signal(
         lam, sigma_v, params.zenith_ang, params.sky_type
     )
 
+    if mtf is None:
+        mtf = psf.spectro_mtf(spectro, i_arm, lam, psf.U_GRID)
+
     counts = (
         F
         * trans
@@ -311,7 +331,7 @@ def get_signal(
         * psf.geometric_throughput(
             spectro, lam, r_eff, params.fiber_offset, params.field_ang, params.seeing
         )
-        * psf.frac_trace(spectro, i_arm, lam, tr=0)
+        * psf.frac_trace(spectro, i_arm, lam, tr=0, mtf=mtf)
         * PHOTONS_PER_ERG_1NM
         * lam
         * params.exp_time
@@ -321,7 +341,7 @@ def get_signal(
 
     sigma_pix = sigma_v / C_KM_PER_S * lam / dl
     fr = psf.spectro_dist(
-        spectro, i_arm, lam, pos - iref, sigma_pix, NP_WIN
+        spectro, i_arm, lam, pos - iref, sigma_pix, NP_WIN, mtf=mtf
     )  # (Nz, NP_WIN)
 
     signal_window = fr * counts[:, None]
@@ -418,12 +438,20 @@ def snr_single(
     # module docstring.
     trans = atm_transmission(lam_arr, params.zenith_ang, params.sky_type)
 
+    # One spectro_mtf evaluation, shared by _continuum_counts_at (its
+    # frac_trace call) and get_signal (its frac_trace/spectro_dist calls)
+    # below -- both are evaluated at this same lam_arr, so the MTF (the
+    # dominant cost of this whole function) only needs computing once.
+    mtf = psf.spectro_mtf(spectro, i_arm, lam_arr, psf.U_GRID)
+
     src_cont = AB_ZEROPOINT_CGS * 10.0 ** (-0.4 * mag_arr)
     counts = _continuum_counts_at(
-        params, spectro, i_arm, lam_arr, r_eff, src_cont, trans
+        params, spectro, i_arm, lam_arr, r_eff, src_cont, trans, mtf=mtf
     )
 
-    signal_window, iref = get_signal(params, spectro, i_arm, lam_arr, F, sigma_v, r_eff)
+    signal_window, iref = get_signal(
+        params, spectro, i_arm, lam_arr, F, sigma_v, r_eff, mtf=mtf
+    )
     noise = np.asarray(noise, dtype=np.float64)
     noise_window = noise[iref[:, None] + np.arange(NP_WIN)[None, :]] + counts[:, None]
     snr = _reduce_window(signal_window, noise_window, snr_type)
@@ -609,8 +637,13 @@ def snr_continuum(
 
     sample_factor = sample_factor_for_arm(spectro, i_arm, params.hgcdte_sutr)
 
+    # One spectro_mtf evaluation, shared by smoothed_transmission and
+    # _continuum_counts_at (its frac_trace call) below -- both are
+    # evaluated at this same lam_pix.
+    mtf = psf.spectro_mtf(spectro, i_arm, lam_pix, psf.U_GRID)
+
     trans = smoothed_transmission(
-        spectro, i_arm, lam_pix, params.zenith_ang, params.sky_type
+        spectro, i_arm, lam_pix, params.zenith_ang, params.sky_type, mtf=mtf
     )
 
     src_cont = AB_ZEROPOINT_CGS * 10.0 ** (-0.4 * mag_arr)
@@ -623,6 +656,7 @@ def snr_continuum(
         src_cont,
         trans,
         apply_sample_factor=False,
+        mtf=mtf,
     )
 
     noise = np.asarray(noise, dtype=np.float64)

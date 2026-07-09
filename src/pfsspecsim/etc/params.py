@@ -83,6 +83,7 @@ class EtcParams:
     min_snr: float = 9.0
 
     # Execution control / output
+    n_workers: int = 3  # arm-parallel thread count; 1=serial; result is unchanged
     noise_reused: bool = False
     overwrite: bool = True
     outdir: Path = Path("out")
@@ -139,6 +140,8 @@ class EtcParams:
             raise ValueError(f"diffuse_stray must be >= 0, got {self.diffuse_stray}")
         if self.min_snr <= 0:
             raise ValueError(f"min_snr must be positive, got {self.min_snr}")
+        if self.n_workers < 1:
+            raise ValueError(f"n_workers must be >= 1, got {self.n_workers}")
         if self.spectrograph.lower() not in _VALID_SPECTROGRAPHS:
             raise ValueError(
                 "spectrograph must be one of "
