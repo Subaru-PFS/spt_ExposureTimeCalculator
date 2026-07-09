@@ -1,38 +1,40 @@
-"""`typer` CLI app (`pfs-sim-spec`) wrapping `pfsspecsim.pfsspec.Pfsspec`.
+"""`typer` CLI app (`pfs-sim-spec`) wrapping `pfsspecsim.simspec.run_sim_spec`.
 
-Mirrors `pfsspecsim.etc.cli`'s pattern (see that module's docstring for the
-full rationale): every `Pfsspec.params` entry has a corresponding
-snake_case CLI option, every option defaults to `None` -- a sentinel
-meaning "not given on the command line" -- and an optional `--config` TOML
-file can supply overrides too, with priority CLI > TOML > `Pfsspec`'s own
-built-in defaults (`Pfsspec.__init__`). Unlike `EtcParams`, `Pfsspec` has no
-dataclass of its own (legacy mixed-case `params` dict, e.g. `EXP_NUM`,
-`MAG_FILE`, `countsMin`, `outDir`, ...); `_KEY_MAP` below is this module's
-own snake_case-option -> legacy-dict-key migration table, used only here.
+Mirrors `pfsspecsim.etc.cli`'s pattern: every `SimSpecParams` field has a
+corresponding snake_case CLI option, every option defaults to `None` -- a
+sentinel meaning "not given on the command line" -- and an optional
+`--config` TOML file can supply overrides too, with priority
+CLI > TOML > `SimSpecParams`'s own dataclass defaults (`simspec.load_params`).
 
-`--mag`/`--mag-file` are a mutually exclusive pair mapping onto the single
-legacy `MAG_FILE` parameter (`Pfsspec.make_sim_spec` tells them apart by
-whether `float()` succeeds on it -- see pfsspec.py:175-178): passing both
-on the command line is a CLI-usage error (exit code != 0); passing either
-one alone clears the other from `overrides` so a TOML file's opposite
-setting cannot leak through into the merged value.
+`--mag`/`--mag-file` are a genuinely mutually-exclusive pair (both fields on
+`SimSpecParams`, mirroring `EtcParams.mag`/`mag_file`): passing both on the
+command line is a CLI-usage error (exit code != 0) before `load_params` even
+runs; passing either one alone also clears the other in the `overrides` dict
+so a TOML file's opposite setting cannot leak through into the merged value.
 
-`--etc-file` (the legacy `etcFile` parameter) is read by
-`Pfsspec.make_sim_spec` as an Astropy ECSV file (T14), typically the
-`outfile_snc` ECSV written by `pfs-etc`; old-format plain-text files are
-still accepted via that method's fallback path.
+`--fiber-mag`/`--filter-name` are comma-separated strings on the command
+line (there is no repeated-option or list syntax here), parsed into
+`SimSpecParams.fiber_mag`/`filter_name` (`list[float]`/`list[str]`) before
+being added to `overrides`; a TOML file or a direct `SimSpecParams(...)` call
+supplies these as native TOML/Python arrays instead.
+
+`--etc-file` (`SimSpecParams.etc_file`) is read by `Pfsspec.make_sim_spec`
+as an Astropy ECSV file (T14), typically the `outfile_snc` ECSV written by
+`pfs-etc`; old-format plain-text files are still accepted via that method's
+fallback path.
 """
 
 from __future__ import annotations
 
-import tomllib
+import dataclasses
 from importlib import metadata
 from pathlib import Path
 from typing import Any
 
 import typer
 
-from .pfsspec import Pfsspec
+from . import simspec
+from .simspec import SimSpecParams
 
 #: Distribution name to look up for `--version` (see `pyproject.toml`).
 _PKG_NAME = "pfsspecsim"
@@ -44,46 +46,7 @@ app = typer.Typer(
     help="PFS spectral simulator (pure-Python engine).",
 )
 
-#: CLI/TOML snake_case option name -> legacy `Pfsspec.params` dict key.
-#: `mag`/`mag_file` both map onto the single `MAG_FILE` legacy key; which
-#: one wins is resolved by the mutual-exclusivity handling in `main`.
-_KEY_MAP: dict[str, str] = {
-    "exp_num": "EXP_NUM",
-    "mag": "MAG_FILE",
-    "mag_file": "MAG_FILE",
-    "counts_min": "countsMin",
-    "etc_file": "etcFile",
-    "nrealize": "nrealize",
-    "out_dir": "outDir",
-    "ascii_table": "asciiTable",
-    "ra": "ra",
-    "dec": "dec",
-    "tract": "tract",
-    "patch": "patch",
-    "visit0": "visit0",
-    "cat_id": "catId",
-    "obj_id": "objId",
-    "fiber_id": "fiberId",
-    "fiber_mag": "fiberMag",
-    "filter_name": "filterName",
-    "spectrograph": "spectrograph",
-    "pfs_config_full": "pfsConfigFull",
-    "write_fits": "writeFits",
-    "write_pfs_arm": "writePfsArm",
-    "plot_arm_set": "plotArmSet",
-    "plot_object": "plotObject",
-    "sky_sub_floor": "SKY_SUB_FLOOR",
-    "sky_sub_mode": "SKY_SUB_MODE",
-    "sky_sub_seed": "SKY_SUB_SEED",
-}
-
-#: Legacy keys whose value `Pfsspec.make_sim_spec` parses with `strToBool`
-#: (pfsspec.py's own "1"/"t"/"true" vs "0"/"f"/"false" string convention,
-#: case-insensitive) rather than treating it as a native Python bool.
-_STRTOBOOL_KEYS = frozenset({"writeFits", "writePfsArm", "pfsConfigFull"})
-
-#: Every recognized CLI/TOML option name (the keys of `_KEY_MAP`).
-_FIELD_NAMES = frozenset(_KEY_MAP)
+_FIELD_NAMES = frozenset(f.name for f in dataclasses.fields(SimSpecParams))
 
 
 def _package_version() -> str:
@@ -99,35 +62,12 @@ def _version_callback(value: bool) -> None:
         raise typer.Exit()
 
 
-def _load_toml(path: Path) -> dict[str, Any]:
-    with open(path, "rb") as fh:
-        data = tomllib.load(fh)
-    unknown = set(data) - _FIELD_NAMES
-    if unknown:
-        raise ValueError(f"Unknown key(s) in TOML file {path}: {sorted(unknown)}")
-    return data
-
-
-def _apply_overrides(sim: Pfsspec, overrides: dict[str, Any]) -> None:
-    """Push each override through `Pfsspec.set_param`, translating the
-    snake_case name to its legacy dict key and adapting the value to the
-    string convention `make_sim_spec` expects for `_STRTOBOOL_KEYS`
-    (`plotArmSet`/`plotObject` are consumed as native Python bools by
-    `make_sim_spec`, so those two pass through unchanged).
-    """
-    for name, value in overrides.items():
-        key = _KEY_MAP[name]
-        if key in _STRTOBOOL_KEYS and isinstance(value, bool):
-            value = "true" if value else "false"
-        sim.set_param(key, value)
-
-
 @app.command()
 def main(
     config: Path | None = typer.Option(
         None,
         "--config",
-        help="TOML file of Pfsspec parameter overrides (snake_case keys).",
+        help="TOML file of SimSpecParams overrides (snake_case keys).",
     ),
     etc_file: Path | None = typer.Option(
         None,
@@ -150,7 +90,9 @@ def main(
     nrealize: int | None = typer.Option(
         None, help="Number of realizations (default: 1)."
     ),
-    out_dir: Path | None = typer.Option(None, help="Output directory (default: 'out')."),
+    out_dir: Path | None = typer.Option(
+        None, help="Output directory (default: 'out')."
+    ),
     ascii_table: str | None = typer.Option(
         None,
         help="Ascii table basename to also write, relative to --out-dir "
@@ -229,7 +171,7 @@ def main(
         )
         raise typer.Exit(code=1)
 
-    _special = frozenset({"mag", "mag_file", "fiber_mag", "filter_name"})
+    _special = frozenset({"fiber_mag", "filter_name"})
     local_values = locals()
     overrides: dict[str, Any] = {
         name: local_values[name]
@@ -237,47 +179,22 @@ def main(
         if name not in _special and local_values.get(name) is not None
     }
     if mag is not None:
-        overrides["mag"] = mag
+        overrides["mag_file"] = None
     if mag_file is not None:
-        overrides["mag_file"] = mag_file
+        overrides["mag"] = None
     if fiber_mag is not None:
         overrides["fiber_mag"] = [float(v) for v in fiber_mag.split(",")]
     if filter_name is not None:
         overrides["filter_name"] = [v.strip() for v in filter_name.split(",")]
 
     try:
-        toml_overrides = _load_toml(config) if config is not None else {}
+        params = simspec.load_params(config, overrides=overrides)
     except (ValueError, OSError) as exc:
         typer.echo(f"Error: {exc}", err=True)
         raise typer.Exit(code=1) from exc
 
-    # Both `mag` and `mag_file` map onto the single legacy `MAG_FILE` key,
-    # so the merge must never end up holding both: passing either on the
-    # command line clears the other from the TOML layer (same rationale as
-    # pfs-etc's handling), and a TOML file supplying both is an error
-    # rather than a silent dict-order race.
-    if mag is not None:
-        toml_overrides.pop("mag_file", None)
-    if mag_file is not None:
-        toml_overrides.pop("mag", None)
-    if "mag" in toml_overrides and "mag_file" in toml_overrides:
-        typer.echo(
-            "Error: 'mag' and 'mag_file' are mutually exclusive in the TOML "
-            "config; give at most one.",
-            err=True,
-        )
-        raise typer.Exit(code=1)
-
-    merged = dict(toml_overrides)
-    merged.update(overrides)
-
-    sim = Pfsspec()
     try:
-        _apply_overrides(sim, merged)
-        result = sim.make_sim_spec()
-    except SystemExit as exc:
-        typer.echo(f"Error: {exc}", err=True)
-        raise typer.Exit(code=1) from exc
+        sim = simspec.run_sim_spec(params)
     except Exception as exc:  # noqa: BLE001 -- surface any failure as a clean CLI error
         typer.echo(f"Error: {exc}", err=True)
         raise typer.Exit(code=1) from exc

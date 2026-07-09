@@ -25,6 +25,7 @@ exercised -- T14's brief says the datamodel output path is untouched, and
 
 from __future__ import annotations
 
+import dataclasses
 import inspect
 from pathlib import Path
 
@@ -34,7 +35,7 @@ from astropy.table import Table
 from typer.testing import CliRunner
 
 from conftest import CONFIG_FIXTURE, reference_params
-from pfsspecsim import cli, pfsspec
+from pfsspecsim import cli, pfsspec, simspec
 from pfsspecsim.cli import app
 from pfsspecsim.etc import engine
 
@@ -188,20 +189,17 @@ class TestMakeSimSpecEcsv:
         assert out_a.read_bytes() != out_b.read_bytes()
 
 
-class TestCliContractMatchesKeyMap:
-    def test_every_key_map_entry_has_a_cli_parameter(self):
-        # `_apply_overrides`/`main`'s `overrides` dict indexes `locals()`
-        # (and, separately, `_KEY_MAP`) by these same snake_case names; if
-        # a `_KEY_MAP` entry were ever renamed without updating `main`'s
-        # parameter list, that would silently drop the option (a `main`
-        # parameter that's simply missing raises no error -- `locals()`
-        # just wouldn't have that key, so `_FIELD_NAMES`'s dict
-        # comprehension in `main` would KeyError instead, but only once
-        # that particular option is actually passed). Guard the contract
-        # directly by introspection instead.
+class TestCliContractMatchesSimSpecParams:
+    def test_every_field_has_a_cli_parameter(self):
+        # `main`'s `overrides` dict comprehension indexes `locals()` by
+        # `_FIELD_NAMES` (== `SimSpecParams`'s field names); if a field were
+        # ever added to `SimSpecParams` without a matching CLI parameter,
+        # `main`'s comprehension would silently skip it whenever that field
+        # is actually passed. Guard the contract directly by introspection.
         cli_param_names = set(inspect.signature(cli.main).parameters)
-        missing = set(cli._KEY_MAP) - cli_param_names
-        assert not missing, f"_KEY_MAP entry(ies) with no CLI parameter: {missing}"
+        field_names = {f.name for f in dataclasses.fields(simspec.SimSpecParams)}
+        missing = field_names - cli_param_names
+        assert not missing, f"SimSpecParams field(s) with no CLI parameter: {missing}"
 
 
 class TestCliHelpAndVersion:
@@ -223,9 +221,7 @@ class TestCliErrors:
     def test_mag_and_mag_file_together_is_an_error(self, tmp_path):
         mag_file = tmp_path / "mag.dat"
         mag_file.write_text("400.0 20.0\n1100.0 20.0\n")
-        result = runner.invoke(
-            app, ["--mag", "20.0", "--mag-file", str(mag_file)]
-        )
+        result = runner.invoke(app, ["--mag", "20.0", "--mag-file", str(mag_file)])
         assert result.exit_code != 0
         assert "mutually exclusive" in result.output
 
