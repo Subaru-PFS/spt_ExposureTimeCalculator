@@ -31,7 +31,8 @@ def test_defaults_match_legacy_pfsspec_params():
 
     for field_name, legacy_key in _LEGACY_KEY_MAP.items():
         if field_name == "mag":
-            continue  # mag/mag_file both map to MAG_FILE; mag_file (below) covers it
+            assert float(legacy_value) == pytest.approx(value)
+            continue
         value = getattr(params, field_name)
         legacy_value = legacy[legacy_key]
         if field_name == "mag_file":
