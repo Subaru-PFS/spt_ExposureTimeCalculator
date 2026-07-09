@@ -25,7 +25,6 @@ whitespace-delimited plain text.
 
 from __future__ import annotations
 
-import os
 import time
 import warnings
 from pathlib import Path
@@ -58,7 +57,7 @@ def _to_path_or_none(value):
     return None if str(value) == "-" else Path(value)
 
 
-class Etc(object):
+class Etc:
     """Deprecated compatibility wrapper around `pfsspecsim.etc`.
 
     .. deprecated::
@@ -94,49 +93,46 @@ class Etc(object):
             DeprecationWarning,
             stacklevel=2,
         )
-        self.params = {'SEEING': '0.80',
-                       'ZENITH_ANG': '35.0',
-                       'GALACTIC_EXT': '0.00',
-                       'MOON_ZENITH_ANG': '30.0',
-                       'MOON_TARGET_ANG': '60.0',
-                       'MOON_PHASE': '0.125',
-                       'EXP_TIME': '900',
-                       'EXP_NUM': '4',
-                       'FIELD_ANG': '0.45',
-                       'MAG_FILE': '22.5',
-                       'REFF': '0.3',
-                       'LINE_FLUX': '1.0e-17',
-                       'LINE_WIDTH': '70',
-                       'NOISE_REUSED': 'N',
-                       'MR_MODE': 'N',
-                       'OVERWRITE': 'Y',
-                       'INFILE_OIICat': '-',
-                       'OUTFILE_OIICat': '-',
-                       'minSNR': '9.0',
-                       'degrade': '1.0',
-                       'SKY_SUB_FLOOR': '0.01',
-                       'DIFFUSE_STRAY': '0.02',
-                       'throughput_model': '20240714',
-                       'spectrograph': 'ave',
-                       'OUTDIR': 'out',
-                       'TMPDIR': 'tmp',
-                       'BINDIR': 'bin',
-                       'obscFoVDep': 'Y',
-                       }
-        self.params['OUTFILE_NOISE'] = os.path.join(
-            self.params['OUTDIR'], 'ref.noise.dat')
-        self.params['OUTFILE_SNC'] = os.path.join(
-            self.params['OUTDIR'], 'ref.snc.dat')
-        self.params['OUTFILE_SNL'] = os.path.join(
-            self.params['OUTDIR'], 'ref.snl.dat')
-        self.params['OUTFILE_OII'] = os.path.join(
-            self.params['OUTDIR'], 'ref.sno2.dat')
+        self.params = {
+            "SEEING": "0.80",
+            "ZENITH_ANG": "35.0",
+            "GALACTIC_EXT": "0.00",
+            "MOON_ZENITH_ANG": "30.0",
+            "MOON_TARGET_ANG": "60.0",
+            "MOON_PHASE": "0.125",
+            "EXP_TIME": "900",
+            "EXP_NUM": "4",
+            "FIELD_ANG": "0.45",
+            "MAG_FILE": "22.5",
+            "REFF": "0.3",
+            "LINE_FLUX": "1.0e-17",
+            "LINE_WIDTH": "70",
+            "NOISE_REUSED": "N",
+            "MR_MODE": "N",
+            "OVERWRITE": "Y",
+            "INFILE_OIICat": "-",
+            "OUTFILE_OIICat": "-",
+            "minSNR": "9.0",
+            "degrade": "1.0",
+            "SKY_SUB_FLOOR": "0.01",
+            "DIFFUSE_STRAY": "0.02",
+            "throughput_model": "20240714",
+            "spectrograph": "ave",
+            "OUTDIR": "out",
+            "TMPDIR": "tmp",
+            "BINDIR": "bin",
+            "obscFoVDep": "Y",
+        }
+        outdir = Path(self.params["OUTDIR"])
+        self.params["OUTFILE_NOISE"] = str(outdir / "ref.noise.dat")
+        self.params["OUTFILE_SNC"] = str(outdir / "ref.snc.dat")
+        self.params["OUTFILE_SNL"] = str(outdir / "ref.snl.dat")
+        self.params["OUTFILE_OII"] = str(outdir / "ref.sno2.dat")
 
         # Deprecated no-op attribute, kept only for backward compatibility
         # with code that reads it back; the pure-Python engine has no
         # thread pool to size.
         self.omp_num_threads = omp_num_threads
-        return None
 
     def set_param(self, param_name, param_value):
         """Set ETC parameters
@@ -152,20 +148,21 @@ class Etc(object):
         Examples
         ----------
         """
-        if param_name in self.params.keys():
+        if param_name in self.params:
             try:
                 self.params[param_name] = str(param_value)
-            except:
-                print('Error!')
+            except Exception:
+                print("Error!")
         else:
-            print('param_name %s can not be recognized ...' % (param_name))
+            print(f"param_name {param_name} can not be recognized ...")
         return 0
 
     def load_param_file(self, filename):
-        for line in open(filename, 'r'):
-            a = line.split()
-            if line[0] != '#' and len(a) > 0:
-                self.params[a[0]] = a[1]
+        with open(filename, "r") as f:
+            for line in f:
+                a = line.split()
+                if line[0] != "#" and len(a) > 0:
+                    self.params[a[0]] = a[1]
         return 0
 
     def _to_new_params(self, **field_overrides) -> EtcParams:
@@ -303,7 +300,7 @@ class Etc(object):
     def run(self):
         start = time.time()
 
-        print('##### starting to run ETC ... (it takes a few min.) #####')
+        print("##### starting to run ETC ... (it takes a few min.) #####")
         params = self._to_new_params()
         results = engine.run_etc_files(params)
 
@@ -313,16 +310,14 @@ class Etc(object):
         self._restore_sno2(results)
 
         elapsed_time = time.time() - start
-        print("##### finished (elapsed_time: %.1f[sec]) #####" % (
-            elapsed_time))
+        print(f"##### finished (elapsed_time: {elapsed_time:.1f}[sec]) #####")
 
         return 0
 
     def make_noise_model(self):
         start = time.time()
 
-        print(
-            '##### starting to make a noise model ... (it takes about 2 min.) #####')
+        print("##### starting to make a noise model ... (it takes about 2 min.) #####")
         # QUIRK, preserved verbatim (pfsetc.py:478 hardcoded '0' regardless
         # of `self.params['NOISE_REUSED']`): making a fresh noise model
         # always (re)computes it, never reloads.
@@ -338,24 +333,27 @@ class Etc(object):
         self._restore_noise(results)
 
         elapsed_time = time.time() - start
-        print("##### finished (elapsed_time: %.1f[sec]) #####" % (
-            elapsed_time))
+        print(f"##### finished (elapsed_time: {elapsed_time:.1f}[sec]) #####")
         return 0
 
     def proc_multi(self, inputs):
         self.params[inputs[0]] = str(inputs[1])
-        for outFileName in ['OUTFILE_NOISE', 'OUTFILE_SNC', 'OUTFILE_SNL', 'OUTFILE_OII']:
+        for outFileName in [
+            "OUTFILE_NOISE",
+            "OUTFILE_SNC",
+            "OUTFILE_SNL",
+            "OUTFILE_OII",
+        ]:
             if self.params[outFileName] != "-":
-                self.params[outFileName] += '.'.join(
-                    ['', inputs[0], inputs[1]])
+                self.params[outFileName] += ".".join(["", inputs[0], inputs[1]])
         self.run()
         return 0
 
     def run_multi(self, nproc, param_name, param_values):
         from multiprocessing import Pool
+
         p = Pool(nproc)
-        result = p.map(self.proc_multi, [(param_name, v)
-                       for v in param_values])
+        result = p.map(self.proc_multi, [(param_name, v) for v in param_values])
         return 0
 
     def get_noise(self):
@@ -367,7 +365,7 @@ class Etc(object):
         # reloads the noise vector previously written to `OUTFILE_NOISE`
         # (by `run()` or `make_noise_model()`) rather than recomputing it.
         start = time.time()
-        print('##### starting to make an SNC model ... (it takes about 1 min.) #####')
+        print("##### starting to make an SNC model ... (it takes about 1 min.) #####")
         params = self._to_new_params(
             noise_reused=True,
             outfile_snl=None,
@@ -379,8 +377,7 @@ class Etc(object):
         self._restore_snc(results)
 
         elapsed_time = time.time() - start
-        print("##### finished (elapsed_time: %.1f[sec]) #####" % (
-            elapsed_time))
+        print(f"##### finished (elapsed_time: {elapsed_time:.1f}[sec]) #####")
 
         return 0
 
@@ -391,7 +388,7 @@ class Etc(object):
         # QUIRK, preserved verbatim (pfsetc.py:645, same as `make_snc`):
         # always reloads the noise vector rather than recomputing it.
         start = time.time()
-        print('##### starting to make an SNL model ... (it takes about 1 min.) #####')
+        print("##### starting to make an SNL model ... (it takes about 1 min.) #####")
         params = self._to_new_params(
             noise_reused=True,
             outfile_snc=None,
@@ -403,8 +400,7 @@ class Etc(object):
         self._restore_snl(results)
 
         elapsed_time = time.time() - start
-        print("##### finished (elapsed_time: %.1f[sec]) #####" % (
-            elapsed_time))
+        print(f"##### finished (elapsed_time: {elapsed_time:.1f}[sec]) #####")
 
         return 0
 
@@ -415,7 +411,7 @@ class Etc(object):
         # QUIRK, preserved verbatim (pfsetc.py:722, same as `make_snc`):
         # always reloads the noise vector rather than recomputing it.
         start = time.time()
-        print('##### starting to make an OII model ... (it takes about 2 min.) #####')
+        print("##### starting to make an OII model ... (it takes about 2 min.) #####")
         params = self._to_new_params(
             noise_reused=True,
             outfile_snc=None,
@@ -427,8 +423,7 @@ class Etc(object):
         self._restore_sno2(results)
 
         elapsed_time = time.time() - start
-        print("##### finished (elapsed_time: %.1f[sec]) #####" % (
-            elapsed_time))
+        print(f"##### finished (elapsed_time: {elapsed_time:.1f}[sec]) #####")
 
         return 0
 

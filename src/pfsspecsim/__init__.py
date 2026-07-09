@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
 
-from __future__ import print_function, division
-
 # Version information
 try:
     from ._version import __version__

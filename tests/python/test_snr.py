@@ -197,9 +197,9 @@ def _scalar_snr_oii_type2(
     )
 
     snr_sq = 0.0
-    for ipix in range(len(my_noise)):
+    for ipix, n in enumerate(my_noise):
         s = signal0[ipix] + signal1[ipix]
-        snr_sq += s * s / my_noise[ipix]
+        snr_sq += s * s / n
     return math.sqrt(snr_sq)
 
 
