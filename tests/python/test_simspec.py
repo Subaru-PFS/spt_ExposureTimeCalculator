@@ -84,6 +84,27 @@ def test_unknown_override_key_raises():
         load_params(overrides={"bogus_field": 1})
 
 
+def test_toml_only_mag_file_does_not_collide_with_mag_default(tmp_path):
+    """Regression: a TOML file that sets only `mag_file` (never mentioning
+    `mag`) must not spuriously collide with `SimSpecParams.mag`'s own
+    default (22.5) -- `load_params` must force `mag=None` in this case."""
+    mag_file = tmp_path / "mag.dat"
+    mag_file.write_text("400.0 20.0\n1100.0 20.0\n")
+    toml_path = tmp_path / "params.toml"
+    toml_path.write_text(f'mag_file = "{mag_file}"\n')
+    params = load_params(toml_path)
+    assert params.mag is None
+    assert params.mag_file == mag_file
+
+
+def test_toml_only_mag_does_not_collide_with_mag_file_default():
+    """Symmetric case: TOML sets only `mag` -- `mag_file` stays `None`
+    (already the default, but confirms `load_params` doesn't break it)."""
+    params = load_params(overrides={"mag": 19.0})
+    assert params.mag == 19.0
+    assert params.mag_file is None
+
+
 # --- run_sim_spec: translation + end-to-end tests ----------------------------
 
 _N = 128

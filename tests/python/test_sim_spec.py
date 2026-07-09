@@ -310,3 +310,23 @@ class TestCliRunAndPriority:
         assert result.exit_code == 0, result.output
         assert (outdir / "fromcli.dat").is_file()  # CLI beat TOML
         assert not (outdir / "fromtoml.dat").exists()
+
+    def test_toml_only_mag_file_no_cli_flags_works(self, synthetic_dir, tmp_path):
+        """Regression: --config pointing at a TOML that sets only
+        `mag_file` (no `mag`, no --mag/--mag-file CLI flags) must not
+        fail with a spurious mutual-exclusivity error."""
+        mag_file = tmp_path / "mag.dat"
+        mag_file.write_text("400.0 20.0\n1100.0 20.0\n")
+        toml_path = tmp_path / "params.toml"
+        outdir = tmp_path / "out"
+        toml_path.write_text(
+            f'etc_file = "{synthetic_dir / "snc.ecsv"}"\n'
+            f'mag_file = "{mag_file}"\n'
+            'ascii_table = "fromtoml"\n'
+            "write_fits = false\n"
+        )
+        result = runner.invoke(
+            app, ["--config", str(toml_path), "--out-dir", str(outdir)]
+        )
+        assert result.exit_code == 0, result.output
+        assert (outdir / "fromtoml.dat").is_file()
