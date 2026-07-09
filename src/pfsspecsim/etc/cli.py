@@ -161,8 +161,8 @@ def main(
     # --- Execution control / output ----------------------------------------
     n_workers: int | None = typer.Option(
         None,
-        help="Arm-parallel thread count; 1=serial (default: 3). Results are "
-        "identical regardless of this value.",
+        help="Thread count for parallel stages; 1=serial (default: 3). "
+        "Results are identical regardless of this value.",
     ),
     noise_reused: bool | None = typer.Option(
         None,

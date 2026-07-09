@@ -83,7 +83,9 @@ class EtcParams:
     min_snr: float = 9.0
 
     # Execution control / output
-    n_workers: int = 3  # arm-parallel thread count; 1=serial; result is unchanged
+    # Thread cap per parallel stage (arm loops, output products); 1=serial;
+    # result is unchanged regardless of value.
+    n_workers: int = 3
     noise_reused: bool = False
     overwrite: bool = True
     outdir: Path = Path("out")

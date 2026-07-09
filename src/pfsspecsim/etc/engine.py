@@ -29,7 +29,7 @@ from astropy import units as u
 from astropy.table import Table, vstack
 
 from . import io, psf, snr
-from ._parallel import map_arms
+from ._parallel import map_arms, run_products
 from .config import (
     MAXARM,
     Spectrograph,
@@ -661,20 +661,30 @@ def run_etc(params: EtcParams) -> EtcResults:
         sky_arrays = [arm.sky for arm in noise_result.arms]
         noise_table = _build_noise_table(spectro, noise_result)
 
-    oii_curve = (
-        _compute_oii_curve(params, spectro, noise_arrays)
-        if params.outfile_oii is not None
-        else None
-    )
-    snl = (
-        _compute_snl(params, spectro, noise_arrays, magspec)
-        if params.outfile_snl is not None
-        else None
-    )
-    snc = (
-        _compute_snc(params, spectro, noise_arrays, sky_arrays, magspec)
-        if params.outfile_snc is not None
-        else None
+    # oii_curve/snl/snc are mutually independent given noise_arrays/
+    # sky_arrays/magspec (all read-only), so run_products (params.n_workers
+    # > 1) submits the requested ones to a shared thread pool rather than
+    # computing them one at a time; each still uses its own map_arms pool
+    # internally (nested ThreadPoolExecutors are fine). See run_products'
+    # docstring for the bit-identity argument.
+    oii_curve, snl, snc = run_products(
+        [
+            (
+                params.outfile_oii is not None,
+                lambda: _compute_oii_curve(params, spectro, noise_arrays),
+            ),
+            (
+                params.outfile_snl is not None,
+                lambda: _compute_snl(params, spectro, noise_arrays, magspec),
+            ),
+            (
+                params.outfile_snc is not None,
+                lambda: _compute_snc(
+                    params, spectro, noise_arrays, sky_arrays, magspec
+                ),
+            ),
+        ],
+        params.n_workers,
     )
 
     oii_catalog = None

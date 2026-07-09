@@ -430,6 +430,13 @@ class TestMapMasked:
 
 class TestArmParallelism:
     def test_serial_and_parallel_are_bit_identical(self, monkeypatch):
+        # `base` below sets outfile_oii on top of reference_params' default
+        # outfile_snc/outfile_snl, so all three of oii_curve/snl/snc are
+        # requested -- with n_workers=3 this exercises both parallelism
+        # levels at once: run_etc's run_products (product-level, see
+        # `_parallel.py`) submitting all three concurrently, each of which
+        # in turn uses map_arms (arm-level) internally.
+        #
         # Small, fixed z grids (module-local, distinct from the
         # module-autouse `_tiny_z_grids` fixture's `_TINY_Z`, per the task
         # brief) -- just enough points to exercise every column-assembly

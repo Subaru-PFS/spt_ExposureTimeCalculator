@@ -46,3 +46,36 @@ def map_arms(fn: Callable[[int], T], n_arms: int, n_workers: int) -> list[T]:
         return [fn(ia) for ia in range(n_arms)]
     with ThreadPoolExecutor(max_workers=min(n_workers, n_arms)) as ex:
         return list(ex.map(fn, range(n_arms)))
+
+
+def run_products(
+    tasks: list[tuple[bool, Callable[[], T]]], n_workers: int
+) -> list[T | None]:
+    """Run each `fn` in `tasks` for which `enabled` is True, returning a
+    list the same length as `tasks` (`None` for entries whose `enabled` is
+    False).
+
+    Serial and in `tasks` order (`[fn() if enabled else None for enabled,
+    fn in tasks]`) when `n_workers <= 1` or fewer than two entries are
+    enabled; otherwise each enabled `fn` is submitted to a
+    `ThreadPoolExecutor` (one worker per enabled entry, capped at
+    `n_workers`) and collected with `.result()`, which re-raises any
+    exception raised inside `fn`.
+
+    **Bit-identity guarantee.** Unlike `map_arms`, nothing here accumulates
+    across `tasks` -- each entry computes and returns its own independent
+    result (e.g. one whole output `Table`), so worker completion order can
+    never affect any individual result's floating-point value. Each `fn`
+    closes over whatever `map_arms`/numpy calls it already made when run
+    serially, unchanged by this helper -- so every result is bit-identical
+    to the `n_workers=1` code path for any `n_workers`.
+    """
+    if n_workers <= 1 or sum(1 for enabled, _ in tasks if enabled) <= 1:
+        return [fn() if enabled else None for enabled, fn in tasks]
+    results: list[T | None] = [None] * len(tasks)
+    enabled_idx = [i for i, (enabled, _) in enumerate(tasks) if enabled]
+    with ThreadPoolExecutor(max_workers=min(n_workers, len(enabled_idx))) as ex:
+        futures = [(i, ex.submit(tasks[i][1])) for i in enabled_idx]
+        for i, fut in futures:
+            results[i] = fut.result()
+    return results
