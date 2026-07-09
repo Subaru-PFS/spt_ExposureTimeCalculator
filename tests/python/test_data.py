@@ -1,9 +1,10 @@
 """Verify the extracted modeldata.npz archive (task T1).
 
-The npz is not yet exposed as installed package data (that lands with the
-`src/pfsspecsim/etc` package in a later task), so this test locates the
-archive by a path relative to the repository root rather than via
-`importlib.resources`.
+The npz is now also exposed as installed package data, loaded via
+`importlib.resources` by `pfsspecsim.etc._modeldata.load_modeldata` (T15).
+This test instead locates the archive by a path relative to the repository
+root, so it can check the raw extracted file directly (independent of the
+installed-package loader and its caching).
 """
 
 from pathlib import Path

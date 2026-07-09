@@ -311,7 +311,7 @@ class TestSnrLine:
 
 class TestSnrSingle:
     def test_quirk_transmission_independent_of_sigma_v(
-        self, spectro, params, arm_noise
+        self, spectro, params, arm_noise, monkeypatch
     ):
         # gsetc.c:1213-1218 QUIRK: the object-continuum transmission
         # average is evaluated at the fixed line wavelength for every
@@ -319,6 +319,29 @@ class TestSnrSingle:
         # unlike get_signal's velocity-smeared trans, which does vary with
         # sigma_v. Guards against a future "fix" silently reintroducing
         # velocity smearing here.
+        #
+        # Spy on snr.atm_transmission (the exact name snr_single calls) to
+        # capture what it's actually invoked with/returns for each sigma_v,
+        # rather than comparing a fresh atm_transmission(lam, ...) call
+        # against itself (which would hold regardless of what snr_single
+        # does internally). snr_single's own get_signal call also goes
+        # through this same module-level name for its (genuinely
+        # sigma_v-dependent) 41-point velocity-smeared quadrature, passing a
+        # (Nz, 41)-shaped grid -- filter that out by keeping only the
+        # single-point (Nz==1 line, one wavelength each) calls, which is
+        # what snr_single's own continuum-transmission line does.
+        captured: list[np.ndarray] = []
+        real_atm_transmission = snr.atm_transmission
+
+        def _spy(lam_arr, zenith_ang, sky_type):
+            result = real_atm_transmission(lam_arr, zenith_ang, sky_type)
+            arr = np.atleast_1d(np.asarray(lam_arr, dtype=np.float64))
+            if arr.shape == (1,):
+                captured.append(np.array(result, dtype=np.float64, copy=True))
+            return result
+
+        monkeypatch.setattr(snr, "atm_transmission", _spy)
+
         lam = 559.0
         snr_narrow = snr.snr_single(
             params, spectro, ARM_BLUE, 22.5, lam, 1e-16, 10.0, 0.3, arm_noise[0].noise
@@ -326,13 +349,20 @@ class TestSnrSingle:
         snr_wide = snr.snr_single(
             params, spectro, ARM_BLUE, 22.5, lam, 1e-16, 300.0, 0.3, arm_noise[0].noise
         )
+
+        assert len(captured) == 2
+        # The continuum transmission snr_single actually used is identical
+        # across sigma_v (the quirk) ...
+        np.testing.assert_array_equal(captured[0], captured[1])
+        # ... and equals the plain pointwise transmission at the fixed line
+        # wavelength, not some sigma_v-smeared average.
+        expected = real_atm_transmission(
+            np.asarray([lam]), params.zenith_ang, params.sky_type
+        )
+        np.testing.assert_allclose(captured[0], expected)
+
         # sigma_v still affects the *line* signal (get_signal), so the two
-        # SNRs need not be equal, but the *continuum* term they share must
-        # be computed with the plain pointwise transmission in both cases
-        # -- check this directly against atmosphere.transmission(lam).
-        assert atm_transmission(
-            lam, params.zenith_ang, params.sky_type
-        ) == pytest.approx(atm_transmission(lam, params.zenith_ang, params.sky_type))
+        # SNRs need not be equal.
         assert snr_narrow != snr_wide  # sanity: sigma_v does change something
 
     def test_fainter_host_increases_line_snr(self, spectro, params, arm_noise):

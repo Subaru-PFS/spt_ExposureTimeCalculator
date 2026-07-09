@@ -19,8 +19,9 @@ Pure-Python port of the atmosphere-related routines in ``src/gsetc.c``:
   absorption factor selected by bits 12-15 of ``sky_type``: ``0x0`` uses the
   Kitt Peak transmission table only (with wavelengths below 500 nm passed
   through unattenuated, a verbatim quirk of the C index-clamp logic); ``0x1``
-  uses the Kitt Peak table below 900 nm and switches to the Mauna Kea 3mm
-  precipitable-water table at and above 900 nm.
+  uses the Kitt Peak table at and below 900 nm and switches to the Mauna Kea
+  3mm precipitable-water table strictly above 900 nm (gsetc.c:462:
+  ``if (lambda>900)``, so 900 nm itself still uses the Kitt Peak table).
 
 All functions accept a scalar or array_like wavelength/angle and are
 vectorized with numpy; scalar input yields a Python float. ``sky_type`` may
@@ -223,7 +224,13 @@ def _kp_line_trans(lam_nm: np.ndarray) -> np.ndarray:
     479) leaves the transmission unmultiplied, i.e. factor 1 -- a verbatim
     quirk, not a physical statement that there's no absorption there.
     Above the table's upper edge the C code exits with an error; we raise
-    `ValueError` instead.
+    `ValueError` instead, using the table's actual last tabulated
+    wavelength (`lam_max`, derived from `kp.size`) as the cutoff. This is
+    marginally more permissive than the C guard (`xint>39998`, gsetc.c:451),
+    which stops one grid step early and so never actually reads the
+    table's last element -- a ~0.025nm sliver just below 1500nm that no
+    physically reachable input hits, so the difference is not observable
+    in practice.
     """
     kp = load_modeldata().atm_trans_kp
     lam_max = _KP_LAMBDA0_NM + _KP_DLAMBDA_NM * (kp.size - 1)

@@ -85,6 +85,25 @@ class TestUnknownParam:
         assert "NOT_A_REAL_PARAM" not in etc_instance.params
 
 
+class TestLoadParamFile:
+    def test_old_style_keys_land_in_params(self, etc_instance, tmp_path):
+        param_file = tmp_path / "old_style.par"
+        param_file.write_text(
+            "# a comment line, ignored\n"
+            "SEEING 1.20\n"
+            "EXP_TIME 1200\n"
+        )
+        result = etc_instance.load_param_file(str(param_file))
+        assert result == 0
+        assert etc_instance.params["SEEING"] == "1.20"
+        assert etc_instance.params["EXP_TIME"] == "1200"
+
+        # And the values actually flow through to the resolved EtcParams.
+        params = etc_instance._to_new_params()
+        assert params.seeing == 1.20
+        assert params.exp_time == 1200.0
+
+
 class TestMagFileSplit:
     def test_float_string_becomes_mag(self, etc_instance):
         etc_instance.set_param("MAG_FILE", 20.0)

@@ -13,14 +13,17 @@ uses -- so these CLI-level runs stay fast while still exercising the real
 
 from __future__ import annotations
 
+import dataclasses
+import inspect
+
 import numpy as np
 import pytest
 from astropy.table import Table
 from typer.testing import CliRunner
 
-from pfsspecsim.etc import engine
+from pfsspecsim.etc import cli, engine
 from pfsspecsim.etc.cli import app
-from pfsspecsim.etc.params import load_params, resolve_degrade
+from pfsspecsim.etc.params import EtcParams, load_params, resolve_degrade
 
 _TINY_Z = np.array([0.3, 0.8, 1.6])
 
@@ -36,6 +39,20 @@ def _tiny_z_grids(monkeypatch):
     monkeypatch.setattr(engine, "_oii_curve_z_grid", lambda: _TINY_Z)
     monkeypatch.setattr(engine, "_snl_z_grid", lambda: _TINY_Z)
     monkeypatch.setattr(engine, "_oii_prescan_z_grid", lambda: _TINY_Z)
+
+
+class TestCliContractMatchesEtcParams:
+    def test_every_etcparams_field_has_a_cli_option(self):
+        # `main`'s `overrides` dict is built by indexing `locals()` with
+        # every `EtcParams` field name (see cli.py's docstring/`main`
+        # body); if a new field were ever added to `EtcParams` without a
+        # matching parameter on `main`, that indexing raises a `KeyError`
+        # at CLI-run time rather than at import/definition time. Guard the
+        # contract directly by introspection instead.
+        field_names = {f.name for f in dataclasses.fields(EtcParams)}
+        cli_param_names = set(inspect.signature(cli.main).parameters)
+        missing = field_names - cli_param_names
+        assert not missing, f"EtcParams field(s) with no CLI option: {missing}"
 
 
 class TestHelpAndVersion:

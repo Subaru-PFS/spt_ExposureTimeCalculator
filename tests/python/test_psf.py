@@ -152,7 +152,6 @@ class TestSpectroMTF:
         # Dtype=1 (HgCdTe) -- still must return a finite, sane MTF.
         mtf = psf.spectro_mtf(spectro, ARM_HGCDTE, [1000.0], psf.U_GRID)
         assert np.all(np.isfinite(mtf))
-        assert mtf[0, 0] < mtf[0, -1] * 0 + 1.0  # MTF <= 1 identically true
         assert np.all(mtf <= 1.0 + 1e-12)
 
     def test_vectorized_over_wavelength_matches_single_calls(self, spectro):

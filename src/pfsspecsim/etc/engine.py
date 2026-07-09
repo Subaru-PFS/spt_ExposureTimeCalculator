@@ -30,6 +30,7 @@ from astropy.table import Table, vstack
 
 from . import io, psf, snr
 from .config import (
+    MAXARM,
     Spectrograph,
     find_config_file,
     load_spectrograph_config,
@@ -561,8 +562,8 @@ def _compute_oii_catalog(
         {
             "obj_id": obj_id[detected],
             "z": z[detected],
-            "reff": r_eff[detected],
-            "flux_oii": foii[detected],
+            "reff": r_eff[detected] * u.arcsec,
+            "flux_oii": foii[detected] * u.erg / u.s / u.cm**2,
             "snr": snrtot[detected],
         }
     )
@@ -591,7 +592,7 @@ def run_etc(params: EtcParams) -> EtcResults:
     config_path = _resolve_config_path(params)
     degrade = resolve_degrade(params)
     spectro = load_spectrograph_config(config_path, degrade)
-    if spectro.N_arms != 3:
+    if spectro.N_arms != MAXARM:
         raise NotImplementedError(
             "run_etc: the SNL/[OII]-curve ECSV schemas hardcode 3 arm "
             f"columns (snr_b/snr_r-or-snr_m/snr_n); got N_arms="

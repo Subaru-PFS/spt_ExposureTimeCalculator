@@ -339,10 +339,19 @@ class Pfsspec(object):
         except Exception:
             # Fall back to the legacy plain-text ETC output format
             # (insurance for old-format files predating the ECSV switch).
+            nexp_etc = None
             with open(self.params['etcFile'], 'r') as f:
                 for line in f.readlines():
                     if "EXP_NUM" in line:
                         nexp_etc = int(line.split()[2])
+            if nexp_etc is None:
+                raise ValueError(
+                    f"Could not read {self.params['etcFile']!r} as either "
+                    "an Astropy ECSV table (missing/unreadable "
+                    "table.meta['params']['exp_num']) or a legacy "
+                    "plain-text ETC output file (no 'EXP_NUM' header line "
+                    "found); both parsing attempts failed."
+                )
             arm, wav, nsv, trn, smp, skm = np.loadtxt(
                 self.params['etcFile'], usecols=(0, 2, 5, 8, 9, 10), unpack=True)
 

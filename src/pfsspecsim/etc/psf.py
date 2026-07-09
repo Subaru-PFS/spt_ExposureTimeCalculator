@@ -220,6 +220,11 @@ def spectro_dist(
     u = U_GRID
     if mtf is None:
         mtf = spectro_mtf(spectro, i_arm, lam, u)
+    else:
+        assert mtf.shape == (L, u.size), (
+            f"spectro_dist: precomputed mtf has shape {mtf.shape}, expected "
+            f"{(L, u.size)} (L=lam.size, Nu=U_GRID.size)"
+        )
 
     ip = np.arange(N, dtype=np.float64)
     M = mtf * np.exp(-2.0 * np.pi**2 * sigma[:, None] ** 2 * u[None, :] ** 2)  # (L,Nu)
@@ -270,6 +275,11 @@ def frac_trace(
     N = int(spectro.width[i_arm])
     if mtf is None:
         mtf = spectro_mtf(spectro, i_arm, lam, U_GRID)
+    else:
+        assert mtf.shape == (lam.size, U_GRID.size), (
+            f"frac_trace: precomputed mtf has shape {mtf.shape}, expected "
+            f"{(lam.size, U_GRID.size)} (L=lam.size, Nu=U_GRID.size)"
+        )
 
     sep_pix = spectro.sep[i_arm] / spectro.pix[i_arm]
     total = np.zeros(lam.size)

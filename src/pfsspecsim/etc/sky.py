@@ -40,13 +40,15 @@ from .constants import DEG_TO_RAD, PHOTONS_PER_ERG_1NM
 # --- sky_type bit-field helpers ---------------------------------------
 #
 # Same nibble layout as atmosphere.py's _opacity_model/_line_absorption_model
-# (gsetc.c's `skytype` bitmask), for the three nibbles this module reads:
-# continuum model (bits 0-3, gsetc.c:892), moonlight model (bits 4-7,
-# gsetc.c:962), and sky-line model (bits 16-19, gsetc.c:786).
+# (gsetc.c's `skytype` bitmask), for the two nibbles this module reads:
+# continuum model (bits 0-3, gsetc.c:892) and moonlight model (bits 4-7,
+# gsetc.c:962). The sky-line-model nibble (bits 16-19, gsetc.c:786) is not
+# parsed here -- `load_sky_lines` deliberately leaves that switch to its
+# caller (see its docstring); noise.py (T8), the only caller that needs it,
+# defines its own `_line_model` helper.
 
 _CONTINUUM_MODEL_MASK = 0xF
 _MOON_MODEL_SHIFT = 4
-_LINE_MODEL_SHIFT = 16
 _NIBBLE_MASK = 0xF
 
 
@@ -56,10 +58,6 @@ def _continuum_model(sky_type: int | str) -> int:
 
 def _moon_model(sky_type: int | str) -> int:
     return (_sky_type_int(sky_type) >> _MOON_MODEL_SHIFT) & _NIBBLE_MASK
-
-
-def _line_model(sky_type: int | str) -> int:
-    return (_sky_type_int(sky_type) >> _LINE_MODEL_SHIFT) & _NIBBLE_MASK
 
 
 # --- Sky emission-line lists (gsetc.c:786-866) -----------------------------

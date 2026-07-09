@@ -52,6 +52,7 @@ import numpy as np
 
 from . import psf
 from .atmosphere import _sky_type_int, airmass, cont_opacity
+from .atmosphere import transmission as atm_transmission
 from .config import Spectrograph, field_interp
 from .constants import (
     ADJUST_NOISE_LR,
@@ -191,12 +192,6 @@ def smoothed_transmission(
     ndarray, shape (Npix,)
         Transmission, PSF-smoothed and averaged, at each pixel.
     """
-    # Local import avoids a module-level atmosphere<->noise import cycle
-    # concern; both modules are cheap to import repeatedly, but keeping
-    # noise.py's atmosphere usage limited to this one call site (plus
-    # cont_opacity below) keeps the dependency direction obvious.
-    from .atmosphere import transmission as atm_transmission
-
     lam_pix = np.atleast_1d(np.asarray(lam_pix, dtype=np.float64))
     dl = spectro.dl[i_arm]
     n = SP_PSF_LEN

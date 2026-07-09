@@ -83,8 +83,8 @@ SP_PSF_LEN = 32
 #: (gsetc.c:1076).
 NP_WIN = 32
 
-#: Fiducial effective radius (arcsec) used for the reference [OII] SNR curve
-#: (gsetc.c:2025).
+#: Fiducial effective radius (arcsec), defined in gsetc.c but unused by its
+#: live code (gsetc.c:2025); kept for traceability.
 REF_SIZE = 0.30
 
 #: [OII] recovery histogram grid (gsetc.c:9-11).
