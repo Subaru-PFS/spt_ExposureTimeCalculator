@@ -29,7 +29,7 @@ from astropy import units as u
 from astropy.table import Table, vstack
 
 from . import io, psf, snr
-from ._parallel import map_arms, run_products
+from ._parallel import map_arms, map_index_chunks, run_products
 from .config import (
     MAXARM,
     Spectrograph,
@@ -151,7 +151,12 @@ def _resolve_config_path(params: EtcParams) -> Path:
 
 
 def _map_masked(
-    n: int, mask: np.ndarray, chunk_size: int, fn, *arrays: np.ndarray
+    n: int,
+    mask: np.ndarray,
+    chunk_size: int,
+    fn,
+    *arrays: np.ndarray,
+    n_workers: int = 1,
 ) -> np.ndarray:
     """Evaluate `fn(*arrays_at_masked_positions)` only where `mask` is
     True, chunked in groups of at most `chunk_size`; positions outside
@@ -167,12 +172,23 @@ def _map_masked(
     of points): each chunk's `snr.snr_oii`/`snr.snr_single` call internally
     materializes a `(chunk_size, ~1000)`-shaped MTF array (see
     `constants.Z_CHUNK`).
+
+    `n_workers` (default 1, serial) dispatches the chunk loop through
+    `_parallel.map_index_chunks`. Each chunk writes `out[sl]` for its own
+    disjoint slice `sl` of the masked positions (`idx[start:stop]`, no two
+    chunks share an index), so -- exactly like `map_arms`'s per-arm results
+    -- worker completion order can never change any element of `out`: the
+    result is bit-identical to the serial (`n_workers=1`) code path for any
+    `n_workers`.
     """
     out = np.zeros(n, dtype=np.float64)
     idx = np.flatnonzero(mask)
-    for start in range(0, idx.size, chunk_size):
-        sl = idx[start : start + chunk_size]
+
+    def _chunk(start: int, stop: int) -> None:
+        sl = idx[start:stop]
         out[sl] = fn(*(arr[sl] for arr in arrays))
+
+    map_index_chunks(_chunk, idx.size, chunk_size, n_workers)
     return out
 
 
@@ -294,6 +310,7 @@ def _compute_oii_curve(
                 snr_type=2,
             ),
             z,
+            n_workers=params.n_workers,
         )
         return aeff_contrib, raw * sqrt_nexp
 
@@ -372,6 +389,7 @@ def _compute_snl(
             ),
             z,
             mag_at_lam,
+            n_workers=params.n_workers,
         )
         return aeff_contrib, raw * sqrt_nexp
 
@@ -484,6 +502,7 @@ def _compute_mdlf(
                 snr_type=2,
             ),
             z,
+            n_workers=params.n_workers,
         )
         return raw * sqrt_nexp / 1.6
 
@@ -547,8 +566,13 @@ def _compute_oii_catalog(
         gated = np.flatnonzero(gate)
         for r_val in np.unique(r_eff[gated]):
             rows = gated[r_eff[gated] == r_val]
-            for start in range(0, rows.size, Z_CHUNK):
-                sl = rows[start : start + Z_CHUNK]
+
+            # Same map_index_chunks dispatch as _map_masked: each chunk
+            # writes row[sl] for its own disjoint slice of `rows`, so
+            # threaded and serial (`params.n_workers`=1) execution are
+            # bit-identical (see _map_masked's docstring).
+            def _chunk(start: int, stop: int, rows=rows, r_val=r_val) -> None:
+                sl = rows[start:stop]
                 row[sl] = snr.snr_oii(
                     params,
                     spectro,
@@ -562,6 +586,8 @@ def _compute_oii_catalog(
                     noise_arrays[ia],
                     snr_type=2,
                 )
+
+            map_index_chunks(_chunk, rows.size, Z_CHUNK, params.n_workers)
         row *= sqrt_nexp
         return row
 

@@ -57,8 +57,8 @@ class TestDeprecation:
     @pytest.mark.parametrize(
         "omp_num_threads,expected_n_workers",
         [
-            (2, 2),  # within [1, 3]: passed through
-            (16, 3),  # legacy default: capped at the 3 spectrograph arms
+            (2, 2),  # within [1, 8]: passed through
+            (16, 8),  # legacy default: capped at 8 (see _DEFAULT_N_WORKERS)
             (1, 1),  # serial
             (0, 1),  # subprocess-era harmless value: floored, not a crash
         ],

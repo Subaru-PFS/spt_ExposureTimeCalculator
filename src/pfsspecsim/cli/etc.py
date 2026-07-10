@@ -136,7 +136,8 @@ def etc_command(
     # --- Execution control / output ----------------------------------------
     n_workers: int | None = typer.Option(
         None,
-        help="Thread count for parallel stages; 1=serial (default: 3). "
+        help="Thread count for parallel stages; 1=serial "
+        "(default: min(8, os.cpu_count())). "
         "Results are identical regardless of this value.",
     ),
     noise_reused: bool | None = typer.Option(

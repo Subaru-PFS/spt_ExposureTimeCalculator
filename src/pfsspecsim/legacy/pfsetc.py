@@ -78,8 +78,11 @@ class Etc:
         Deprecated: the pure-Python engine has no OpenMP thread pool to
         size, but `omp_num_threads` is still honored, mapped to the new
         engine's `pfsspecsim.etc.params.EtcParams.n_workers` (arm-level
-        `ThreadPoolExecutor` parallelism), capped at 3 -- the number of
-        spectrograph arms, beyond which more workers cannot help.
+        `ThreadPoolExecutor` parallelism, plus chunk-level parallelism in
+        `psf.spectro_mtf`/`engine._map_masked`), capped at 8 -- see
+        `EtcParams`'s `_DEFAULT_N_WORKERS` (arm-level parallelism itself
+        still saturates at 3, the number of spectrograph arms, but
+        chunk-level work can use more).
 
     Examples
     ----------
@@ -92,7 +95,7 @@ class Etc:
             "pfsspecsim.etc.params.load_params + "
             "pfsspecsim.etc.engine.run_etc_files (or the `pfs-spec etc` CLI) "
             "in new code. `omp_num_threads` is now mapped to the new "
-            "engine's `n_workers` (arm-parallel thread count, capped at 3) "
+            "engine's `n_workers` (arm-parallel thread count, capped at 8) "
             "instead of being ignored.",
             DeprecationWarning,
             stacklevel=2,
@@ -135,7 +138,7 @@ class Etc:
 
         # Deprecated attribute, kept readable for backward compatibility;
         # `_to_new_params` maps it to `EtcParams.n_workers` (arm-parallel
-        # thread count, clamped to [1, 3]).
+        # thread count, clamped to [1, 8]).
         self.omp_num_threads = omp_num_threads
 
     def set_param(self, param_name, param_value):
@@ -195,8 +198,9 @@ class Etc:
         548-578, 627-657, 705-734) on top of the common translation.
 
         `omp_num_threads` (the `__init__` argument, stored on `self`) maps
-        to `EtcParams.n_workers`, capped at 3 (the number of spectrograph
-        arms -- see `__init__`'s docstring).
+        to `EtcParams.n_workers`, capped at 8 -- see `__init__`'s docstring
+        (arm-level parallelism itself still saturates at 3 spectrograph
+        arms regardless).
         """
         p = self.params
         mag_raw = p["MAG_FILE"]
@@ -241,10 +245,11 @@ class Etc:
             outfile_snc=_to_path_or_none(p["OUTFILE_SNC"]),
             outfile_snl=_to_path_or_none(p["OUTFILE_SNL"]),
             outfile_oii=_to_path_or_none(p["OUTFILE_OII"]),
-            # Clamp to [1, 3]: legacy callers could pass any int (0 or
+            # Clamp to [1, 8]: legacy callers could pass any int (0 or
             # negative was a harmless no-op in the subprocess era) and must
-            # not trip EtcParams.validate()'s n_workers >= 1 check.
-            n_workers=max(1, min(self.omp_num_threads, 3)),
+            # not trip EtcParams.validate()'s n_workers >= 1 check. Upper
+            # bound matches EtcParams's own `_DEFAULT_N_WORKERS` cap.
+            n_workers=max(1, min(self.omp_num_threads, 8)),
         )
         kwargs.update(field_overrides)
         return EtcParams(**kwargs)

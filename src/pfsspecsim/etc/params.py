@@ -8,6 +8,7 @@ engine's ALL_CAPS parameters to these snake_case fields.
 from __future__ import annotations
 
 import dataclasses
+import os
 import tomllib
 from pathlib import Path
 from typing import Any
@@ -32,6 +33,15 @@ _PATH_FIELDS = frozenset(
 )
 
 _VALID_SPECTROGRAPHS = frozenset({"ave", "sm1", "sm2", "sm3", "sm4"})
+
+#: Default `EtcParams.n_workers`: caps out at 8 -- the arm-level pool
+#: (`_parallel.map_arms`) always saturates at 3 (`min(n_workers, n_arms)`)
+#: regardless of this value, but the chunk-level pools (`psf.spectro_mtf`'s
+#: row chunks, `engine._map_masked`'s Z_CHUNK sweeps) can use more -- capped
+#: at `os.cpu_count()` (falling back to 1 if that's unavailable, e.g. in a
+#: container with no CPU affinity info) so a single-core host doesn't get
+#: threads it has no core for.
+_DEFAULT_N_WORKERS = min(8, os.cpu_count() or 1)
 
 
 @dataclasses.dataclass
@@ -83,9 +93,10 @@ class EtcParams:
     min_snr: float = 9.0
 
     # Execution control / output
-    # Thread cap per parallel stage (arm loops, output products); 1=serial;
-    # result is unchanged regardless of value.
-    n_workers: int = 3
+    # Thread cap per parallel stage (arm loops, output products, and
+    # chunk-level sweeps -- see `_DEFAULT_N_WORKERS`); 1=serial; result is
+    # unchanged regardless of value.
+    n_workers: int = _DEFAULT_N_WORKERS
     noise_reused: bool = False
     overwrite: bool = True
     outdir: Path = Path("out")

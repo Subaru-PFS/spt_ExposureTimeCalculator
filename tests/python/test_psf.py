@@ -24,11 +24,22 @@ from pfsspecsim.etc import psf
 from pfsspecsim.etc.config import find_config_file, load_spectrograph_config
 from pfsspecsim.etc.materials import si_abslength, si_index_real
 
+from conftest import CONFIG_FIXTURE
+
 
 @pytest.fixture(scope="module")
 def spectro():
     path = find_config_file("20240714")
     return load_spectrograph_config(path, degrade=1.0)
+
+
+@pytest.fixture(scope="module")
+def spectro_pfs_config():
+    """The C-reference regression fixture's spectrograph config
+    (`tests/PFS.20211220.dat`, read-only -- never modified, see CLAUDE.md),
+    used by `TestSpectroMTFRecurrencePin` for real Si-arm wavelength ranges.
+    """
+    return load_spectrograph_config(CONFIG_FIXTURE, degrade=1.0)
 
 
 # Arm 0 (blue, Dtype=0/Si) and arm 2 (NIR, Dtype=1/HgCdTe) exercise both
@@ -123,6 +134,118 @@ class TestSpectroMTFScalarTranscription:
         assert vec.shape == (1, 1)
         scalar = _scalar_spectro_mtf(spectro, i_arm, lam, u)
         assert vec[0, 0] == pytest.approx(scalar, rel=1e-12, abs=1e-15)
+
+
+# --- Pre-recurrence (12-cos) reference for the Si-defocus block -----------
+#
+# Transcribes the *old* `spectro_mtf` Si-defocus loop (the one the
+# angle-addition-recurrence rewrite in psf.py's `_spectro_mtf_rows`
+# replaced -- see docs/etc-speedup-plan.md and the module/`spectro_mtf`
+# docstrings) verbatim, vectorized exactly as it read before the rewrite.
+# Deliberately kept as a frozen copy here rather than imported from psf.py,
+# so this test can never silently start comparing the new code against
+# itself.
+
+
+def _old_spectro_mtf(spectro_, i_arm, lam, u):
+    lam = np.atleast_1d(np.asarray(lam, dtype=np.float64))
+    u = np.atleast_1d(np.asarray(u, dtype=np.float64))
+
+    d_spot = spectro_.diam[i_arm] / spectro_.pix[i_arm]
+    x = np.pi * d_spot * u
+    x_safe = np.where(x == 0.0, 1.0, x)
+    fiber = np.where(np.abs(d_spot * u) > 1e-6, 2.0 * _scipy_j1(x_safe) / x_safe, 1.0)
+
+    pu = np.pi * u
+    pu_safe = np.where(pu == 0.0, 1.0, pu)
+    pixel = np.where(np.abs(u) > 1e-9, np.sin(pu_safe) / pu_safe, 1.0)
+
+    sigma_cam = spectro_.rms_cam[i_arm] / spectro_.pix[i_arm]
+    gauss = np.exp(-2.0 * np.pi**2 * sigma_cam**2 * u**2)
+
+    mtf = (fiber * pixel * gauss)[None, :]
+
+    if spectro_.Dtype[i_arm] == 0:
+        n_depth = 3
+        ddepth = spectro_.thick[i_arm] / n_depth
+        thick = spectro_.thick[i_arm]
+        fratio = spectro_.fratio[i_arm]
+        pix = spectro_.pix[i_arm]
+
+        mfp = np.atleast_1d(si_abslength(lam, spectro_.temperature[i_arm]))
+        nsi = np.atleast_1d(si_index_real(lam))
+        d0 = psf._si_defocus_d0(mfp, ddepth)
+
+        numer = np.zeros((lam.size, u.size))
+        denom = np.zeros(lam.size)
+        for i in range(2 * n_depth):
+            depth = d0 + ddepth * i
+            contrib = np.exp(-ddepth * i / mfp) * np.where(depth > thick, 0.3, 1.0)
+            rspot = depth / nsi / 2.0 / fratio / pix
+            arg = 2.0 * np.pi * rspot[:, None] * u[None, :]
+            denom += contrib
+            numer += contrib[:, None] * (
+                0.1666666667 * np.cos(0.866025404 * arg)
+                + 0.5 * np.cos(0.5 * arg)
+                + 0.3333333333
+            )
+        mtf = mtf * (numer / denom[:, None])
+
+    grating = np.exp(
+        -lam[:, None] / spectro_.dl[i_arm] / spectro_.nline[i_arm] * np.abs(u)[None, :]
+    )
+    mtf = mtf * grating
+
+    return mtf
+
+
+class TestSpectroMTFRecurrencePin:
+    """Pins `spectro_mtf`'s angle-addition-recurrence Si-defocus block
+    against `_old_spectro_mtf`'s literal transcription of the original
+    12-cos-per-call loop it replaced -- an exact reassociation (no
+    approximation, only float rounding order), expected accurate to
+    ~1e-15 (docs/etc-speedup-plan.md). Real Si arms (Dtype=0) of
+    `tests/PFS.20211220.dat` -- the C-reference regression fixture,
+    read-only here, never modified (see CLAUDE.md) -- at `L` in
+    `{512, 4096}`, spanning each arm's own wavelength range.
+    """
+
+    @pytest.mark.parametrize("i_arm", [0, 1])  # both Si arms in this config
+    @pytest.mark.parametrize("L", [512, 4096])
+    def test_matches_pre_recurrence_reference(self, spectro_pfs_config, i_arm, L):
+        assert spectro_pfs_config.Dtype[i_arm] == 0  # sanity: really a Si arm
+        lam = np.linspace(
+            spectro_pfs_config.lmin[i_arm] + 1.0,
+            spectro_pfs_config.lmax[i_arm] - 1.0,
+            L,
+        )
+        u = psf.U_GRID
+        new = psf.spectro_mtf(spectro_pfs_config, i_arm, lam, u)
+        old = _old_spectro_mtf(spectro_pfs_config, i_arm, lam, u)
+        np.testing.assert_allclose(new, old, rtol=1e-12, atol=1e-15)
+
+    @pytest.mark.parametrize("i_arm", [0, 1])
+    @pytest.mark.parametrize("n_workers", [1, 2, 4])
+    # L brackets psf._MTF_CHUNK_MIN_L (512): 511 stays on the serial
+    # (n_workers no-op) path, 512 engages row chunking exactly at the
+    # threshold, 4096 exercises multi-chunk splits.
+    @pytest.mark.parametrize("L", [511, 512, 4096])
+    def test_row_chunk_parallelism_matches_serial(
+        self, spectro_pfs_config, i_arm, n_workers, L
+    ):
+        # Exercises the row-chunk n_workers path (see spectro_mtf's
+        # docstring) against n_workers=1: bit-identical for any n_workers.
+        lam = np.linspace(
+            spectro_pfs_config.lmin[i_arm] + 1.0,
+            spectro_pfs_config.lmax[i_arm] - 1.0,
+            L,
+        )
+        u = psf.U_GRID
+        serial = psf.spectro_mtf(spectro_pfs_config, i_arm, lam, u, n_workers=1)
+        parallel = psf.spectro_mtf(
+            spectro_pfs_config, i_arm, lam, u, n_workers=n_workers
+        )
+        np.testing.assert_array_equal(serial, parallel)
 
 
 class TestSpectroDistScalarTranscription:

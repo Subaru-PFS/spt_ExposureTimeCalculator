@@ -296,6 +296,7 @@ def _deposit_lines(
     ref_airmass: float,
     brightness_scale: float,
     sample_factor: float,
+    n_workers: int = 1,
 ) -> None:
     """Deposit one sky-line list's contribution into `noise`, in place.
 
@@ -306,6 +307,10 @@ def _deposit_lines(
     (:func:`_line_deposit_positions` + `psf.spectro_dist`) via
     `numpy.add.at` (safe under repeated/overlapping indices, unlike plain
     fancy-index assignment).
+
+    `n_workers` is passed straight through to the `psf.spectro_mtf` call
+    below (row-chunk parallelism; a no-op unless there are enough in-range
+    lines to chunk -- see `spectro_mtf`'s docstring).
     """
     npix = int(spectro.npix[i_arm])
     lmin = spectro.lmin[i_arm]
@@ -326,7 +331,7 @@ def _deposit_lines(
     # window below (gsetc.c reuses the same GsSpectroDist-underlying MTF
     # implicitly by calling gsFracTrace then gsSpectroDist separately with
     # the same lambda; here we make the shared work explicit).
-    mtf = psf.spectro_mtf(spectro, i_arm, lam_m, psf.U_GRID)
+    mtf = psf.spectro_mtf(spectro, i_arm, lam_m, psf.U_GRID, n_workers=n_workers)
 
     count, _frac = _line_counts(
         spectro,
@@ -375,7 +380,12 @@ def _continuum_counts(
     # (the SP_PSF_LEN-window remap) and frac_trace (the total captured-flux
     # fraction) below -- (Npix, 1000) f8, ~32MB peak for Npix=4096
     # (constants.L_CHUNK), per the task brief's memory-discipline note.
-    mtf = psf.spectro_mtf(spectro, i_arm, lam_pix, psf.U_GRID)
+    # `params.n_workers` also drives spectro_mtf's row-chunk parallelism
+    # here (this is the largest single `spectro_mtf` call on the noise
+    # critical path, lam_pix.size == npix, up to L_CHUNK=4096).
+    mtf = psf.spectro_mtf(
+        spectro, i_arm, lam_pix, psf.U_GRID, n_workers=params.n_workers
+    )
 
     trans = smoothed_transmission(
         spectro, i_arm, lam_pix, params.zenith_ang, params.sky_type, mtf=mtf
@@ -440,6 +450,7 @@ def compute_noise_arm(params: EtcParams, spectro: Spectrograph, i_arm: int) -> A
             ref_airmass=_UVES_REF_AIRMASS,
             brightness_scale=1.0,
             sample_factor=samp,
+            n_workers=params.n_workers,
         )
         _deposit_lines(
             noise,
@@ -455,6 +466,7 @@ def compute_noise_arm(params: EtcParams, spectro: Spectrograph, i_arm: int) -> A
             ref_airmass=_OH_REF_AIRMASS,
             brightness_scale=_OH_BRIGHTNESS_SCALE,
             sample_factor=samp,
+            n_workers=params.n_workers,
         )
     elif line_model != 0x0:
         raise ValueError(f"compute_noise: illegal sky line model {line_model:#x}")

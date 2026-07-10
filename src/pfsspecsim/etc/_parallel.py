@@ -1,4 +1,4 @@
-"""Arm-level thread parallelism helper.
+"""Arm-level and chunk-level thread parallelism helpers.
 
 Not a port of any `gsetc.c` code -- new infrastructure added on top of the
 otherwise-faithful port, so it carries no `gsetc.c:<line>` references.
@@ -46,6 +46,38 @@ def map_arms(fn: Callable[[int], T], n_arms: int, n_workers: int) -> list[T]:
         return [fn(ia) for ia in range(n_arms)]
     with ThreadPoolExecutor(max_workers=min(n_workers, n_arms)) as ex:
         return list(ex.map(fn, range(n_arms)))
+
+
+def map_index_chunks(
+    fn: Callable[[int, int], T], n: int, chunk_size: int, n_workers: int
+) -> list[T]:
+    """Apply `fn(start, stop)` for each chunk of `range(0, n, chunk_size)`,
+    returning results in chunk order.
+
+    Serial (`[fn(start, stop) for ...]`) when `n_workers <= 1` or there is
+    only one chunk; otherwise threaded via `ThreadPoolExecutor.map`, which
+    -- like `map_arms` -- preserves input order in its returned iterator
+    regardless of worker completion order.
+
+    **Bit-identity guarantee.** Each chunk covers a disjoint half-open index
+    range `[start, stop)`, so `fn` is expected to compute (and a caller
+    assembling the chunks, e.g. via `out[start:stop] = ...` or
+    `np.concatenate`, to place) each chunk's output into a region that does
+    not overlap any other chunk's. There is no order-sensitive reduction
+    across chunks -- the same structure as `map_arms`'s per-arm results --
+    so which chunk a worker happens to finish first can never change any
+    element of the final result: it is bit-identical to the serial
+    (`n_workers=1`) code path for any `n_workers`. `n_workers<=1` or a
+    single chunk short-circuits to a plain serial list comprehension, the
+    same code path structure as the threaded branch, so there is no
+    separate "serial algorithm" to drift out of sync with the parallel one.
+    """
+    starts = list(range(0, n, chunk_size))
+    stops = [min(start + chunk_size, n) for start in starts]
+    if n_workers <= 1 or len(starts) <= 1:
+        return [fn(start, stop) for start, stop in zip(starts, stops)]
+    with ThreadPoolExecutor(max_workers=min(n_workers, len(starts))) as ex:
+        return list(ex.map(fn, starts, stops))
 
 
 def run_products(

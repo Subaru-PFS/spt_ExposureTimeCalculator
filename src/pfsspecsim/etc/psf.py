@@ -44,7 +44,15 @@ sum into two `(L, Nu) @ (Nu, N)` matrix products -- the `(Nlines, Nu, Npix)`
 tensor implied by a naive vectorization of the C triple loop is never
 materialized (see the memory-discipline note in the task brief). Likewise
 the 6-depth-point Si-defocus loop in `spectro_mtf` accumulates into an
-`(L, Nu)` pair of running sums rather than materializing `(L, 6, Nu)`.
+`(L, Nu)` pair of running sums rather than materializing `(L, 6, Nu)`. Per
+depth-point `i` the loop's `cos` arguments are `f*a_i = f*(alpha + i*theta)`
+(one shared `alpha`/`theta` per frequency `f`, linear in `i`), so the 12
+direct `cos` evaluations (2 frequencies x 6 depth points) are replaced by 6
+(`cos(alpha)`, `cos(alpha+theta)` per frequency) plus the angle-addition
+recurrence `cos(alpha+(i+1)*theta) = 2*cos(theta)*cos(alpha+i*theta) -
+cos(alpha+(i-1)*theta)` for the remaining terms -- an exact reassociation of
+the same sum (identical up to float rounding, ~1e-15; see `spectro_mtf`'s
+docstring and gsetc.c:640-661).
 
 When `pos` and `sigma` are both scalars (one shared feature position and
 smearing width for every wavelength -- e.g. `frac_trace`'s window centers,
@@ -71,6 +79,7 @@ from __future__ import annotations
 import numpy as np
 from scipy.special import j0, j1
 
+from ._parallel import map_index_chunks
 from .config import Spectrograph, field_interp
 from .constants import ARCSEC_PER_URAD, RAT_HL_SL_EXP
 from .materials import si_abslength, si_index_real
@@ -106,27 +115,27 @@ def _si_defocus_d0(mfp: np.ndarray, ddepth: float) -> np.ndarray:
     return np.where(mfp < 1e4 * ddepth, small_ratio_branch, 0.5 * ddepth)
 
 
-def spectro_mtf(spectro: Spectrograph, i_arm: int, lam, u) -> np.ndarray:
-    """Spectrograph PSF MTF (real part), `gsSpectroMTF` (gsetc.c:621-667).
+#: Si-defocus cos-term frequencies/weights (gsetc.c:640-661's literal
+#: `0.866025404` (=sqrt(3)/2) and `0.5`, weighted `0.1666666667`/`0.5`).
+_SI_DEFOCUS_FREQS = (0.866025404, 0.5)
+_SI_DEFOCUS_WEIGHTS = (0.1666666667, 0.5)
 
-    Parameters
-    ----------
-    spectro : Spectrograph
-    i_arm : int
-        Internal 0-based arm index.
-    lam : float or array_like, shape (L,)
-        Wavelength in nm.
-    u : float or array_like, shape (Nu,)
-        Wavenumber in cycles/pixel.
+#: Row-chunk threshold/size for `spectro_mtf`'s optional `n_workers`
+#: parallelism (see its docstring) -- below this `L`, chunking overhead
+#: isn't worth it.
+_MTF_CHUNK_MIN_L = 512
 
-    Returns
-    -------
-    ndarray, shape (L, Nu)
-        MTF at each (wavelength, wavenumber) pair.
+
+def _spectro_mtf_rows(
+    spectro: Spectrograph, i_arm: int, lam: np.ndarray, u: np.ndarray
+) -> np.ndarray:
+    """Compute `spectro_mtf`'s `(L, Nu)` result for one `lam` row-chunk.
+
+    Split out of `spectro_mtf` purely so its row-chunk `n_workers`
+    parallelism (each `lam` row is an independent computation) can call this
+    once per chunk via `_parallel.map_index_chunks` -- see `spectro_mtf`'s
+    docstring for the bit-identity argument.
     """
-    lam = np.atleast_1d(np.asarray(lam, dtype=np.float64))
-    u = np.atleast_1d(np.asarray(u, dtype=np.float64))
-
     # Fiber size (u-only). `np.where` evaluates both branches elementwise,
     # so guard the denominator at u=0 to avoid a spurious 0/0 warning (the
     # divide-branch result there is discarded by `np.where` regardless).
@@ -158,19 +167,52 @@ def spectro_mtf(spectro: Spectrograph, i_arm: int, lam, u) -> np.ndarray:
         nsi = np.atleast_1d(si_index_real(lam))  # (L,)
         d0 = _si_defocus_d0(mfp, ddepth)  # (L,)
 
+        # Per-depth-point cos arguments are `f*a_i = f*(alpha_f + i*theta_f)`
+        # -- an arithmetic progression in `i` -- for each frequency `f` in
+        # `_SI_DEFOCUS_FREQS` (gsetc.c:640-661's `0.866025404`/`0.5`). The
+        # angle-addition identity `cos(alpha+(i+1)*theta) =
+        # 2*cos(theta)*cos(alpha+i*theta) - cos(alpha+(i-1)*theta)` then
+        # gets all `2*n_depth` terms per frequency from 3 `cos` evaluations
+        # (`cos(alpha)`, `cos(alpha+theta)`, `cos(theta)`) instead of
+        # `2*n_depth`, cutting the original 12 `cos` calls (2 freqs x 6
+        # depth points) to 6. Exact reassociation of the same sum -- no
+        # approximation, only a change in floating-point rounding order
+        # (~1e-15; same character as the module docstring's other "exact
+        # reassociation" rewrites). The recurrence is advanced inside the
+        # accumulation loop with two rolling `(L, Nu)` arrays per frequency
+        # rather than materializing all `2*n_depth` cos tables up front,
+        # keeping peak memory at a few `(L, Nu)` arrays (the module
+        # docstring's memory-discipline note).
+        base = 1.0 / nsi / 2.0 / fratio / pix  # (L,)
+        d0_base = d0 * base  # (L,)
+        ddepth_base = ddepth * base  # (L,)
+        two_pi = 2.0 * np.pi
+
+        cos_cur = []  # per-frequency C_i, starting at C_0 = cos(alpha)
+        cos_next = []  # per-frequency C_{i+1}
+        twocos_theta = []  # per-frequency recurrence multiplier 2*cos(theta)
+        for f in _SI_DEFOCUS_FREQS:
+            alpha = f * two_pi * d0_base[:, None] * u[None, :]  # (L, Nu)
+            theta = f * two_pi * ddepth_base[:, None] * u[None, :]  # (L, Nu)
+            cos_cur.append(np.cos(alpha))
+            cos_next.append(np.cos(alpha + theta))
+            twocos_theta.append(2.0 * np.cos(theta))
+
         numer = np.zeros((lam.size, u.size))
         denom = np.zeros(lam.size)
         for i in range(2 * n_depth):
             depth = d0 + ddepth * i  # (L,)
             contrib = np.exp(-ddepth * i / mfp) * np.where(depth > thick, 0.3, 1.0)
-            rspot = depth / nsi / 2.0 / fratio / pix  # (L,)
-            arg = 2.0 * np.pi * rspot[:, None] * u[None, :]  # (L, Nu)
             denom += contrib
             numer += contrib[:, None] * (
-                0.1666666667 * np.cos(0.866025404 * arg)
-                + 0.5 * np.cos(0.5 * arg)
+                _SI_DEFOCUS_WEIGHTS[0] * cos_cur[0]
+                + _SI_DEFOCUS_WEIGHTS[1] * cos_cur[1]
                 + 0.3333333333
             )
+            if i < 2 * n_depth - 1:  # advance C_{i-1}, C_i -> C_i, C_{i+1}
+                for k in range(len(_SI_DEFOCUS_FREQS)):
+                    c_next = twocos_theta[k] * cos_next[k] - cos_cur[k]
+                    cos_cur[k], cos_next[k] = cos_next[k], c_next
         mtf = mtf * (numer / denom[:, None])
 
     # Scattering from grating (depends on both lambda and u).
@@ -180,6 +222,53 @@ def spectro_mtf(spectro: Spectrograph, i_arm: int, lam, u) -> np.ndarray:
     mtf = mtf * grating
 
     return mtf
+
+
+def spectro_mtf(
+    spectro: Spectrograph, i_arm: int, lam, u, n_workers: int = 1
+) -> np.ndarray:
+    """Spectrograph PSF MTF (real part), `gsSpectroMTF` (gsetc.c:621-667).
+
+    Parameters
+    ----------
+    spectro : Spectrograph
+    i_arm : int
+        Internal 0-based arm index.
+    lam : float or array_like, shape (L,)
+        Wavelength in nm.
+    u : float or array_like, shape (Nu,)
+        Wavenumber in cycles/pixel.
+    n_workers : int, optional
+        Thread cap for row-chunk parallelism; 1 (default) is serial. Each
+        `lam` row's MTF is an independent computation, so when `lam.size >=
+        512` and `n_workers > 1` the `(L, Nu)` result is split into
+        `min(n_workers, ceil(L/512))` equal row chunks and computed via
+        `_parallel.map_index_chunks` -- disjoint output row ranges, so the
+        result is bit-identical to `n_workers=1` regardless of chunk count
+        (see `map_index_chunks`'s docstring). Below `L=512` the chunking
+        overhead isn't worth it, so this parameter is a no-op.
+
+    Returns
+    -------
+    ndarray, shape (L, Nu)
+        MTF at each (wavelength, wavenumber) pair.
+    """
+    lam = np.atleast_1d(np.asarray(lam, dtype=np.float64))
+    u = np.atleast_1d(np.asarray(u, dtype=np.float64))
+
+    L = lam.size
+    if L >= _MTF_CHUNK_MIN_L and n_workers > 1:
+        n_chunks = min(n_workers, -(-L // _MTF_CHUNK_MIN_L))  # ceil(L / 512)
+        chunk_size = -(-L // n_chunks)  # ceil(L / n_chunks): equal splits
+        chunks = map_index_chunks(
+            lambda start, stop: _spectro_mtf_rows(spectro, i_arm, lam[start:stop], u),
+            L,
+            chunk_size,
+            n_workers,
+        )
+        return np.concatenate(chunks, axis=0)
+
+    return _spectro_mtf_rows(spectro, i_arm, lam, u)
 
 
 def spectro_dist(

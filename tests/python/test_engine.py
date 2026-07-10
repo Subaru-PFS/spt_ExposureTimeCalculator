@@ -429,13 +429,17 @@ class TestMapMasked:
 
 
 class TestArmParallelism:
-    def test_serial_and_parallel_are_bit_identical(self, monkeypatch):
+    @pytest.mark.parametrize("n_workers", [1, 2, 8])
+    def test_serial_and_parallel_are_bit_identical(self, monkeypatch, n_workers):
         # `base` below sets outfile_oii on top of reference_params' default
         # outfile_snc/outfile_snl, so all three of oii_curve/snl/snc are
-        # requested -- with n_workers=3 this exercises both parallelism
-        # levels at once: run_etc's run_products (product-level, see
+        # requested -- with n_workers>1 this exercises every parallelism
+        # level at once: run_etc's run_products (product-level, see
         # `_parallel.py`) submitting all three concurrently, each of which
-        # in turn uses map_arms (arm-level) internally.
+        # in turn uses map_arms (arm-level) and, inside that,
+        # engine._map_masked / psf.spectro_mtf's row chunks (chunk-level)
+        # internally. n_workers=8 (the new default's cap) additionally
+        # exercises the arm x chunk oversubscription case.
         #
         # Small, fixed z grids (module-local, distinct from the
         # module-autouse `_tiny_z_grids` fixture's `_TINY_Z`, per the task
@@ -454,18 +458,19 @@ class TestArmParallelism:
         )
 
         serial = engine.run_etc(dataclasses.replace(base, n_workers=1))
-        parallel = engine.run_etc(dataclasses.replace(base, n_workers=3))
+        parallel = engine.run_etc(dataclasses.replace(base, n_workers=n_workers))
 
         for name in ("noise", "snc", "snl", "oii_curve"):
             serial_table = getattr(serial, name)
             parallel_table = getattr(parallel, name)
             assert serial_table.colnames == parallel_table.colnames
             for col in serial_table.colnames:
-                # Bit-identical, not merely close: arm-level parallelism
-                # must not perturb floating-point aggregation order (see
-                # `_parallel.py`'s module docstring).
+                # Bit-identical, not merely close: arm-level and
+                # chunk-level parallelism must not perturb floating-point
+                # aggregation order (see `_parallel.py`'s module
+                # docstring).
                 np.testing.assert_array_equal(
                     np.asarray(serial_table[col]),
                     np.asarray(parallel_table[col]),
-                    err_msg=f"table={name!r} column={col!r}",
+                    err_msg=f"table={name!r} column={col!r} n_workers={n_workers}",
                 )
