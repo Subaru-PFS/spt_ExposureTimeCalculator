@@ -137,7 +137,7 @@ class Pfsspec:
             "EXP_NUM": "4",
             "MAG_FILE": "22.5",
             "countsMin": "0.1",
-            "etcFile": "out/ref.snc.dat",
+            "etcFile": "out/ref.snc.ecsv",
             "nrealize": "1",
             "outDir": "out",
             "asciiTable": "None",

@@ -66,19 +66,19 @@ def main():
         "--OUTFILE_NOISE",
         type=str,
         help="noise vector output file",
-        default="out/ref.noise.dat",
+        default="out/ref.noise.ecsv",
     )
     parser.add_argument(
         "--OUTFILE_SNC",
         type=str,
         help="continuum results output file",
-        default="out/ref.snc.dat",
+        default="out/ref.snc.ecsv",
     )
     parser.add_argument(
         "--OUTFILE_SNL",
         type=str,
         help="emission line results output file",
-        default="out/ref.snl.dat",
+        default="out/ref.snl.ecsv",
     )
     parser.add_argument(
         "--OUTFILE_OII",

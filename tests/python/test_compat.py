@@ -146,7 +146,7 @@ class TestBoolAndDashConversion:
         assert params.oii_cat_out is None
 
 
-class TestRunProducesEcsvAtOldDefaultPath:
+class TestRunProducesEcsvAtDefaultPath:
     def test_run_writes_ecsv_with_mag_in_meta(
         self, tmp_path, monkeypatch, etc_instance
     ):
@@ -156,7 +156,7 @@ class TestRunProducesEcsvAtOldDefaultPath:
         result = etc_instance.run()
         assert result == 0
 
-        out_path = tmp_path / "out" / "ref.noise.dat"
+        out_path = tmp_path / "out" / "ref.noise.ecsv"
         assert out_path.is_file()
         table = Table.read(out_path, format="ascii.ecsv")
         assert table.meta["params"]["mag"] == 20.0
@@ -167,7 +167,7 @@ class TestRunProducesEcsvAtOldDefaultPath:
         monkeypatch.chdir(tmp_path)
         etc_instance.run()
 
-        noise_tbl = Table.read(tmp_path / "out" / "ref.noise.dat", format="ascii.ecsv")
+        noise_tbl = Table.read(tmp_path / "out" / "ref.noise.ecsv", format="ascii.ecsv")
         np.testing.assert_array_equal(
             etc_instance.nsm_arms, np.asarray(noise_tbl["arm"])
         )
@@ -184,7 +184,7 @@ class TestRunProducesEcsvAtOldDefaultPath:
             etc_instance.nsm_skys, np.asarray(noise_tbl["sky"])
         )
 
-        snc_tbl = Table.read(tmp_path / "out" / "ref.snc.dat", format="ascii.ecsv")
+        snc_tbl = Table.read(tmp_path / "out" / "ref.snc.ecsv", format="ascii.ecsv")
         np.testing.assert_array_equal(etc_instance.snc_sncs, np.asarray(snc_tbl["snr"]))
         np.testing.assert_array_equal(
             etc_instance.snc_sigs, np.asarray(snc_tbl["signal"])
@@ -202,7 +202,7 @@ class TestRunProducesEcsvAtOldDefaultPath:
             etc_instance.snc_samp, np.asarray(snc_tbl["sampling_factor"])
         )
 
-        snl_tbl = Table.read(tmp_path / "out" / "ref.snl.dat", format="ascii.ecsv")
+        snl_tbl = Table.read(tmp_path / "out" / "ref.snl.ecsv", format="ascii.ecsv")
         np.testing.assert_array_equal(
             etc_instance.snl_snls, np.asarray(snl_tbl["snr_tot"])
         )
@@ -210,7 +210,7 @@ class TestRunProducesEcsvAtOldDefaultPath:
             etc_instance.snl_fcov, np.asarray(snl_tbl["fiber_aperture_factor"])
         )
 
-        sno2_tbl = Table.read(tmp_path / "out" / "ref.sno2.dat", format="ascii.ecsv")
+        sno2_tbl = Table.read(tmp_path / "out" / "ref.sno2.ecsv", format="ascii.ecsv")
         np.testing.assert_array_equal(
             etc_instance.sno2_sno2, np.asarray(sno2_tbl["snr_tot"])
         )
@@ -248,13 +248,13 @@ class TestMakeStepMethods:
         etc_instance.set_param("OUTFILE_OII", "-")
 
         etc_instance.make_noise_model()
-        assert (tmp_path / "out" / "ref.noise.dat").is_file()
-        assert not (tmp_path / "out" / "ref.snc.dat").exists()
+        assert (tmp_path / "out" / "ref.noise.ecsv").is_file()
+        assert not (tmp_path / "out" / "ref.snc.ecsv").exists()
 
         etc_instance.make_snc()
-        assert (tmp_path / "out" / "ref.snc.dat").is_file()
-        assert not (tmp_path / "out" / "ref.snl.dat").exists()
-        assert not (tmp_path / "out" / "ref.sno2.dat").exists()
+        assert (tmp_path / "out" / "ref.snc.ecsv").is_file()
+        assert not (tmp_path / "out" / "ref.snl.ecsv").exists()
+        assert not (tmp_path / "out" / "ref.sno2.ecsv").exists()
 
     def test_make_snc_reloads_noise_without_rewriting_file(
         self, tmp_path, monkeypatch, etc_instance
@@ -274,7 +274,7 @@ class TestMakeStepMethods:
         etc_instance.set_param("OUTFILE_OII", "-")
 
         etc_instance.make_noise_model()
-        noise_path = tmp_path / "out" / "ref.noise.dat"
+        noise_path = tmp_path / "out" / "ref.noise.ecsv"
         assert noise_path.is_file()
 
         # Tamper: scale the variance column so a reload is distinguishable
@@ -315,9 +315,9 @@ class TestRunMulti:
         assert result == 0
 
         for value in ("450", "900"):
-            noise_path = tmp_path / "out" / f"ref.noise.dat.EXP_TIME.{value}"
-            snc_path = tmp_path / "out" / f"ref.snc.dat.EXP_TIME.{value}"
-            snl_path = tmp_path / "out" / f"ref.snl.dat.EXP_TIME.{value}"
+            noise_path = tmp_path / "out" / f"ref.noise.ecsv.EXP_TIME.{value}"
+            snc_path = tmp_path / "out" / f"ref.snc.ecsv.EXP_TIME.{value}"
+            snl_path = tmp_path / "out" / f"ref.snl.ecsv.EXP_TIME.{value}"
             assert noise_path.is_file()
             assert snc_path.is_file()
             assert not snl_path.exists()

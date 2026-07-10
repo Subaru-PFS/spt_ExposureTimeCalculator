@@ -293,7 +293,7 @@ class TestCliRunAndPriority:
         """`--ascii-table` on the command line must beat the TOML value;
         the TOML's other keys (`etc_file`, `write_fits`, `mag`, `exp_num`)
         must survive the merge and drive the run (the built-in defaults
-        would try `out/ref.snc.dat` + FITS output and fail).
+        would try `out/ref.snc.ecsv` + FITS output and fail).
         """
         toml_path = tmp_path / "params.toml"
         toml_path.write_text(

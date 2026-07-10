@@ -45,7 +45,7 @@ def sim_command(
     ),
     etc_file: Path | None = typer.Option(
         None,
-        help="ETC continuum-SNR ECSV input file (default: 'out/ref.snc.dat').",
+        help="ETC continuum-SNR ECSV input file (default: 'out/ref.snc.ecsv').",
     ),
     exp_num: int | None = typer.Option(
         None, help="Number of exposures to coadd (default: 4)."

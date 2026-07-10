@@ -43,7 +43,7 @@ def main():
         "--etcFile",
         type=str,
         help="continuum results input file",
-        default="out/ref.snc.dat",
+        default="out/ref.snc.ecsv",
     )
     parser.add_argument(
         "--nrealize", type=int, help="the number of realization", default=1

@@ -275,9 +275,9 @@ from pfsspecsim import pfsetc
 etc = pfsetc.Etc()  # emits DeprecationWarning
 etc.set_param('EXP_TIME', 1200)
 etc.set_param('EXP_NUM', 3)
-etc.set_param('OUTFILE_NOISE', 'out/ref.noise.dat')  # content is ECSV despite the .dat name
-etc.set_param('OUTFILE_SNC', 'out/ref.snc.dat')
-etc.set_param('OUTFILE_SNL', 'out/ref.snl.dat')
+etc.set_param('OUTFILE_NOISE', 'out/ref.noise.ecsv')
+etc.set_param('OUTFILE_SNC', 'out/ref.snc.ecsv')
+etc.set_param('OUTFILE_SNL', 'out/ref.snl.ecsv')
 etc.set_param('OUTFILE_OII', 'out/ref.snoii.dat')
 etc.run()
 ```
@@ -288,7 +288,7 @@ from pfsspecsim import pfsspec
 sim = pfsspec.Pfsspec()
 sim.set_param('ra', 150.0)
 sim.set_param('dec', 2.0)
-sim.set_param('etcFile', 'out/ref.snc.dat')  # ECSV content; legacy plain text still readable too
+sim.set_param('etcFile', 'out/ref.snc.ecsv')  # legacy plain-text ETC files are still readable too
 sim.set_param('MAG_FILE', 19.0)
 sim.set_param('EXP_NUM', 16)
 sim.set_param('asciiTable', 'test')

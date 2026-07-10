@@ -18,9 +18,9 @@ LINE_FLUX        1.0e-17            #  Emission line flux           [erg/s/cm^2]
 LINE_WIDTH       70                 #  Emission line width sigma    [km/s]
 
 NOISE_REUSED     N                  #  Noise Vector Reused?               [Y/N] (If Y, please specify file name used in OUTFILE_NOISE)
-OUTFILE_NOISE    out/ref.noise.dat  #  Output file for noise vector       <filename>
-OUTFILE_SNC      out/ref.snc.dat    #  Output file for continuum S/N      <filename>
-OUTFILE_SNL      out/ref.snl.dat    #  Output file for emission line S/N  <filename>
+OUTFILE_NOISE    out/ref.noise.ecsv #  Output file for noise vector       <filename>
+OUTFILE_SNC      out/ref.snc.ecsv   #  Output file for continuum S/N      <filename>
+OUTFILE_SNL      out/ref.snl.ecsv   #  Output file for emission line S/N  <filename>
 OUTFILE_OII      -                  #  Output file for [OII] doublet S/N  <filename>
 MR_MODE          N                  #  Medium resolution mode switch      [Y/N]
 OVERWRITE        Y                  #  Overwrite switch                   [Y/N]

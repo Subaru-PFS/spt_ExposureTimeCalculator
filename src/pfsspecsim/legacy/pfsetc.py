@@ -128,10 +128,10 @@ class Etc:
             "obscFoVDep": "Y",
         }
         outdir = Path(self.params["OUTDIR"])
-        self.params["OUTFILE_NOISE"] = str(outdir / "ref.noise.dat")
-        self.params["OUTFILE_SNC"] = str(outdir / "ref.snc.dat")
-        self.params["OUTFILE_SNL"] = str(outdir / "ref.snl.dat")
-        self.params["OUTFILE_OII"] = str(outdir / "ref.sno2.dat")
+        self.params["OUTFILE_NOISE"] = str(outdir / "ref.noise.ecsv")
+        self.params["OUTFILE_SNC"] = str(outdir / "ref.snc.ecsv")
+        self.params["OUTFILE_SNL"] = str(outdir / "ref.snl.ecsv")
+        self.params["OUTFILE_OII"] = str(outdir / "ref.sno2.ecsv")
 
         # Deprecated attribute, kept readable for backward compatibility;
         # `_to_new_params` maps it to `EtcParams.n_workers` (arm-parallel
@@ -184,7 +184,7 @@ class Etc:
 
         `outdir` is always `'.'` and every `OUTFILE_*`/`OUTFILE_OIICat`
         path is passed through unchanged (including any leading `OUTDIR`,
-        e.g. the default `'out/ref.snc.dat'`), so files land at exactly
+        e.g. the default `'out/ref.snc.ecsv'`), so files land at exactly
         the path the caller configured -- matching the old wrapper, which
         always honored the literal `OUTFILE_*` string regardless of
         `OUTDIR`.

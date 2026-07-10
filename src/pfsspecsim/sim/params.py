@@ -34,7 +34,7 @@ class SimSpecParams:
     Defaults reproduce `Pfsspec.__init__`'s built-in defaults.
     """
 
-    etc_file: Path = Path("out/ref.snc.dat")
+    etc_file: Path = Path("out/ref.snc.ecsv")
     exp_num: int = 4
     mag: float | None = 22.5  # AB mag (flat); XOR with mag_file
     mag_file: Path | None = None  # wavelength[nm]/mag file, or multi-object table
