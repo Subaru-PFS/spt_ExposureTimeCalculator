@@ -182,3 +182,8 @@ tmp/
 
 # uv per-machine Python pin
 .python-version
+
+# Superpowers (Claude Code plugin) session artifacts: specs/plans are
+# ephemeral working documents; the durable outcome lives in README/CLAUDE.md
+# and the git history.
+docs/superpowers/
