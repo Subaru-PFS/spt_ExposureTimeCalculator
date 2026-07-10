@@ -72,9 +72,9 @@ Before you use the package, please read `README.md` carefully.
 
 ## Description
 
-This package includes two parts: the exposure time calculator (`pfs-etc`) and the spectral simulator (`pfs-sim-spec`). You can get S/N information of an object in a given exposure time and various conditions by using the ETC, which is based on the "Chris Hirata's simulator" (now a pure-Python port of it). By using the results from the ETC, you can get the simulated spectra in the format of the current PFS datamodel with the spectral simulator.
+This package includes two parts: the exposure time calculator (`pfs-spec etc`) and the spectral simulator (`pfs-spec sim`). You can get S/N information of an object in a given exposure time and various conditions by using the ETC, which is based on the "Chris Hirata's simulator" (now a pure-Python port of it). By using the results from the ETC, you can get the simulated spectra in the format of the current PFS datamodel with the spectral simulator.
 
-Both tools are `typer`-based command-line applications. Every parameter can be given either as an individual `--option`, gathered into a TOML file passed via `--config`, or left at its built-in default. When the same parameter is given in more than one place, the priority is:
+Both are subcommands of the single `typer`-based `pfs-spec` command-line application. Every parameter can be given either as an individual `--option`, gathered into a TOML file passed via `--config`, or left at its built-in default. When the same parameter is given in more than one place, the priority is:
 
 ```text
 CLI option  >  TOML file (--config)  >  built-in default
@@ -82,16 +82,16 @@ CLI option  >  TOML file (--config)  >  built-in default
 
 ## Exposure Time Calculator (ETC)
 
-Run `pfs-etc --help` for the full list of options. A minimal run using all defaults:
+Run `pfs-spec etc --help` for the full list of options. A minimal run using all defaults:
 
 ```bash
-pfs-etc
+pfs-spec etc
 ```
 
 writes `out/ref.noise.ecsv`, `out/ref.snc.ecsv`, and `out/ref.snl.ecsv` (the [OII]-doublet curve, `--outfile-oii`, is off by default). Passing options directly:
 
 ```bash
-pfs-etc --mag 23.0 --line-flux 5.0e-17 --line-width 100 --exp-time 900 --exp-num 4
+pfs-spec etc --mag 23.0 --line-flux 5.0e-17 --line-width 100 --exp-time 900 --exp-num 4
 ```
 
 ### TOML configuration files
@@ -123,9 +123,9 @@ outfile_snl = "ref.snl.ecsv"
 ```
 
 ```bash
-pfs-etc --config examples/pfs_etc_example.toml
+pfs-spec etc --config examples/pfs_etc_example.toml
 # override just one field on top of the TOML file:
-pfs-etc --config examples/pfs_etc_example.toml --mag 23.0
+pfs-spec etc --config examples/pfs_etc_example.toml --mag 23.0
 ```
 
 `mag` (a flat AB magnitude) and `mag_file` (a 2-column wavelength[nm]/magnitude file) are mutually exclusive -- passing both (from any combination of CLI/TOML) is an error. Please note that the ETC does not convolve the instrument resolution into a `mag_file` spectrum, so the resolution should already be included in the input spectrum; also note that the wavelength is resampled with a sampling of 0.5 Angstrom (slightly larger than the PFS detector's own pixel sampling of ~0.7A/~0.8A/~0.8A for blue/red/NIR). Do not include "NaN" or other non-numeric values in the input file.
@@ -189,36 +189,36 @@ Some caution again:
 
 ## Spectral Simulator
 
-We can generate simulated outputs for use by the 1-D pipeline using a subset of the outputs from the ETC above and then running `pfs-sim-spec`. The only input we use from the ETC is the continuum S/N ECSV (`outfile_snc`), and only a subset of its columns. In particular, the ETC's own `exp_num`/`mag` settings have *no* effect on the simulator's output.
+We can generate simulated outputs for use by the 1-D pipeline using a subset of the outputs from the ETC above and then running `pfs-spec sim`. The only input we use from the ETC is the continuum S/N ECSV (`outfile_snc`), and only a subset of its columns. In particular, the ETC's own `exp_num`/`mag` settings have *no* effect on the simulator's output.
 
-Parameters that do matter (from the `pfs-etc` run) are `mr_mode` and anything affecting the observing conditions (exposure time, seeing, moon, ...): the settings used when running `pfs-etc` are the ones that determine the simulated spectrum.
+Parameters that do matter (from the `pfs-spec etc` run) are `mr_mode` and anything affecting the observing conditions (exposure time, seeing, moon, ...): the settings used when running `pfs-spec etc` are the ones that determine the simulated spectrum.
 
-So, before running `pfs-sim-spec`, prepare an ETC output:
+So, before running `pfs-spec sim`, prepare an ETC output:
 
 ```bash
-pfs-etc --no-mr-mode --exp-time 450 --outdir out --outfile-snc etc-t450-lr.ecsv
-pfs-etc --mr-mode    --exp-time 450 --outdir out --outfile-snc etc-t450-mr.ecsv
+pfs-spec etc --no-mr-mode --exp-time 450 --outdir out --outfile-snc etc-t450-lr.ecsv
+pfs-spec etc --mr-mode    --exp-time 450 --outdir out --outfile-snc etc-t450-mr.ecsv
 ```
 
 You are now ready to generate simulated spectra. The input spectrum is given by `--mag`/`--mag-file` (same convention as the ETC) and the simulator adds appropriate noise, taking into account the number of integrations requested (`--nrealize`):
 
 ```bash
-pfs-sim-spec --etc-file out/etc-t450-lr.ecsv
+pfs-spec sim --etc-file out/etc-t450-lr.ecsv
 ```
 
-Use `pfs-sim-spec --help` to list all options, or pass `--config some.toml` for a TOML file of overrides (same CLI > TOML > default priority as `pfs-etc`). A more complete example, writing an ASCII table instead of FITS files:
+Use `pfs-spec sim --help` to list all options, or pass `--config some.toml` for a TOML file of overrides (same CLI > TOML > default priority as `pfs-spec etc`). A more complete example, writing an ASCII table instead of FITS files:
 
 ```bash
-pfs-sim-spec --config sim_spec.toml --out-dir out --etc-file out/etc-t450-lr.ecsv --ascii-table test.sim --no-write-fits --mag 20.0
+pfs-spec sim --config sim_spec.toml --out-dir out --etc-file out/etc-t450-lr.ecsv --ascii-table test.sim --no-write-fits --mag 20.0
 ```
 
 to write the ASCII file (`out/test.sim.dat`) instead of the FITS files, simulating a 20th-magnitude flat-spectrum source. If you specify `--nrealize` > 1 then multiple realizations of the noise are generated, each with its own `obj_id`, and the corresponding number of `pfsObject` files are written.
 
-Key `pfs-sim-spec` options:
+Key `pfs-spec sim` options:
 
 | Parameter       | Default value   | Description                                                              |
 |:---             |:---              |:---                                                                      |
-| `etc_file`      | "out/ref.snc.ecsv" | Input noise file for the simulator (an ECSV `outfile_snc` from `pfs-etc`; legacy plain-text files are also accepted) |
+| `etc_file`      | "out/ref.snc.ecsv" | Input noise file for the simulator (an ECSV `outfile_snc` from `pfs-spec etc`; legacy plain-text files are also accepted) |
 | `nrealize`      | 1                | The number of realizations                                               |
 | `ascii_table`   | (none)           | Output ASCII table name without extension                                |
 | `tract`/`patch`/`visit0`/`obj_id`/`cat_id` | 0/"0,0"/1/1/0 | Datamodel filename fields |
@@ -265,7 +265,7 @@ The pre-2.0 subprocess/C engine has been fully replaced by the pure-Python `pfss
 - **`pfsspecsim.pfsetc.Etc`** (`set_param`/`run`/`make_noise_model`/`make_snc`/`make_snl`/`make_sno2`/`run_multi`/...): same ALL_CAPS `params` dict as before, but `run()` now calls the pure-Python engine and every output *file* is now Astropy ECSV rather than the old whitespace-delimited plain text (the file name you configure via `OUTFILE_*` is unchanged; only the content format changed).
 - **`pfs-run-etc`/`pfs-gen-sim-spec`** console scripts (and the equivalent `python scripts/run_etc.py`/`python scripts/gen_sim_spec.py @file` invocations): unchanged argparse interfaces on top of the same `Etc`/`Pfsspec` compatibility layers.
 
-New code should use `pfs-etc`/`pfs-sim-spec` (or `pfsspecsim.etc.load_params` + `run_etc_files`, and `pfsspecsim.simspec.load_params` + `run_sim_spec`, directly -- see "Calling the modern API directly from Python" below) instead.
+New code should use `pfs-spec etc`/`pfs-spec sim` (or `pfsspecsim.etc.load_params` + `run_etc_files`, and `pfsspecsim.sim.load_params` + `run_sim_spec`, directly -- see "Calling the modern API directly from Python" below) instead.
 
 **Known behavioral difference in the chained `make_noise_model(); make_snc()` pattern**: the old C engine had no field-angle-dependent obscuration correction at all (`calc_obscuration` was applied only by the old *Python* wrapper on top of it, inconsistently, across the two calls in some scripts). The pure-Python engine resolves `degrade` (via `resolve_degrade`/`obsc_fov_dep`) exactly once per run and does not replicate that old double-application/compounding bug. Concretely, at the default `field_ang=0.45`, the obscuration correction factor is `calc_obscuration(0.45)[1] ~= 0.83`, so outputs produced through the compatibility layer's chained calls can differ from old, buggy, doubly-corrected runs by around that factor -- this is intentional; it is the C-parity path (single application of `resolve_degrade`) that was verified against the frozen C reference outputs (see "Numerical accuracy" below), not the old wrapper's compounding behavior.
 
@@ -321,10 +321,10 @@ print(results.snc)  # astropy.table.Table
 ```
 
 ```python
-from pfsspecsim.simspec import SimSpecParams, run_sim_spec
+from pfsspecsim.sim import SimSpecParams, run_sim_spec
 
 params = SimSpecParams(
-    etc_file="out/ref.snc.ecsv",  # an outfile_snc ECSV written by pfs-etc
+    etc_file="out/ref.snc.ecsv",  # an outfile_snc ECSV written by pfs-spec etc
     mag=20.0,
     exp_num=4,
     nrealize=1,
@@ -336,11 +336,11 @@ print(sim.outdir, sim.asciiTable)  # 'out' 'test'
 ```
 
 `load_params(toml_path=..., overrides=...)` (ETC) and
-`SimSpecParams(...)`/`simspec.load_params(toml_path=..., overrides=...)`
+`SimSpecParams(...)`/`sim.load_params(toml_path=..., overrides=...)`
 (simulator) both accept the same snake_case TOML files and CLI-priority
-merging as the `pfs-etc`/`pfs-sim-spec` command-line tools -- see the "Full
-parameter reference" table above for the ETC's fields and
-`pfsspecsim/simspec.py`'s `SimSpecParams` dataclass for the simulator's.
+merging as the `pfs-spec etc`/`pfs-spec sim` command-line tools -- see the
+"Full parameter reference" table above for the ETC's fields and
+`pfsspecsim/sim/params.py`'s `SimSpecParams` dataclass for the simulator's.
 
 ## Multi processing
 

@@ -1,4 +1,4 @@
-"""`typer` CLI app (`pfs-etc`) for the pure-Python ETC engine.
+"""The `etc` subcommand of `pfs-spec`, running the pure-Python ETC engine.
 
 CLI options take priority over a TOML config file, which in turn takes
 priority over `EtcParams` defaults (see `params.load_params`). Every
@@ -22,42 +22,17 @@ so a TOML file (or the dataclass defaults) fully control them as usual.
 from __future__ import annotations
 
 import dataclasses
-from importlib import metadata
 from pathlib import Path
 
 import typer
 
-from . import engine
-from .params import EtcParams, load_params
-
-#: Distribution name to look up for `--version` (see `pyproject.toml`).
-_PKG_NAME = "pfsspecsim"
-
-app = typer.Typer(
-    name="pfs-etc",
-    add_completion=False,
-    no_args_is_help=False,
-    help="PFS exposure time calculator (pure-Python engine).",
-)
+from ..etc import engine
+from ..etc.params import EtcParams, load_params
 
 _FIELD_NAMES = frozenset(f.name for f in dataclasses.fields(EtcParams))
 
 
-def _package_version() -> str:
-    try:
-        return metadata.version(_PKG_NAME)
-    except metadata.PackageNotFoundError:
-        return "0.0.0+unknown"
-
-
-def _version_callback(value: bool) -> None:
-    if value:
-        typer.echo(f"pfs-etc {_package_version()}")
-        raise typer.Exit()
-
-
-@app.command()
-def main(
+def etc_command(
     config: Path | None = typer.Option(
         None, "--config", help="TOML file of EtcParams overrides (snake_case keys)."
     ),
@@ -191,13 +166,6 @@ def main(
         None,
         help="[OII]-doublet SNR curve ECSV filename, relative to --outdir (default: disabled).",
     ),
-    version: bool | None = typer.Option(
-        None,
-        "--version",
-        callback=_version_callback,
-        is_eager=True,
-        help="Show the pfs-etc version and exit.",
-    ),
 ) -> None:
     """Run the PFS exposure time calculator and write its ECSV outputs."""
     if mag is not None and mag_file is not None:
@@ -246,7 +214,3 @@ def main(
 
     typer.echo(f"aperture_factor_800_target: {results.aperture_factor_800_target:.6f}")
     typer.echo(f"aperture_factor_800_point: {results.aperture_factor_800_point:.6f}")
-
-
-if __name__ == "__main__":
-    app()

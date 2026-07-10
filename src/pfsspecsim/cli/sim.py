@@ -1,10 +1,10 @@
-"""`typer` CLI app (`pfs-sim-spec`) wrapping `pfsspecsim.simspec.run_sim_spec`.
+"""The `sim` subcommand of `pfs-spec`, wrapping `pfsspecsim.sim.run_sim_spec`.
 
-Mirrors `pfsspecsim.etc.cli`'s pattern: every `SimSpecParams` field has a
+Mirrors `pfsspecsim.cli.etc`'s pattern: every `SimSpecParams` field has a
 corresponding snake_case CLI option, every option defaults to `None` -- a
 sentinel meaning "not given on the command line" -- and an optional
 `--config` TOML file can supply overrides too, with priority
-CLI > TOML > `SimSpecParams`'s own dataclass defaults (`simspec.load_params`).
+CLI > TOML > `SimSpecParams`'s own dataclass defaults (`pfsspecsim.sim.load_params`).
 
 `--mag`/`--mag-file` are a genuinely mutually-exclusive pair (both fields on
 `SimSpecParams`, mirroring `EtcParams.mag`/`mag_file`): passing both on the
@@ -20,50 +20,24 @@ supplies these as native TOML/Python arrays instead.
 
 `--etc-file` (`SimSpecParams.etc_file`) is read by `Pfsspec.make_sim_spec`
 as an Astropy ECSV file (T14), typically the `outfile_snc` ECSV written by
-`pfs-etc`; old-format plain-text files are still accepted via that method's
-fallback path.
+`pfs-spec etc`; old-format plain-text files are still accepted via that
+method's fallback path.
 """
 
 from __future__ import annotations
 
 import dataclasses
-from importlib import metadata
 from pathlib import Path
 from typing import Any
 
 import typer
 
-from . import simspec
-from .simspec import SimSpecParams
-
-#: Distribution name to look up for `--version` (see `pyproject.toml`).
-_PKG_NAME = "pfsspecsim"
-
-app = typer.Typer(
-    name="pfs-sim-spec",
-    add_completion=False,
-    no_args_is_help=False,
-    help="PFS spectral simulator (pure-Python engine).",
-)
+from ..sim import SimSpecParams, load_params, run_sim_spec
 
 _FIELD_NAMES = frozenset(f.name for f in dataclasses.fields(SimSpecParams))
 
 
-def _package_version() -> str:
-    try:
-        return metadata.version(_PKG_NAME)
-    except metadata.PackageNotFoundError:
-        return "0.0.0+unknown"
-
-
-def _version_callback(value: bool) -> None:
-    if value:
-        typer.echo(f"pfs-sim-spec {_package_version()}")
-        raise typer.Exit()
-
-
-@app.command()
-def main(
+def sim_command(
     config: Path | None = typer.Option(
         None,
         "--config",
@@ -155,13 +129,6 @@ def main(
     sky_sub_seed: int | None = typer.Option(
         None, help="Sky-subtraction residual RNG seed (default: 0)."
     ),
-    version: bool | None = typer.Option(
-        None,
-        "--version",
-        callback=_version_callback,
-        is_eager=True,
-        help="Show the pfs-sim-spec version and exit.",
-    ),
 ) -> None:
     """Simulate PFS spectra from an ETC continuum-SNR ECSV file."""
     if mag is not None and mag_file is not None:
@@ -188,13 +155,13 @@ def main(
         overrides["filter_name"] = [v.strip() for v in filter_name.split(",")]
 
     try:
-        params = simspec.load_params(config, overrides=overrides)
+        params = load_params(config, overrides=overrides)
     except (ValueError, OSError) as exc:
         typer.echo(f"Error: {exc}", err=True)
         raise typer.Exit(code=1) from exc
 
     try:
-        sim = simspec.run_sim_spec(params)
+        sim = run_sim_spec(params)
     except Exception as exc:  # noqa: BLE001 -- surface any failure as a clean CLI error
         typer.echo(f"Error: {exc}", err=True)
         raise typer.Exit(code=1) from exc
@@ -204,7 +171,3 @@ def main(
         typer.echo(f"ascii_table: {sim.outdir}/{sim.asciiTable}")
     if sim.writeFits:
         typer.echo(f"n_pfsObject: {len(sim.pfsObjects)}")
-
-
-if __name__ == "__main__":
-    app()

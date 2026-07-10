@@ -1,6 +1,6 @@
-"""Tests for pfsspecsim.etc.cli (task T12).
+"""Tests for pfsspecsim.cli.etc (task T12).
 
-`typer.testing.CliRunner`-driven tests for the `pfs-etc` console script:
+`typer.testing.CliRunner`-driven tests for the `pfs-spec etc` subcommand:
 `--help`, TOML-config + CLI-option override precedence (landing in the
 written ECSV's `table.meta["params"]`, per `io.build_meta`), the
 `--mag`/`--mag-file` mutual-exclusivity CLI-usage error, and a fast
@@ -21,8 +21,9 @@ import pytest
 from astropy.table import Table
 from typer.testing import CliRunner
 
-from pfsspecsim.etc import cli, engine
-from pfsspecsim.etc.cli import app
+from pfsspecsim.cli import app
+from pfsspecsim.cli import etc as cli_etc
+from pfsspecsim.etc import engine
 from pfsspecsim.etc.params import EtcParams, load_params, resolve_degrade
 
 _TINY_Z = np.array([0.3, 0.8, 1.6])
@@ -43,21 +44,22 @@ def _tiny_z_grids(monkeypatch):
 
 class TestCliContractMatchesEtcParams:
     def test_every_etcparams_field_has_a_cli_option(self):
-        # `main`'s `overrides` dict is built by indexing `locals()` with
-        # every `EtcParams` field name (see cli.py's docstring/`main`
-        # body); if a new field were ever added to `EtcParams` without a
-        # matching parameter on `main`, that indexing raises a `KeyError`
-        # at CLI-run time rather than at import/definition time. Guard the
-        # contract directly by introspection instead.
+        # `etc_command`'s `overrides` dict is built by indexing `locals()`
+        # with every `EtcParams` field name (see cli/etc.py's docstring/
+        # `etc_command` body); if a new field were ever added to
+        # `EtcParams` without a matching parameter on `etc_command`, that
+        # indexing raises a `KeyError` at CLI-run time rather than at
+        # import/definition time. Guard the contract directly by
+        # introspection instead.
         field_names = {f.name for f in dataclasses.fields(EtcParams)}
-        cli_param_names = set(inspect.signature(cli.main).parameters)
+        cli_param_names = set(inspect.signature(cli_etc.etc_command).parameters)
         missing = field_names - cli_param_names
         assert not missing, f"EtcParams field(s) with no CLI option: {missing}"
 
 
 class TestHelpAndVersion:
     def test_help_exits_zero_and_lists_options(self):
-        result = runner.invoke(app, ["--help"])
+        result = runner.invoke(app, ["etc", "--help"])
         assert result.exit_code == 0
         assert "--seeing" in result.output
         assert "--mag-file" in result.output
@@ -66,7 +68,7 @@ class TestHelpAndVersion:
     def test_version_exits_zero(self):
         result = runner.invoke(app, ["--version"])
         assert result.exit_code == 0
-        assert "pfs-etc" in result.output
+        assert "pfs-spec" in result.output
 
 
 class TestMagMutualExclusivity:
@@ -75,7 +77,15 @@ class TestMagMutualExclusivity:
         mag_file.write_text("400.0 20.0\n800.0 20.0\n")
         result = runner.invoke(
             app,
-            ["--mag", "20.0", "--mag-file", str(mag_file), "--outdir", str(tmp_path)],
+            [
+                "etc",
+                "--mag",
+                "20.0",
+                "--mag-file",
+                str(mag_file),
+                "--outdir",
+                str(tmp_path),
+            ],
         )
         assert result.exit_code != 0
         assert "mutually exclusive" in result.output
@@ -85,7 +95,7 @@ class TestMagMutualExclusivity:
         mag_file.write_text("400.0 20.0\n800.0 20.0\n")
         outdir = tmp_path / "out"
         result = runner.invoke(
-            app, ["--mag-file", str(mag_file), "--outdir", str(outdir)]
+            app, ["etc", "--mag-file", str(mag_file), "--outdir", str(outdir)]
         )
         assert result.exit_code == 0, result.output
         table = Table.read(outdir / "ref.noise.ecsv", format="ascii.ecsv")
@@ -102,6 +112,7 @@ class TestTomlAndCliOverridePriority:
         result = runner.invoke(
             app,
             [
+                "etc",
                 "--config",
                 str(toml_path),
                 "--seeing",
@@ -127,7 +138,9 @@ class TestTomlAndCliOverridePriority:
         resolved top-level `instr_config` precedent).
         """
         outdir = tmp_path / "out"
-        result = runner.invoke(app, ["--degrade", "2.0", "--outdir", str(outdir)])
+        result = runner.invoke(
+            app, ["etc", "--degrade", "2.0", "--outdir", str(outdir)]
+        )
         assert result.exit_code == 0, result.output
         table = Table.read(outdir / "ref.noise.ecsv", format="ascii.ecsv")
         assert table.meta["params"]["degrade"] == 2.0
@@ -142,7 +155,14 @@ class TestTomlAndCliOverridePriority:
         outdir = tmp_path / "out"
         result = runner.invoke(
             app,
-            ["--degrade", "2.0", "--no-obsc-fov-dep", "--outdir", str(outdir)],
+            [
+                "etc",
+                "--degrade",
+                "2.0",
+                "--no-obsc-fov-dep",
+                "--outdir",
+                str(outdir),
+            ],
         )
         assert result.exit_code == 0, result.output
         table = Table.read(outdir / "ref.noise.ecsv", format="ascii.ecsv")
@@ -154,7 +174,7 @@ class TestTomlAndCliOverridePriority:
         toml_path = tmp_path / "bad.toml"
         toml_path.write_text("not_a_real_field = 1\n")
         result = runner.invoke(
-            app, ["--config", str(toml_path), "--outdir", str(tmp_path)]
+            app, ["etc", "--config", str(toml_path), "--outdir", str(tmp_path)]
         )
         assert result.exit_code != 0
         assert "not_a_real_field" in result.output
@@ -162,7 +182,7 @@ class TestTomlAndCliOverridePriority:
 
 class TestFastEndToEndRun:
     def test_default_run_writes_three_readable_ecsv_files(self, tmp_path):
-        result = runner.invoke(app, ["--outdir", str(tmp_path)])
+        result = runner.invoke(app, ["etc", "--outdir", str(tmp_path)])
         assert result.exit_code == 0, result.output
 
         for name in ("ref.noise.ecsv", "ref.snc.ecsv", "ref.snl.ecsv"):

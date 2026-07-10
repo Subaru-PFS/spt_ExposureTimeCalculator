@@ -1,10 +1,10 @@
-# Example `pfs-etc --config` file (see README.md "TOML configuration files").
+# Example `pfs-spec etc --config` file (see README.md "TOML configuration files").
 #
-#   pfs-etc --config examples/pfs_etc_example.toml
+#   pfs-spec etc --config examples/pfs_etc_example.toml
 #
 # TOML keys are the same snake_case names as the CLI options (with `-`
 # replaced by `_`). Any value can still be overridden on the command line,
-# e.g. `pfs-etc --config examples/pfs_etc_example.toml --mag 23.0`.
+# e.g. `pfs-spec etc --config examples/pfs_etc_example.toml --mag 23.0`.
 
 seeing = 0.80
 zenith_ang = 35.00

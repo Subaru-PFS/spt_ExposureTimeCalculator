@@ -26,10 +26,10 @@ uv run black src tests/python                      # format
 uv build                             # sdist + wheel
 ```
 
-CLIs (installed as entry points): `pfs-etc` (new typer CLI), `pfs-sim-spec`
-(simulator), and the deprecated `pfs-run-etc` / `pfs-gen-sim-spec` (argparse
-`@file` interface over the legacy `Etc` wrapper). Example:
-`uv run pfs-etc --config examples/pfs_etc_example.toml`.
+CLIs (installed as entry points): `pfs-spec` (umbrella typer app, subcommands
+`etc` and `sim`), and the deprecated `pfs-run-etc` / `pfs-gen-sim-spec`
+(argparse `@file` interface over the legacy `Etc` wrapper). Example:
+`uv run pfs-spec etc --config examples/pfs_etc_example.toml`.
 
 Note: editing a `.py` file auto-runs `ruff --fix` + `black` on it via a
 PostToolUse hook, so you don't need to format manually after edits.
@@ -74,7 +74,7 @@ lift it here.
 
 ## Architecture
 
-Package is **src-layout** (`src/pfsspecsim/`). The engine lives in
+Package is **src-layout** (`src/pfsspecsim/`). The ETC engine lives in
 `src/pfsspecsim/etc/`, built in strict dependency order (each module only
 imports from earlier ones):
 
@@ -87,8 +87,20 @@ constants + _modeldata (npz loader)      ← physical constants, C data tables
   → noise                                ← per-arm noise/sky vectors (gsGetNoise port)
   → snr                                  ← signal + line/OII/continuum SNR
   → engine + io                          ← main() orchestrator + ECSV writer/reader
-  → cli                                  ← typer app `pfs-etc`
 ```
+
+The simulator engine lives in `src/pfsspecsim/sim/`, mirroring `etc/`'s
+package shape: `params.py` (`SimSpecParams`, `load_params`), `engine.py`
+(`run_sim_spec`, translating a `SimSpecParams` into `Pfsspec.set_param` calls),
+`pfsspec.py` (the `Pfsspec` engine class — datamodel FITS/pfsArm output),
+`dm_utils.py` (the `pfs.datamodel` object builders `pfsspec.py` calls), and
+`__init__.py` re-exporting `SimSpecParams`/`load_params`/`run_sim_spec`. The
+pure back-compat wrapper, `pfsetc.Etc`, lives separately in
+`src/pfsspecsim/legacy/` (see Backward-compatibility below). The CLI is a
+separate top-level package, `src/pfsspecsim/cli/`, which imports both engines
+but nothing imports it back — `app.py` (the `pfs-spec` umbrella typer app +
+shared `--version`), `etc.py` (the `etc` subcommand, drives `pfsspecsim.etc`),
+`sim.py` (the `sim` subcommand, drives `pfsspecsim.sim`).
 
 Public API (`from pfsspecsim.etc import ...`): `EtcParams` (dataclass of all
 inputs; `load_params(toml, overrides)` with priority CLI > TOML > defaults),
@@ -106,18 +118,24 @@ the resolved `EtcParams`, `etc_version`, `instr_config`, and top-level
 `degrade_resolved` (the obscuration-corrected value the engine actually
 applied — distinct from the raw `params.degrade` under `meta["params"]`).
 
-**Backward-compatibility layer.** `src/pfsspecsim/pfsetc.py` keeps the legacy
-`Etc` class surface (uppercase param dict, `set_param`/`run`/`make_*`/`run_multi`,
-`__init__(omp_num_threads=…)` accepted+ignored with a `DeprecationWarning`). It
-translates old params to `EtcParams`, drives the new engine, and restores the
-old `nsm_*`/`snc_*`/`snl_*`/`sno2_*` attributes from the result tables so old
-scripts and notebooks keep working. One deliberate behavioral change: the old
-`degrade`-compounding bug (obscuration correction accumulating across repeated
-`run()` calls) is **not** replicated, so a chained
-`make_noise_model(); make_snc()` differs from pre-2.0 output by an obscuration
-factor (~0.83 at `field_ang=0.45`). `src/pfsspecsim/pfsspec.py` reads the ETC's
-SNC output as ECSV (with a legacy `np.loadtxt` fallback for old-format files);
-its datamodel FITS output path is unchanged.
+**Backward-compatibility layer.** `src/pfsspecsim/legacy/pfsetc.py` keeps the
+legacy `Etc` class surface (uppercase param dict, `set_param`/`run`/`make_*`/
+`run_multi`, `__init__(omp_num_threads=…)` accepted+ignored with a
+`DeprecationWarning`). It translates old params to `EtcParams`, drives the new
+engine, and restores the old `nsm_*`/`snc_*`/`snl_*`/`sno2_*` attributes from
+the result tables so old scripts and notebooks keep working. One deliberate
+behavioral change: the old `degrade`-compounding bug (obscuration correction
+accumulating across repeated `run()` calls) is **not** replicated, so a
+chained `make_noise_model(); make_snc()` differs from pre-2.0 output by an
+obscuration factor (~0.83 at `field_ang=0.45`). `src/pfsspecsim/sim/pfsspec.py`
+reads the ETC's SNC output as ECSV (with a legacy `np.loadtxt` fallback for
+old-format files); its datamodel FITS output path is unchanged. `legacy/` is
+for this pure-wrapper-only module; `pfsspec.py`/`dm_utils.py` are current,
+non-deprecated implementation code and live in `sim/` instead, not `legacy/`.
+The pre-2.0 top-level import paths (`pfsspecsim.pfsetc`/`.pfsspec`/
+`.dm_utils`) are kept working via a `sys.modules` alias block in
+`src/pfsspecsim/__init__.py`, so `import pfsspecsim.pfsspec` and
+`from pfsspecsim.pfsetc import Etc` still resolve to the real modules above.
 
 ## Testing conventions
 

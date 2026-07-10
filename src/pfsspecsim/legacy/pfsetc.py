@@ -11,10 +11,10 @@ and back, so that existing scripts/notebooks built around
 ``Etc(); set_param(...); run(); get_noise()`` keep working unmodified.
 
 New code should use `pfsspecsim.etc` directly (`EtcParams`/`load_params`,
-`engine.run_etc_files`) or the `pfs-etc` CLI -- see the project README's
-old -> new parameter migration table. This module (and the `Etc` class in
-particular) is deprecated and may be removed in a future release; every
-`Etc()` construction emits a `DeprecationWarning`.
+`engine.run_etc_files`) or the `pfs-spec etc` CLI -- see the project
+README's old -> new parameter migration table. This module (and the `Etc`
+class in particular) is deprecated and may be removed in a future release;
+every `Etc()` construction emits a `DeprecationWarning`.
 
 The output *files* are still written at exactly the paths the caller
 configures via `OUTFILE_NOISE`/`OUTFILE_SNC`/`OUTFILE_SNL`/`OUTFILE_OII`
@@ -31,8 +31,8 @@ from pathlib import Path
 
 import numpy as np
 
-from .etc import engine
-from .etc.params import EtcParams, calc_obscuration
+from ..etc import engine
+from ..etc.params import EtcParams, calc_obscuration
 
 __all__ = ["Etc", "calc_obscuration"]
 
@@ -66,7 +66,7 @@ class Etc:
         `make_snc`/etc.) on top of the pure-Python `pfsspecsim.etc` engine.
         New code should call `pfsspecsim.etc.params.load_params` +
         `pfsspecsim.etc.engine.run_etc_files` directly, or use the
-        `pfs-etc` console script. Constructing `Etc` emits a
+        `pfs-spec etc` console script. Constructing `Etc` emits a
         `DeprecationWarning`.
 
     See https://github.com/Subaru-PFS/spt_ExposureTimeCalculator for
@@ -90,7 +90,7 @@ class Etc:
             "pfsspecsim.pfsetc.Etc is deprecated; it now wraps the "
             "pure-Python pfsspecsim.etc engine. Use "
             "pfsspecsim.etc.params.load_params + "
-            "pfsspecsim.etc.engine.run_etc_files (or the `pfs-etc` CLI) "
+            "pfsspecsim.etc.engine.run_etc_files (or the `pfs-spec etc` CLI) "
             "in new code. `omp_num_threads` is now mapped to the new "
             "engine's `n_workers` (arm-parallel thread count, capped at 3) "
             "instead of being ignored.",

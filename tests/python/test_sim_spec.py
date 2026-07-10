@@ -1,5 +1,6 @@
 """Tests for task T14: `Pfsspec.make_sim_spec`'s ECSV input path (+ legacy
-plain-text fallback) and the `pfs-sim-spec` typer CLI (`pfsspecsim.cli`).
+plain-text fallback) and the `pfs-spec sim` typer CLI
+(`pfsspecsim.cli`/`pfsspecsim.cli.sim`).
 
 `make_sim_spec` now reads its `etcFile` as the Astropy ECSV table the
 pure-Python ETC writes for `outfile_snc` (columns `arm`/`wavelength`/
@@ -35,8 +36,10 @@ from astropy.table import Table
 from typer.testing import CliRunner
 
 from conftest import CONFIG_FIXTURE, reference_params
-from pfsspecsim import cli, pfsspec, simspec
+from pfsspecsim import sim as simspec
+from pfsspecsim.sim import pfsspec
 from pfsspecsim.cli import app
+from pfsspecsim.cli import sim as cli_sim
 from pfsspecsim.etc import engine
 
 runner = CliRunner()
@@ -106,7 +109,7 @@ def synthetic_dir(tmp_path_factory) -> Path:
 
 @pytest.fixture(scope="module")
 def engine_snc_ecsv(tmp_path_factory) -> Path:
-    """A *real* `pfs-etc` SNC ECSV: one full-resolution noise+SNC engine
+    """A *real* `pfs-spec etc` SNC ECSV: one full-resolution noise+SNC engine
     run (a few seconds; SNL/[OII] z-sweeps disabled via their outfile
     fields, so no z-grid monkeypatching is needed) over the protected
     `tests/PFS.20211220.dat` config, shared by the whole module.
@@ -191,12 +194,13 @@ class TestMakeSimSpecEcsv:
 
 class TestCliContractMatchesSimSpecParams:
     def test_every_field_has_a_cli_parameter(self):
-        # `main`'s `overrides` dict comprehension indexes `locals()` by
-        # `_FIELD_NAMES` (== `SimSpecParams`'s field names); if a field were
-        # ever added to `SimSpecParams` without a matching CLI parameter,
-        # `main`'s comprehension would silently skip it whenever that field
-        # is actually passed. Guard the contract directly by introspection.
-        cli_param_names = set(inspect.signature(cli.main).parameters)
+        # `sim_command`'s `overrides` dict comprehension indexes `locals()`
+        # by `_FIELD_NAMES` (== `SimSpecParams`'s field names); if a field
+        # were ever added to `SimSpecParams` without a matching CLI
+        # parameter, `sim_command`'s comprehension would silently skip it
+        # whenever that field is actually passed. Guard the contract
+        # directly by introspection.
+        cli_param_names = set(inspect.signature(cli_sim.sim_command).parameters)
         field_names = {f.name for f in dataclasses.fields(simspec.SimSpecParams)}
         missing = field_names - cli_param_names
         assert not missing, f"SimSpecParams field(s) with no CLI parameter: {missing}"
@@ -204,7 +208,7 @@ class TestCliContractMatchesSimSpecParams:
 
 class TestCliHelpAndVersion:
     def test_help_exits_zero_and_lists_options(self):
-        result = runner.invoke(app, ["--help"])
+        result = runner.invoke(app, ["sim", "--help"])
         assert result.exit_code == 0
         assert "--etc-file" in result.output
         assert "--mag-file" in result.output
@@ -214,28 +218,30 @@ class TestCliHelpAndVersion:
     def test_version_exits_zero(self):
         result = runner.invoke(app, ["--version"])
         assert result.exit_code == 0
-        assert "pfs-sim-spec" in result.output
+        assert "pfs-spec" in result.output
 
 
 class TestCliErrors:
     def test_mag_and_mag_file_together_is_an_error(self, tmp_path):
         mag_file = tmp_path / "mag.dat"
         mag_file.write_text("400.0 20.0\n1100.0 20.0\n")
-        result = runner.invoke(app, ["--mag", "20.0", "--mag-file", str(mag_file)])
+        result = runner.invoke(
+            app, ["sim", "--mag", "20.0", "--mag-file", str(mag_file)]
+        )
         assert result.exit_code != 0
         assert "mutually exclusive" in result.output
 
     def test_mag_and_mag_file_both_in_toml_is_an_error(self, tmp_path):
         toml_path = tmp_path / "params.toml"
         toml_path.write_text('mag = 20.0\nmag_file = "mag.dat"\n')
-        result = runner.invoke(app, ["--config", str(toml_path)])
+        result = runner.invoke(app, ["sim", "--config", str(toml_path)])
         assert result.exit_code != 0
         assert "mutually exclusive" in result.output
 
     def test_unknown_toml_key_is_a_clean_cli_error(self, tmp_path):
         toml_path = tmp_path / "bad.toml"
         toml_path.write_text("not_a_real_field = 1\n")
-        result = runner.invoke(app, ["--config", str(toml_path)])
+        result = runner.invoke(app, ["sim", "--config", str(toml_path)])
         assert result.exit_code != 0
         assert "not_a_real_field" in result.output
 
@@ -243,6 +249,7 @@ class TestCliErrors:
         result = runner.invoke(
             app,
             [
+                "sim",
                 "--etc-file",
                 str(tmp_path / "nope.ecsv"),
                 "--no-write-fits",
@@ -262,6 +269,7 @@ class TestCliRunAndPriority:
         result = runner.invoke(
             app,
             [
+                "sim",
                 "--etc-file",
                 str(synthetic_dir / "snc.ecsv"),
                 "--no-write-fits",
@@ -299,6 +307,7 @@ class TestCliRunAndPriority:
         result = runner.invoke(
             app,
             [
+                "sim",
                 "--config",
                 str(toml_path),
                 "--ascii-table",
@@ -326,7 +335,7 @@ class TestCliRunAndPriority:
             "write_fits = false\n"
         )
         result = runner.invoke(
-            app, ["--config", str(toml_path), "--out-dir", str(outdir)]
+            app, ["sim", "--config", str(toml_path), "--out-dir", str(outdir)]
         )
         assert result.exit_code == 0, result.output
         assert (outdir / "fromtoml.dat").is_file()

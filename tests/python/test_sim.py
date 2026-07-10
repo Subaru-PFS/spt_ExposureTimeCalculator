@@ -1,4 +1,4 @@
-"""Tests for pfsspecsim.simspec: the modern snake_case Python API for the
+"""Tests for pfsspecsim.sim: the modern snake_case Python API for the
 spectral simulator (`SimSpecParams`/`load_params`/`run_sim_spec`), mirroring
 `pfsspecsim.etc.params`'s architecture.
 """
@@ -12,8 +12,7 @@ import numpy as np
 import pytest
 from astropy.table import Table
 
-from pfsspecsim import pfsspec
-from pfsspecsim.simspec import SimSpecParams, load_params, run_sim_spec
+from pfsspecsim.sim import SimSpecParams, load_params, pfsspec, run_sim_spec
 
 # --- SimSpecParams / validate() ---------------------------------------------
 
@@ -23,18 +22,20 @@ def test_defaults_match_legacy_pfsspec_params():
     Pfsspec.__init__'s legacy defaults -- run_sim_spec sends every field
     to Pfsspec.set_param (not just user-supplied overrides), so these two
     default sets must stay in lockstep."""
-    from pfsspecsim.pfsspec import Pfsspec
-    from pfsspecsim.simspec import _LEGACY_KEY_MAP, SimSpecParams
+    from pfsspecsim.sim import SimSpecParams
+    from pfsspecsim.sim.engine import _LEGACY_KEY_MAP
+    from pfsspecsim.sim.pfsspec import Pfsspec
 
     params = SimSpecParams()
     legacy = Pfsspec().params
 
     for field_name, legacy_key in _LEGACY_KEY_MAP.items():
-        if field_name == "mag":
-            assert float(legacy_value) == pytest.approx(value)
-            continue
         value = getattr(params, field_name)
         legacy_value = legacy[legacy_key]
+        if field_name == "mag":
+            # The legacy MAG_FILE default is the flat-mag string "22.5".
+            assert float(legacy_value) == pytest.approx(value)
+            continue
         if field_name == "mag_file":
             # SimSpecParams splits MAG_FILE into mag=22.5 (default) / mag_file=None;
             # the legacy default "22.5" is a flat mag, so mag_file's default (None)

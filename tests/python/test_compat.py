@@ -324,3 +324,43 @@ class TestRunMulti:
 
             table = Table.read(noise_path, format="ascii.ecsv")
             assert table.meta["params"]["exp_time"] == float(value)
+
+
+class TestOldImportPathAliases:
+    """Guard `pfsspecsim.__init__`'s `sys.modules` alias block: the
+    pre-v2.0 public import paths (`pfsspecsim.pfsetc`/`.pfsspec`/
+    `.dm_utils`) must keep resolving to the real modules now living in
+    `pfsspecsim.legacy`/`pfsspecsim.sim`, for both `import x.y` and
+    `from x.y import z` forms.
+    """
+
+    def test_import_pfsspecsim_pfsspec_module_form(self):
+        import pfsspecsim.pfsspec
+
+        import pfsspecsim.sim.pfsspec
+
+        assert pfsspecsim.pfsspec is pfsspecsim.sim.pfsspec
+
+    def test_import_pfsspecsim_dm_utils_module_form(self):
+        import pfsspecsim.dm_utils
+        import pfsspecsim.sim.dm_utils
+
+        assert pfsspecsim.dm_utils is pfsspecsim.sim.dm_utils
+
+    def test_import_pfsspecsim_pfsetc_module_form(self):
+        import pfsspecsim.legacy.pfsetc
+        import pfsspecsim.pfsetc
+
+        assert pfsspecsim.pfsetc is pfsspecsim.legacy.pfsetc
+
+    def test_from_pfsspecsim_pfsspec_import_pfsspec_class(self):
+        from pfsspecsim.pfsspec import Pfsspec
+        from pfsspecsim.sim.pfsspec import Pfsspec as NewPfsspec
+
+        assert Pfsspec is NewPfsspec
+
+    def test_from_pfsspecsim_pfsetc_import_etc_class(self):
+        from pfsspecsim.legacy.pfsetc import Etc as NewEtc
+        from pfsspecsim.pfsetc import Etc
+
+        assert Etc is NewEtc
