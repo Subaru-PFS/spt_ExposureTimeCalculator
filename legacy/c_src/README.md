@@ -108,15 +108,20 @@ the acceptance gates.
   Schaefer formula).
 - `REF_SIZE` (`gsetc.c:2025`) is defined but unused by the live code.
 
-### Documentation discrepancy (manual, not code)
+### Documentation discrepancy (manual typo, code is correct)
 
-- `docs/Manual_v5.pdf` §4.I: the code implements the diffraction scale as
-  `theta_D = lambda/(D_outer*(1-centobs))` (`gsetc.c:556`), i.e. a
-  perimeter-to-area ratio `sigma = 4/[D(1-upsilon)]` -- the correct value
-  for an annular aperture (outer rim + obscuration rim). The manual's
-  printed formula for that ratio should be checked against this; the
-  exponent `exp(-(4/pi)*u*theta_D)` matches the manual. Either way the
-  effect on the aperture factor is sub-percent for PFS parameters.
+- `docs/Manual_v5.pdf` §4.I prints the aperture perimeter-to-area ratio as
+  `4(1-upsilon)/D_outer`. The code implements the diffraction scale as
+  `theta_D = lambda/(D_outer*(1-centobs))` (`gsetc.c:556`), i.e.
+  `sigma = 4/[D(1-upsilon)]` -- the correct ratio for an annular aperture
+  (outer rim `pi*D` + obscuration rim `pi*upsilon*D` over area
+  `(pi/4)*D^2*(1-upsilon^2)`). The manual's version is also unphysical: it
+  would make diffraction losses *decrease* as the obscuration grows,
+  whereas a thinner annulus has more edge per unit area and diffracts
+  more. Confirmed against the printed PDF 2026-07-10 (the exponent
+  `exp(-(4/pi)*u*theta_D)` does match the manual): **the manual's (1-upsilon)
+  placement is a typo; this code is right.** Effect on the aperture factor
+  is sub-percent for PFS parameters either way.
 
 Not a bug in this C code, but related: the pre-2.0 *Python wrapper* had a
 degrade-compounding bug (the field-angle obscuration correction was
