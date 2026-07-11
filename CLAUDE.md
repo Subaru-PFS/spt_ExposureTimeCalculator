@@ -40,7 +40,8 @@ PostToolUse hook, so you don't need to format manually after edits.
 produced by the original C+OpenMP binary and used by the regression gates:
 `tests/master_results/`, `tests/gsetc_params.txt`, `tests/PFS.20211220.dat`,
 `tests/mag_18.dat`, `tests/analyze_diff.py`. (A PreToolUse hook blocks edits to
-them.)
+them.) The original C source vendored at `legacy/c_src/` (see Architecture)
+is likewise frozen and must never be edited.
 
 **The slow gates are the arbiter of correctness.** `test_noise_reference.py`
 (noise only) and `test_reference_outputs.py` (full pipeline) compare every
@@ -51,7 +52,7 @@ values to match. Any change to a numeric kernel
 relative deviation: noise 1.4e-05, snc 3.2e-04, snl 4.3e-04, sno2 7.3e-04.
 
 **Do not "fix" the ported quirks.** `pfsspecsim.etc` is a faithful port of
-`gsetc.c` (deleted from the tree; readable in git history). Several intentional
+`gsetc.c` (vendored, frozen, at `legacy/c_src/gsetc.c`). Several intentional
 C quirks/bugs are preserved verbatim, each marked with a `gsetc.c:<line>`
 comment and pinned by a dedicated regression test — e.g. `snr_single`'s
 fixed-λ transmission, the OII-curve aperture factor computed at `fieldang=0`,
@@ -111,7 +112,8 @@ writes ECSV), plus `MagSpec`, `resolve_degrade`, `calc_obscuration`.
 norm) were extracted once from the C `modeldata.h` by `tools/extract_modeldata.py`
 into `src/pfsspecsim/etc/data/modeldata.npz` (loaded via `importlib.resources`
 + `lru_cache`; `etc/data/README.md` records provenance). Regenerate only via
-that script — the C source is gone from the tree.
+that script — the C source is kept frozen at `legacy/c_src/` (see
+`legacy/c_src/README.md`), not re-derived elsewhere.
 
 **Outputs are Astropy ECSV** (`.ecsv`). Every table carries `table.meta` with
 the resolved `EtcParams`, `etc_version`, `instr_config`, and top-level
