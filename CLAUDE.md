@@ -34,6 +34,14 @@ CLIs (installed as entry points): `pfs-spec` (umbrella typer app, subcommands
 Note: editing a `.py` file auto-runs `ruff --fix` + `black` on it via a
 PostToolUse hook, so you don't need to format manually after edits.
 
+Note: editing a `.md` file similarly auto-runs `prettier` (general formatting,
+incl. table-column alignment) then `markdownlint-cli2 --fix` (project style
+rules from `.markdownlint.jsonc`) via a PostToolUse hook. These tools come
+from `package.json` (optional — run `npm install` once to get fast local
+binaries via `node_modules/.bin`); without it, the hook transparently falls
+back to `npx`, which resolves the tool online on first use and from npx's
+local cache thereafter.
+
 ## Non-negotiable invariants
 
 **Never modify these C-reference fixtures** — they are the acceptance criteria,
@@ -111,9 +119,10 @@ writes ECSV), plus `MagSpec`, `resolve_degrade`, `calc_obscuration`.
 **Data tables** (UVES/OH sky lines, atmospheric transmission, Si index, dust
 norm) were extracted once from the C `modeldata.h` by `tools/extract_modeldata.py`
 into `src/pfsspecsim/etc/data/modeldata.npz` (loaded via `importlib.resources`
-+ `lru_cache`; `etc/data/README.md` records provenance). Regenerate only via
-that script — the C source is kept frozen at `legacy/c_src/` (see
-`legacy/c_src/README.md`), not re-derived elsewhere.
+
+- `lru_cache`; `etc/data/README.md` records provenance). Regenerate only via
+  that script — the C source is kept frozen at `legacy/c_src/` (see
+  `legacy/c_src/README.md`), not re-derived elsewhere.
 
 **Outputs are Astropy ECSV** (`.ecsv`). Every table carries `table.meta` with
 the resolved `EtcParams`, `etc_version`, `instr_config`, and top-level

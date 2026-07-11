@@ -3,6 +3,7 @@ tmp
 test
 build
 dist
+node_modules
 pfs*.fits
 src/pfsspecsim/__pycache__
 src/pfsspecsim/_version.py

@@ -8,11 +8,11 @@ The code modification, the python wrapping, and the development of the spectral 
 
 ## Release Note
 
-- Version 1.0  Feb. 26, 2016
-- Version 1.1  Apr. 27, 2016
-- Version 1.2  Feb. 05, 2021
-- Version 1.3  Jul. 31, 2024
-- Version 2.0  The ETC engine (formerly the C program `gsetc.c`/`gsetc_omp.c`, driven as a subprocess) has been rewritten as a pure-Python package (`pfsspecsim.etc`), built on numpy/scipy/astropy. There is no C compiler, Makefile, or OpenMP dependency any more. See "Migrating from the old C-backed ETC" below if you have scripts built around the pre-2.0 interface.
+- Version 1.0 Feb. 26, 2016
+- Version 1.1 Apr. 27, 2016
+- Version 1.2 Feb. 05, 2021
+- Version 1.3 Jul. 31, 2024
+- Version 2.0 The ETC engine (formerly the C program `gsetc.c`/`gsetc_omp.c`, driven as a subprocess) has been rewritten as a pure-Python package (`pfsspecsim.etc`), built on numpy/scipy/astropy. There is no C compiler, Makefile, or OpenMP dependency any more. See "Migrating from the old C-backed ETC" below if you have scripts built around the pre-2.0 interface.
 
 ## Requirements
 
@@ -64,11 +64,11 @@ uv pip install . --upgrade
 
 Note: `pfs.datamodel` is installed automatically from GitHub as part of either install method.
 
-You also can get the zip or tar ball from the following page:
+Optional: `npm install` installs `prettier`/`markdownlint-cli2` locally so Claude
+Code's Markdown auto-format hook runs fast; without it, the hook falls back to
+`npx` (resolves the tool online on first use, then from npx's local cache).
 
-<http://sumire.pbworks.com/w/page/107534730/PFS%20ETC>
-
-Before you use the package, please read `README.md` carefully.
+Before you use the package, please read the sections below carefully.
 
 ## Description
 
@@ -132,44 +132,44 @@ pfs-spec etc --config examples/pfs_etc_example.toml --mag 23.0
 
 ### Full parameter reference
 
-| Parameter          | Default value      | Description                                    | Unit                          |
-|:---                |:---                 |:---                                            |:---                           |
-| `seeing`           | 0.80                | Seeing FWHM @800nm                             | [arcsec]                      |
-| `zenith_ang`       | 35.00                | Zenith angle                                   | [deg.]                        |
-| `galactic_ext`     | 0.00                 | Galactic extinction E(B-V)                     | [ABmag.]                      |
-| `field_ang`        | 0.45                 | Field angle                                    | [deg.; center=0, edge=0.675]  |
-| `fiber_offset`     | 0.10                 | Fiber centering offset                         | [arcsec]                      |
-| `moon_zenith_ang`  | 30.0                 | Moon zenith angle (>=90 disables moonlight)    | [deg.]                        |
-| `moon_target_ang`  | 60.0                 | Moon-target separation                         | [deg.]                        |
-| `moon_phase`       | 0.125                | Moon phase                                     | [0=New,0.25=quarter,0.5=full] |
-| `exp_time`         | 900                  | Single exposure time                           | [sec.]                        |
-| `exp_num`          | 4                    | The number of exposures                        |                                |
-| `mag`              | 22.5                 | Flat AB magnitude; mutually exclusive with `mag_file` | [ABmag]                 |
-| `mag_file`         | (none)               | 2-column wavelength[nm]/mag file; mutually exclusive with `mag` | *filename*     |
-| `reff`             | 0.3                  | Effective radius                               | [arcsec]                      |
-| `line_flux`        | 1.0e-17              | Emission line flux                             | [erg/s/cm^2]                  |
-| `line_width`       | 70                   | Emission line width sigma                      | [km/s]                        |
-| `mr_mode`          | off                  | Medium resolution mode in the red arm          | [bool]                        |
-| `throughput_model` | "20240714"           | Throughput model tag                           |                                |
-| `spectrograph`     | "ave"                | Spectrograph unit: ave\|sm1\|sm2\|sm3\|sm4     |                                |
-| `instr_config`     | (none)               | Explicit spectrograph config file (overrides `throughput_model`/`spectrograph`/`mr_mode`) | *filename* |
-| `degrade`          | 1.0                  | Throughput degradation factor                  |                                |
-| `obsc_fov_dep`      | on                   | Apply field-angle-dependent obscuration correction to `degrade` | [bool]        |
-| `sky_type`         | "11006"              | Sky-model hex bitmask                          |                                |
-| `hgcdte_sutr`      | on                   | HgCdTe up-the-ramp sampling noise model        | [bool]                        |
-| `sky_sub_floor`    | 0.01                 | Sky-subtraction systematic floor fraction       |                                |
-| `diffuse_stray`    | 0.02                 | Diffuse stray-light fraction                    |                                |
-| `oii_cat_in`       | (none)               | Input catalog for [OII] emitters (enables the catalog output) | *filename*     |
-| `oii_cat_out`      | (none)               | Output catalog for [OII] emitters              | *filename*                     |
-| `min_snr`          | 9.0                  | Minimum SNR for [OII] emission catalog detection |                              |
-| `n_workers`        | `min(8, os.cpu_count())` | Thread count for parallel stages; 1=serial. Results are identical regardless of this value | |
-| `noise_reused`     | off                  | Reload the noise vector from `outfile_noise` instead of recomputing | [bool]  |
-| `overwrite`        | on                   | Allow overwriting existing output files        | [bool]                         |
-| `outdir`           | "out"                | Output directory                               |                                |
-| `outfile_noise`    | "ref.noise.ecsv"     | Output file for the noise vector, relative to `outdir` | *filename*             |
-| `outfile_snc`      | "ref.snc.ecsv"       | Output file for continuum S/N, relative to `outdir` | *filename*                |
-| `outfile_snl`      | "ref.snl.ecsv"       | Output file for emission line S/N, relative to `outdir` | *filename*            |
-| `outfile_oii`      | (none)               | Output file for [OII] doublet S/N curve, relative to `outdir` | *filename*      |
+| Parameter          | Default value            | Description                                                                                | Unit                          |
+| :----------------- | :----------------------- | :----------------------------------------------------------------------------------------- | :---------------------------- |
+| `seeing`           | 0.80                     | Seeing FWHM @800nm                                                                         | [arcsec]                      |
+| `zenith_ang`       | 35.00                    | Zenith angle                                                                               | [deg.]                        |
+| `galactic_ext`     | 0.00                     | Galactic extinction E(B-V)                                                                 | [ABmag.]                      |
+| `field_ang`        | 0.45                     | Field angle                                                                                | [deg.; center=0, edge=0.675]  |
+| `fiber_offset`     | 0.10                     | Fiber centering offset                                                                     | [arcsec]                      |
+| `moon_zenith_ang`  | 30.0                     | Moon zenith angle (>=90 disables moonlight)                                                | [deg.]                        |
+| `moon_target_ang`  | 60.0                     | Moon-target separation                                                                     | [deg.]                        |
+| `moon_phase`       | 0.125                    | Moon phase                                                                                 | [0=New,0.25=quarter,0.5=full] |
+| `exp_time`         | 900                      | Single exposure time                                                                       | [sec.]                        |
+| `exp_num`          | 4                        | The number of exposures                                                                    |                               |
+| `mag`              | 22.5                     | Flat AB magnitude; mutually exclusive with `mag_file`                                      | [ABmag]                       |
+| `mag_file`         | (none)                   | 2-column wavelength[nm]/mag file; mutually exclusive with `mag`                            | *filename*                    |
+| `reff`             | 0.3                      | Effective radius                                                                           | [arcsec]                      |
+| `line_flux`        | 1.0e-17                  | Emission line flux                                                                         | [erg/s/cm^2]                  |
+| `line_width`       | 70                       | Emission line width sigma                                                                  | [km/s]                        |
+| `mr_mode`          | off                      | Medium resolution mode in the red arm                                                      | [bool]                        |
+| `throughput_model` | "20240714"               | Throughput model tag                                                                       |                               |
+| `spectrograph`     | "ave"                    | Spectrograph unit: ave\|sm1\|sm2\|sm3\|sm4                                                 |                               |
+| `instr_config`     | (none)                   | Explicit spectrograph config file (overrides `throughput_model`/`spectrograph`/`mr_mode`)  | *filename*                    |
+| `degrade`          | 1.0                      | Throughput degradation factor                                                              |                               |
+| `obsc_fov_dep`     | on                       | Apply field-angle-dependent obscuration correction to `degrade`                            | [bool]                        |
+| `sky_type`         | "11006"                  | Sky-model hex bitmask                                                                      |                               |
+| `hgcdte_sutr`      | on                       | HgCdTe up-the-ramp sampling noise model                                                    | [bool]                        |
+| `sky_sub_floor`    | 0.01                     | Sky-subtraction systematic floor fraction                                                  |                               |
+| `diffuse_stray`    | 0.02                     | Diffuse stray-light fraction                                                               |                               |
+| `oii_cat_in`       | (none)                   | Input catalog for [OII] emitters (enables the catalog output)                              | *filename*                    |
+| `oii_cat_out`      | (none)                   | Output catalog for [OII] emitters                                                          | *filename*                    |
+| `min_snr`          | 9.0                      | Minimum SNR for [OII] emission catalog detection                                           |                               |
+| `n_workers`        | `min(8, os.cpu_count())` | Thread count for parallel stages; 1=serial. Results are identical regardless of this value |                               |
+| `noise_reused`     | off                      | Reload the noise vector from `outfile_noise` instead of recomputing                        | [bool]                        |
+| `overwrite`        | on                       | Allow overwriting existing output files                                                    | [bool]                        |
+| `outdir`           | "out"                    | Output directory                                                                           |                               |
+| `outfile_noise`    | "ref.noise.ecsv"         | Output file for the noise vector, relative to `outdir`                                     | *filename*                    |
+| `outfile_snc`      | "ref.snc.ecsv"           | Output file for continuum S/N, relative to `outdir`                                        | *filename*                    |
+| `outfile_snl`      | "ref.snl.ecsv"           | Output file for emission line S/N, relative to `outdir`                                    | *filename*                    |
+| `outfile_oii`      | (none)                   | Output file for [OII] doublet S/N curve, relative to `outdir`                              | *filename*                    |
 
 If you set `noise_reused` to true, the ETC will skip the process of generating the noise vector, which is a time-consuming step. The process time can be reduced to roughly half by this mode -- useful if you want to calculate the S/N of objects with various magnitudes and line fluxes under the same noise assumption (zenith angle, field angle, lunar condition, and exposure time). If you use this mode, `outfile_noise` must point at a previously written noise ECSV file.
 
@@ -217,12 +217,12 @@ to write the ASCII file (`out/test.sim.dat`) instead of the FITS files, simulati
 
 Key `pfs-spec sim` options:
 
-| Parameter       | Default value   | Description                                                              |
-|:---             |:---              |:---                                                                      |
-| `etc_file`      | "out/ref.snc.ecsv" | Input noise file for the simulator (an ECSV `outfile_snc` from `pfs-spec etc`; legacy plain-text files are also accepted) |
-| `nrealize`      | 1                | The number of realizations                                               |
-| `ascii_table`   | (none)           | Output ASCII table name without extension                                |
-| `tract`/`patch`/`visit0`/`obj_id`/`cat_id` | 0/"0,0"/1/1/0 | Datamodel filename fields |
+| Parameter                                  | Default value      | Description                                                                                                               |
+| :----------------------------------------- | :----------------- | :------------------------------------------------------------------------------------------------------------------------ |
+| `etc_file`                                 | "out/ref.snc.ecsv" | Input noise file for the simulator (an ECSV `outfile_snc` from `pfs-spec etc`; legacy plain-text files are also accepted) |
+| `nrealize`                                 | 1                  | The number of realizations                                                                                                |
+| `ascii_table`                              | (none)             | Output ASCII table name without extension                                                                                 |
+| `tract`/`patch`/`visit0`/`obj_id`/`cat_id` | 0/"0,0"/1/1/0      | Datamodel filename fields                                                                                                 |
 
 The ASCII table columns are:
 
@@ -243,21 +243,21 @@ If you have many spectra you want to realize, you can do that in a single run us
 
 Pre-2.0 releases drove the C engine via `pfsspecsim.pfsetc.Etc` with ALL_CAPS `params` dict keys (or the `scripts/run_etc.py @file` argparse interface). Those interfaces still work (see "Migrating from the old C-backed ETC" below), but new code and TOML files should use the snake_case names below:
 
-| Old (ALL_CAPS)                                              | New (snake_case)                                              | Notes                              |
-|:---                                                          |:---                                                            |:---                                |
-| `SEEING`/`ZENITH_ANG`/`GALACTIC_EXT`/`MOON_ZENITH_ANG`/`MOON_TARGET_ANG`/`MOON_PHASE`/`EXP_TIME`/`EXP_NUM`/`FIELD_ANG`/`REFF`/`LINE_FLUX`/`LINE_WIDTH` | same name, snake_case (`seeing`, `zenith_ang`, ... `line_width`) | `exp_num` is now `int`             |
-| `MAG_FILE` (a number)                                        | `mag`                                                          | split into two mutually-exclusive fields |
-| `MAG_FILE` (a path)                                          | `mag_file`                                                     | split into two mutually-exclusive fields |
-| `NOISE_REUSED`, `MR_MODE`, `OVERWRITE` (`'Y'`/`'N'`)          | `noise_reused`, `mr_mode`, `overwrite`                          | now real `bool`                    |
-| `INFILE_OIICat` / `OUTFILE_OIICat`                            | `oii_cat_in` / `oii_cat_out`                                    | `'-'` -> `None`                    |
-| `minSNR`                                                      | `min_snr`                                                       |                                     |
-| `degrade` / `SKY_SUB_FLOOR` / `DIFFUSE_STRAY` / `throughput_model` / `spectrograph` / `OUTDIR` / `obscFoVDep` | `degrade` / `sky_sub_floor` / `diffuse_stray` / `throughput_model` / `spectrograph` / `outdir` / `obsc_fov_dep` | |
-| `OUTFILE_NOISE`/`OUTFILE_SNC`/`OUTFILE_SNL`/`OUTFILE_OII`     | `outfile_noise`/`outfile_snc`/`outfile_snl`/`outfile_oii`       | `'-'` -> `None`; content is now ECSV |
-| (hardcoded `SKYMODELS='11006'`)                               | `sky_type`                                                      | now a configurable parameter        |
-| (hardcoded `OFFSET_FIB='0.10'`)                               | `fiber_offset`                                                  | now a configurable parameter        |
-| (compile flag `-DHGCDTE_SUTR`)                                | `hgcdte_sutr`                                                   | default `True`                     |
-| (compile flag `-DMOONLIGHT_`)                                 | --                                                              | always active; disable by setting `moon_zenith_ang >= 90` |
-| `TMPDIR`, `BINDIR`                                            | --                                                               | removed; accepted as no-ops by the compatibility layer |
+| Old (ALL_CAPS)                                                                                                                                         | New (snake_case)                                                                                                | Notes                                                     |
+| :----------------------------------------------------------------------------------------------------------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------- | :-------------------------------------------------------- |
+| `SEEING`/`ZENITH_ANG`/`GALACTIC_EXT`/`MOON_ZENITH_ANG`/`MOON_TARGET_ANG`/`MOON_PHASE`/`EXP_TIME`/`EXP_NUM`/`FIELD_ANG`/`REFF`/`LINE_FLUX`/`LINE_WIDTH` | same name, snake_case (`seeing`, `zenith_ang`, ... `line_width`)                                                | `exp_num` is now `int`                                    |
+| `MAG_FILE` (a number)                                                                                                                                  | `mag`                                                                                                           | split into two mutually-exclusive fields                  |
+| `MAG_FILE` (a path)                                                                                                                                    | `mag_file`                                                                                                      | split into two mutually-exclusive fields                  |
+| `NOISE_REUSED`, `MR_MODE`, `OVERWRITE` (`'Y'`/`'N'`)                                                                                                   | `noise_reused`, `mr_mode`, `overwrite`                                                                          | now real `bool`                                           |
+| `INFILE_OIICat` / `OUTFILE_OIICat`                                                                                                                     | `oii_cat_in` / `oii_cat_out`                                                                                    | `'-'` -> `None`                                           |
+| `minSNR`                                                                                                                                               | `min_snr`                                                                                                       |                                                           |
+| `degrade` / `SKY_SUB_FLOOR` / `DIFFUSE_STRAY` / `throughput_model` / `spectrograph` / `OUTDIR` / `obscFoVDep`                                          | `degrade` / `sky_sub_floor` / `diffuse_stray` / `throughput_model` / `spectrograph` / `outdir` / `obsc_fov_dep` |                                                           |
+| `OUTFILE_NOISE`/`OUTFILE_SNC`/`OUTFILE_SNL`/`OUTFILE_OII`                                                                                              | `outfile_noise`/`outfile_snc`/`outfile_snl`/`outfile_oii`                                                       | `'-'` -> `None`; content is now ECSV                      |
+| (hardcoded `SKYMODELS='11006'`)                                                                                                                        | `sky_type`                                                                                                      | now a configurable parameter                              |
+| (hardcoded `OFFSET_FIB='0.10'`)                                                                                                                        | `fiber_offset`                                                                                                  | now a configurable parameter                              |
+| (compile flag `-DHGCDTE_SUTR`)                                                                                                                         | `hgcdte_sutr`                                                                                                   | default `True`                                            |
+| (compile flag `-DMOONLIGHT_`)                                                                                                                          | --                                                                                                              | always active; disable by setting `moon_zenith_ang >= 90` |
+| `TMPDIR`, `BINDIR`                                                                                                                                     | --                                                                                                              | removed; accepted as no-ops by the compatibility layer    |
 
 ## Migrating from the old C-backed ETC
 
@@ -424,12 +424,12 @@ sim.make_sim_spec_multi(nproc=3, params=params)
 
 The pure-Python engine is verified against a frozen set of reference outputs produced by the old C engine (`gsetc_omp.x`) for a fixed set of observing conditions and inputs (see `tests/python/test_reference_outputs.py` and `tests/python/test_noise_reference.py`). The acceptance criterion is `rtol=1.5e-3` agreement on at least 99.9% of rows in every output table; the actual maximum relative deviation achieved during development is well within that margin for every table:
 
-| Table  | Max relative deviation from C reference |
-|:---    |:---                                      |
-| noise  | 1.4e-05                                  |
-| snc    | 3.2e-04                                  |
-| snl    | 4.3e-04                                  |
-| sno2 (`[OII]` curve) | 7.3e-04                     |
+| Table                | Max relative deviation from C reference |
+| :------------------- | :-------------------------------------- |
+| noise                | 1.4e-05                                 |
+| snc                  | 3.2e-04                                 |
+| snl                  | 4.3e-04                                 |
+| sno2 (`[OII]` curve) | 7.3e-04                                 |
 
 ### Known C-side quirks preserved in the port
 
