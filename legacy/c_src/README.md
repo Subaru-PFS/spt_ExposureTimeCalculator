@@ -50,6 +50,81 @@ under `tests/master_results/`: a frozen input, not a file to improve. If the
 upstream C source is ever revisited, do so in a separate location and leave
 this copy untouched.
 
+## Known bugs and quirks in this C source
+
+The 2026-07 port review (`docs/review-c-to-python-port-2026-07-10.md`)
+catalogued the following. They are documented here so that future readers of
+`gsetc.c` do not mistake them for unknowns -- but per the line-number
+contract above, **none of them may be fixed in this copy**.
+
+### Intentional quirks, preserved verbatim in the Python port
+
+Each of these is reproduced exactly by `src/pfsspecsim/etc/` and pinned by a
+dedicated regression test; "fixing" any of them on the Python side breaks
+the acceptance gates.
+
+- `gsetc.c:1213-1218` -- `gsGetSNR_Single`'s 41-point Gaussian transmission
+  average evaluates `gsAtmTrans` at the *same, unshifted* wavelength at
+  every quadrature point (unlike `gsGetSignal`'s genuinely velocity-smeared
+  average at 1100-1105). Mathematically equal to the plain pointwise
+  transmission, which is how the port implements it.
+- `gsetc.c:2049` vs `2084` -- the [OII] curve's diagnostic aperture-factor
+  column calls `gsGeometricThroughput` with `fieldang=0`, while the
+  single-line curve uses the real field angle.
+- `gsetc.c:1401` vs `882` -- `gsGetSNR_Continuum` evaluates each pixel's
+  wavelength at the pixel *left edge* (`lmin + dl*ipix`), whereas
+  `gsGetNoise`'s sky-continuum grid uses the pixel *center*
+  (`lmin + (ipix+0.5)*dl`).
+- `gsetc.c:805-813` vs `842-852` -- the UVES sky lines are rescaled to a
+  reference airmass of 1.1, the OH lines to 1.0 (plus an
+  `exp((14.8-15.8)/1.086)` brightness-level factor).
+- `gsetc.c:2160-2165` -- `ngtot++` (and `ngal[j]++`) sit *inside* the
+  `j>=0 && j<NZ_OII` histogram-bin check, so a detected object with z
+  outside [0.1, 2.5) is written to the output catalog but counted in
+  neither the histogram nor `ngtot`.
+- `gsetc.c:1918-1947` -- the magnitude-file padding reuses the *raw*,
+  unthresholded first/last data values when extending past the data range
+  (the `mag <= 0 -> 99.9` substitution is not re-applied to those points).
+- `gsetc.c:813, 851` -- the magnitude-to-nepers conversion hardcodes the
+  rounded `1.086` rather than the exact `2.5/ln(10) = 1.0857...`.
+
+### Latent bug, deliberately NOT replicated by the Python port
+
+- `gsetc.c:1980-2000` (`flag_reused==1` noise-reload branch) -- rows are
+  assigned to arms by fixed offsets against a flat row counter `k`, with
+  `else if (k>=spectro.npix[1])` where `npix[0]` was evidently intended
+  (the index used is `k-spectro.npix[0]`). This only works because arm 0
+  and arm 1 happen to share a pixel count in the PFS configs; any config
+  where they differ mis-assigns rows. The port
+  (`engine._noise_arrays_from_table`) instead groups rows explicitly by the
+  file's own `arm` column, which is identical for all shipped configs and
+  correct in general.
+
+### Dead code (not ported)
+
+- `geterf` (`gsetc.c:161-204`) is defined but never called.
+- The moonlight block computes `k = gsAtmContOp(...)` (`gsetc.c:960`) and
+  never uses it (only `kV`, evaluated at 550 nm, feeds the Krisciunas &
+  Schaefer formula).
+- `REF_SIZE` (`gsetc.c:2025`) is defined but unused by the live code.
+
+### Documentation discrepancy (manual, not code)
+
+- `docs/Manual_v5.pdf` §4.I: the code implements the diffraction scale as
+  `theta_D = lambda/(D_outer*(1-centobs))` (`gsetc.c:556`), i.e. a
+  perimeter-to-area ratio `sigma = 4/[D(1-upsilon)]` -- the correct value
+  for an annular aperture (outer rim + obscuration rim). The manual's
+  printed formula for that ratio should be checked against this; the
+  exponent `exp(-(4/pi)*u*theta_D)` matches the manual. Either way the
+  effect on the aperture factor is sub-percent for PFS parameters.
+
+Not a bug in this C code, but related: the pre-2.0 *Python wrapper* had a
+degrade-compounding bug (the field-angle obscuration correction was
+multiplied into the stored `degrade` parameter on every `run()`/`make_*()`
+call), documented in detail in
+`docs/review-c-to-python-port-2026-07-10.md` §6.1. The wrapper drove this C
+binary but the bug lived entirely in the Python layer.
+
 ## `modeldata.h` provenance
 
 `src/pfsspecsim/etc/data/modeldata.npz` was extracted from this `modeldata.h`

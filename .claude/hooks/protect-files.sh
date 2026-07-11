@@ -23,7 +23,7 @@ case "$rel" in
         echo "Blocked: $rel is a read-only C-reference acceptance fixture. The slow regression gates compare against it; it must never be modified. See CLAUDE.md." >&2
         exit 2
         ;;
-    legacy/c_src/*)
+    legacy/c_src/gsetc.c|legacy/c_src/modeldata.h|legacy/c_src/Makefile)
         echo "Blocked: $rel is the frozen original C ETC source. gsetc.c:<line> citations throughout src/pfsspecsim/etc/ resolve against this exact copy; it must never be modified. See legacy/c_src/README.md." >&2
         exit 2
         ;;
