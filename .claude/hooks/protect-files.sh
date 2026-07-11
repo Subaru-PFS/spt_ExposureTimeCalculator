@@ -27,6 +27,10 @@ case "$rel" in
         echo "Blocked: $rel is the frozen original C ETC source. gsetc.c:<line> citations throughout src/pfsspecsim/etc/ resolve against this exact copy; it must never be modified. See legacy/c_src/README.md." >&2
         exit 2
         ;;
+    legacy/python_wrapper/pfsspecsim/*|legacy/python_wrapper/scripts/*)
+        echo "Blocked: $rel is part of the frozen pre-2.0 Python wrapper. pfsetc.py:<line> citations throughout src/pfsspecsim/ resolve against this exact copy; it must never be modified. See legacy/python_wrapper/README.md." >&2
+        exit 2
+        ;;
 esac
 
 # Generated files that should be regenerated, not hand-edited.

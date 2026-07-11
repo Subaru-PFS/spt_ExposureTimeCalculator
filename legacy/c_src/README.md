@@ -128,7 +128,9 @@ degrade-compounding bug (the field-angle obscuration correction was
 multiplied into the stored `degrade` parameter on every `run()`/`make_*()`
 call), documented in detail in
 `docs/review-c-to-python-port-2026-07-10.md` §6.1. The wrapper drove this C
-binary but the bug lived entirely in the Python layer.
+binary but the bug lived entirely in the Python layer. That wrapper is now
+vendored, frozen, at `legacy/python_wrapper/` (see its `README.md` for the
+exact line numbers of the five mutation sites).
 
 ## `modeldata.h` provenance
 
