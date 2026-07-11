@@ -162,6 +162,7 @@ pfs-spec etc --config examples/pfs_etc_example.toml --mag 23.0
 | `oii_cat_in`       | (none)               | Input catalog for [OII] emitters (enables the catalog output) | *filename*     |
 | `oii_cat_out`      | (none)               | Output catalog for [OII] emitters              | *filename*                     |
 | `min_snr`          | 9.0                  | Minimum SNR for [OII] emission catalog detection |                              |
+| `n_workers`        | `min(8, os.cpu_count())` | Thread count for parallel stages; 1=serial. Results are identical regardless of this value | |
 | `noise_reused`     | off                  | Reload the noise vector from `outfile_noise` instead of recomputing | [bool]  |
 | `overwrite`        | on                   | Allow overwriting existing output files        | [bool]                         |
 | `outdir`           | "out"                | Output directory                               |                                |
@@ -430,7 +431,41 @@ The pure-Python engine is verified against a frozen set of reference outputs pro
 | snl    | 4.3e-04                                  |
 | sno2 (`[OII]` curve) | 7.3e-04                     |
 
-A small number of C-side quirks and known bugs were intentionally *not* fixed in the port (they are ported verbatim, with a comment pointing at the corresponding C line numbers), to keep this numerical agreement meaningful as a regression gate rather than silently changing the physics. See the docstrings in `pfsspecsim/etc/*.py` for the specific list (e.g. the fixed-wavelength transmission quirk in the single-line SNR formula, the OII aperture-factor field-angle inconsistency, the OH/UVES airmass reference difference).
+### Known C-side quirks preserved in the port
+
+A small number of C-side quirks and known bugs were intentionally *not* fixed in the port (they are ported verbatim, each with a comment pointing at the corresponding `gsetc.c` line numbers), to keep the numerical agreement above meaningful as a regression gate rather than silently changing the physics. If a result looks odd in one of the ways below, this is why -- it is a preserved property of the original C engine, not a porting bug. In practice these mostly matter for interpreting output columns correctly; none of them require changing how you invoke the ETC.
+
+- **`outfile_snc`'s wavelength is the pixel *left edge*; `outfile_noise`'s is the pixel *center*.** The two tables' `wavelength` columns are computed on a half-pixel-shifted grid from each other (`gsetc.c:1401` vs `gsetc.c:882`) -- a genuine cross-function inconsistency in the original C code. If you cross-match rows between the two tables by index, remember the wavelengths are not the same grid.
+- **`outfile_oii`'s `fiber_aperture_factor` diagnostic column ignores `field_ang`.** It is always computed as if the target were at the center of the field (`fieldang=0`, `gsetc.c:2049`), regardless of the actual `--field-ang` value used for the rest of the run. `outfile_snl`'s equivalent column does *not* have this quirk -- it correctly uses the real `field_ang` (`gsetc.c:2084`).
+- **The `[OII]` catalog mode (`oii_cat_in`/`oii_cat_out`) ignores per-object line width.** The input catalog's velocity-dispersion (`sigma`) column is read but never used; every catalog object is scored with a hardcoded `sigma_v = 70 km/s` regardless of what the catalog file says (`gsetc.c:2154`).
+- **The `[OII]` catalog's target count can undercount the output rows.** `oii_n_targets` (the redshift-recovery histogram total) only counts detected objects whose recovered redshift falls inside the histogram's fixed `[ZMIN_OII, ZMIN_OII + NZ_OII*DZ_OII)` range (`gsetc.c:2160-2165`). A detected object outside that range is still written to `oii_cat_out`, just not counted in the histogram/total -- so `n_targets` can be less than the number of rows in the output catalog.
+- **The UVES and OH sky-line atlases are normalized to different reference airmasses.** UVES (optical) lines scale from a reference airmass of 1.1 (`gsetc.c:805-813`); OH (NIR) airglow lines scale from 1.0 (`gsetc.c:842-852`). This split is a property of the original model/data, not a bug introduced by the port.
+- **`snr_single`'s (single-emission-line SNR) object-continuum transmission uses a fixed wavelength.** It is nominally a 41-point Gaussian average over the line's velocity-smeared wavelength range, but every quadrature point is evaluated at the same, unshifted line wavelength (`gsetc.c:1213-1218`), so the "average" is mathematically just the plain pointwise transmission. `get_signal`'s own line-shape average (used elsewhere) is genuinely velocity-smeared; only this particular transmission factor is not.
+
+See the docstrings in `pfsspecsim/etc/*.py` (search for `QUIRK`) for the full technical detail behind each item above.
+
+## Planned reorganization (not yet implemented)
+
+The following restructuring is planned but not yet done -- noted here so the
+intended direction is clear, not as a description of current behavior:
+
+- **`example/`** (singular -- pre-2.0 sample noise/output files, spectra, and
+  the `ETC Example.ipynb` notebook, all built around the old C-driven
+  workflow) is expected to move under `legacy/` alongside `legacy/c_src` and
+  `legacy/python_wrapper`, consistent with those being frozen references to
+  the pre-2.0 toolchain.
+- **`scripts/`** (top-level -- the thin `python scripts/run_etc.py`/
+  `gen_sim_spec.py` shims described in "Migrating from the old C-backed ETC"
+  above) is likewise expected to move under `legacy/` once the
+  `pfs-run-etc`/`pfs-gen-sim-spec` console scripts are considered the sole
+  supported path, or to be dropped entirely.
+- **`examples/`** (plural -- currently just `pfs_etc_example.toml`) is
+  expected to grow into the primary set of runnable examples for the modern
+  `pfs-spec etc`/`pfs-spec sim` CLI, replacing what `example/` covers today:
+  more TOML configs (e.g. an `mr_mode` comparison, an `oii_cat_in`/
+  `oii_cat_out` catalog run, a multi-object `mag_file` realization) and
+  updated example spectra/notebooks, drawn from `example/` and the snippets
+  already in this README.
 
 ## Cautions and known issues
 
