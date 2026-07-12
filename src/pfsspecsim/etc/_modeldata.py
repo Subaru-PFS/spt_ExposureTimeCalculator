@@ -1,8 +1,9 @@
 """Loader for the extracted C lookup tables (``etc/data/modeldata.npz``).
 
-The archive was produced by `tools/extract_modeldata.py` (T1) from
-`src/gsetc.c` / `src/modeldata.h`; see `etc/data/README.md` for provenance,
-shapes, units, and upstream references for each array.
+The archive was produced by `tools/extract_modeldata.py` from
+`legacy/c_src/gsetc.c` / `legacy/c_src/modeldata.h`; see
+`etc/data/README.md` for provenance, shapes, units, and upstream
+references for each array.
 """
 
 from __future__ import annotations

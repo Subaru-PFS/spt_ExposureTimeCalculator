@@ -1,7 +1,7 @@
 """Pure-Python PFS exposure time calculator engine.
 
-Ports the C engine `src/gsetc.c` to numpy/scipy/astropy. See the project
-plan (`PLAN-pure-python-etc.md`) for the module breakdown and task order.
+Ports the C engine (vendored, frozen, at `legacy/c_src/gsetc.c`) to
+numpy/scipy/astropy.
 """
 
 from __future__ import annotations
