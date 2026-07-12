@@ -309,7 +309,11 @@ class TestSpectroDist:
         vec = psf.spectro_dist(spectro, ARM_SI, lams, pos, 0.5, N)
         for i, lam in enumerate(lams):
             single = psf.spectro_dist(spectro, ARM_SI, [lam], pos, 0.5, N)
-            np.testing.assert_array_equal(vec[i], single[0])
+            # Fast path is a BLAS matmul (mtf @ w); the batched (L=3) and
+            # single-row (L=1) calls can hit different BLAS reduction
+            # orders over Nu depending on backend/threading (e.g. OpenBLAS
+            # vs Accelerate), so bit-exact equality isn't portable here.
+            np.testing.assert_allclose(vec[i], single[0], rtol=1e-12, atol=1e-15)
 
     def test_precomputed_mtf_matches_internal(self, spectro):
         N = 16
