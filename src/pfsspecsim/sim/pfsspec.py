@@ -359,12 +359,22 @@ class Pfsspec:
             # smp: samplingFactor.  A fiddle factor for the Poisson noise in HgCdTe devices
             # skm: sky flux
         """
-        try:
+        # Dispatch on the file's actual format rather than on whether the
+        # ECSV read happens to raise: Astropy always writes "# %ECSV ..."
+        # as the first line of any ECSV file it produces, so checking for
+        # that magic line lets a genuinely malformed/schema-drifted ECSV
+        # file (e.g. missing column or renamed meta key) raise loudly
+        # instead of being silently rerouted to the legacy parser below.
+        with open(self.params["etcFile"], "r") as f:
+            first_line = f.readline()
+
+        if first_line.startswith("# %ECSV"):
             # New (T14): the ETC now writes its SNC output as an Astropy
             # ECSV table with every resolved input parameter (incl.
             # EXP_NUM) embedded in table.meta["params"]. Column names
             # correspond 1:1 to the old whitespace-delimited usecols
-            # (0, 2, 5, 8, 9, 10) below.
+            # (0, 2, 5, 8, 9, 10) below. No try/except here: any
+            # KeyError/parse error must propagate rather than be masked.
             etcTable = Table.read(self.params["etcFile"], format="ascii.ecsv")
             nexp_etc = etcTable.meta["params"]["exp_num"]
             arm = np.asarray(etcTable["arm"], dtype=float)
@@ -373,9 +383,9 @@ class Pfsspec:
             trn = np.asarray(etcTable["conversion_factor"], dtype=float)
             smp = np.asarray(etcTable["sampling_factor"], dtype=float)
             skm = np.asarray(etcTable["sky"], dtype=float)
-        except Exception:
-            # Fall back to the legacy plain-text ETC output format
-            # (insurance for old-format files predating the ECSV switch).
+        else:
+            # Legacy plain-text ETC output format (insurance for
+            # old-format files predating the ECSV switch).
             nexp_etc = None
             with open(self.params["etcFile"], "r") as f:
                 for line in f.readlines():
@@ -383,11 +393,10 @@ class Pfsspec:
                         nexp_etc = int(line.split()[2])
             if nexp_etc is None:
                 raise ValueError(
-                    f"Could not read {self.params['etcFile']!r} as either "
-                    "an Astropy ECSV table (missing/unreadable "
-                    "table.meta['params']['exp_num']) or a legacy "
-                    "plain-text ETC output file (no 'EXP_NUM' header line "
-                    "found); both parsing attempts failed."
+                    f"Could not read {self.params['etcFile']!r}: it is not "
+                    "an Astropy ECSV table (no '# %ECSV' magic line found) "
+                    "and legacy plain-text ETC parsing also failed (no "
+                    "'EXP_NUM' header line found)."
                 )
             arm, wav, nsv, trn, smp, skm = np.loadtxt(
                 self.params["etcFile"], usecols=(0, 2, 5, 8, 9, 10), unpack=True

@@ -192,6 +192,36 @@ class TestMakeSimSpecEcsv:
         assert out_a.read_bytes() != out_b.read_bytes()
 
 
+class TestMakeSimSpecEcsvSchemaDrift:
+    """`make_sim_spec` dispatches on the file's `# %ECSV` magic line, not on
+    whether the ECSV read happens to raise (src/pfsspecsim/sim/pfsspec.py):
+    a real ECSV file with a drifted schema (missing meta key or column)
+    must propagate the parse error, not get silently rerouted to the
+    legacy plain-text parser.
+    """
+
+    def test_ecsv_missing_exp_num_meta_raises(self, tmp_path):
+        cols = _snc_arrays()
+        tbl = Table(list(cols.values()), names=list(cols.keys()))
+        tbl.meta["params"] = {}  # no "exp_num" key
+        path = tmp_path / "bad_meta.ecsv"
+        tbl.write(path, format="ascii.ecsv")
+
+        with pytest.raises(KeyError):
+            _run_sim(path, tmp_path / "out")
+
+    def test_ecsv_missing_required_column_raises(self, tmp_path):
+        cols = _snc_arrays()
+        del cols["sky"]  # one of the 6 columns make_sim_spec extracts
+        tbl = Table(list(cols.values()), names=list(cols.keys()))
+        tbl.meta["params"] = {"exp_num": 5}
+        path = tmp_path / "bad_column.ecsv"
+        tbl.write(path, format="ascii.ecsv")
+
+        with pytest.raises(KeyError):
+            _run_sim(path, tmp_path / "out")
+
+
 class TestCliContractMatchesSimSpecParams:
     def test_every_field_has_a_cli_parameter(self):
         # `sim_command`'s `overrides` dict comprehension indexes `locals()`
