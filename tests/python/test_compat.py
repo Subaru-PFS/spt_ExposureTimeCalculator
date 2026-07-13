@@ -300,6 +300,167 @@ class TestMakeStepMethods:
         assert os.stat(noise_path).st_mtime_ns == mtime_before
 
 
+class TestMakeSnl:
+    """`Etc.make_snl()` (pfsetc.py ~404-422): populates `snl_*` from a
+    freshly-computed single-line SNR curve, reloading (not recomputing) the
+    noise vector previously written by `make_noise_model()`/`run()` -- the
+    same "QUIRK, preserved verbatim" reload behavior as `make_snc`.
+    """
+
+    def test_make_snl_populates_attrs_matching_written_file(
+        self, tmp_path, monkeypatch, etc_instance
+    ):
+        monkeypatch.chdir(tmp_path)
+        etc_instance.make_noise_model()
+        etc_instance.make_snl()
+
+        snl_path = tmp_path / "out" / "ref.snl.ecsv"
+        assert snl_path.is_file()
+        assert not (tmp_path / "out" / "ref.snc.ecsv").exists()
+        assert not (tmp_path / "out" / "ref.sno2.ecsv").exists()
+
+        tbl = Table.read(snl_path, format="ascii.ecsv")
+        mid_col = "snr_m" if "snr_m" in tbl.colnames else "snr_r"
+        attr_cols = [
+            ("snl_lams", "wavelength"),
+            ("snl_fcov", "fiber_aperture_factor"),
+            ("snl_effa", "effective_area"),
+            ("snl_sna0", "snr_b"),
+            ("snl_sna1", mid_col),
+            ("snl_sna2", "snr_n"),
+            ("snl_snls", "snr_tot"),
+        ]
+        lengths = set()
+        for attr, col in attr_cols:
+            arr = getattr(etc_instance, attr)
+            assert arr.size > 0
+            assert np.all(np.isfinite(arr))
+            lengths.add(arr.size)
+            np.testing.assert_array_equal(arr, np.asarray(tbl[col]))
+        assert len(lengths) == 1  # consistent length across all snl_* attrs
+
+    def test_make_snl_reloads_noise_without_rewriting_and_reflects_tampered_noise(
+        self, tmp_path, monkeypatch
+    ):
+        """Analogous to `make_snc`'s reload quirk pin
+        (`test_make_snc_reloads_noise_without_rewriting_file`): the reload
+        branch is shared code (`run_etc_files`, gsetc.c:1980-2001) so it
+        transfers directly -- the noise file must be read, never rewritten.
+        Unlike `snc_nois_mobj` (a raw noise-variance passthrough column),
+        the SNL table has no raw noise column, so proving the reload is not
+        a no-op requires comparing against a second, untampered instance's
+        output rather than a single before/after value check.
+        """
+        outdir_a = tmp_path / "a"
+        outdir_a.mkdir()
+        monkeypatch.chdir(outdir_a)
+        etc_a = _new_etc()
+        etc_a.make_noise_model()
+        noise_path = outdir_a / "out" / "ref.noise.ecsv"
+
+        tampered = Table.read(noise_path, format="ascii.ecsv")
+        tampered["variance"] = np.asarray(tampered["variance"]) * 2.0
+        tampered.write(noise_path, format="ascii.ecsv", overwrite=True)
+        bytes_before = noise_path.read_bytes()
+        mtime_before = os.stat(noise_path).st_mtime_ns
+
+        etc_a.make_snl()
+
+        # (a) reloaded, not recomputed: noise file content/mtime untouched.
+        assert noise_path.read_bytes() == bytes_before
+        assert os.stat(noise_path).st_mtime_ns == mtime_before
+
+        outdir_b = tmp_path / "b"
+        outdir_b.mkdir()
+        monkeypatch.chdir(outdir_b)
+        etc_b = _new_etc()
+        etc_b.make_noise_model()
+        etc_b.make_snl()
+
+        # (b) the tampered noise actually flowed into the SNL computation --
+        # the reload is not a no-op vs. a fresh (untampered) run.
+        assert not np.allclose(etc_a.snl_snls, etc_b.snl_snls)
+
+
+class TestMakeSno2:
+    """`Etc.make_sno2()` (pfsetc.py ~427-445): populates `sno2_*` from a
+    freshly-computed [OII]-curve, reloading the noise vector the same way
+    as `make_snc`/`make_snl`.
+    """
+
+    def test_make_sno2_populates_attrs_matching_written_file(
+        self, tmp_path, monkeypatch, etc_instance
+    ):
+        monkeypatch.chdir(tmp_path)
+        etc_instance.make_noise_model()
+        etc_instance.make_sno2()
+
+        sno2_path = tmp_path / "out" / "ref.sno2.ecsv"
+        assert sno2_path.is_file()
+        assert not (tmp_path / "out" / "ref.snc.ecsv").exists()
+        assert not (tmp_path / "out" / "ref.snl.ecsv").exists()
+
+        tbl = Table.read(sno2_path, format="ascii.ecsv")
+        attr_cols = [
+            ("sno2_zsps", "z"),
+            ("sno2_lam1", "wavelength0"),
+            ("sno2_lam2", "wavelength1"),
+            ("sno2_fcov", "fiber_aperture_factor"),
+            ("sno2_effa", "effective_area"),
+            ("sno2_sna0", "snr_b"),
+            ("sno2_sna1", "snr_r"),
+            ("sno2_sna2", "snr_n"),
+            ("sno2_sno2", "snr_tot"),
+        ]
+        lengths = set()
+        for attr, col in attr_cols:
+            arr = getattr(etc_instance, attr)
+            assert arr.size > 0
+            assert np.all(np.isfinite(arr))
+            lengths.add(arr.size)
+            np.testing.assert_array_equal(arr, np.asarray(tbl[col]))
+        assert len(lengths) == 1  # consistent length across all sno2_* attrs
+
+    def test_make_sno2_reloads_noise_without_rewriting_and_reflects_tampered_noise(
+        self, tmp_path, monkeypatch
+    ):
+        """Same transfer of `make_snc`'s reload quirk pin as
+        `TestMakeSnl` above -- see that class's docstring for why the
+        value-level check needs a second untampered instance rather than a
+        single raw-column comparison.
+        """
+        outdir_a = tmp_path / "a"
+        outdir_a.mkdir()
+        monkeypatch.chdir(outdir_a)
+        etc_a = _new_etc()
+        etc_a.make_noise_model()
+        noise_path = outdir_a / "out" / "ref.noise.ecsv"
+
+        tampered = Table.read(noise_path, format="ascii.ecsv")
+        tampered["variance"] = np.asarray(tampered["variance"]) * 2.0
+        tampered.write(noise_path, format="ascii.ecsv", overwrite=True)
+        bytes_before = noise_path.read_bytes()
+        mtime_before = os.stat(noise_path).st_mtime_ns
+
+        etc_a.make_sno2()
+
+        # (a) reloaded, not recomputed: noise file content/mtime untouched.
+        assert noise_path.read_bytes() == bytes_before
+        assert os.stat(noise_path).st_mtime_ns == mtime_before
+
+        outdir_b = tmp_path / "b"
+        outdir_b.mkdir()
+        monkeypatch.chdir(outdir_b)
+        etc_b = _new_etc()
+        etc_b.make_noise_model()
+        etc_b.make_sno2()
+
+        # (b) the tampered noise actually flowed into the [OII]-curve
+        # computation -- the reload is not a no-op vs. a fresh (untampered)
+        # run.
+        assert not np.allclose(etc_a.sno2_sno2, etc_b.sno2_sno2)
+
+
 class TestRunMulti:
     def test_run_multi_writes_proc_multi_named_outputs(self, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
