@@ -5,8 +5,8 @@ Pure-Python port of `gsGetSignal`, `gsGetSNR`, `gsGetSNR_Single`,
 
 All functions here compute a *single-exposure* SNR (or signal), exactly like
 their C counterparts -- the ``sqrt(n_exp)`` "coadd `n_exp` exposures"
-rescaling seen throughout `gsetc.c`'s `main` (e.g. gsetc.c:2033-2034,
-2069-2070, 2107) is applied by the caller (the T10 engine), not here.
+rescaling seen throughout `gsetc.c`'s `main` (e.g. gsetc.c:2038,
+2073, 2110) is applied by the caller (the T10 engine), not here.
 
 Public API
 ----------
@@ -71,7 +71,7 @@ suffices given each line's own `iref` is already clipped to
 Like `psf.py` (see its module docstring re: `constants.L_CHUNK`), this
 module does not chunk internally over large line/redshift arrays; callers
 sweeping e.g. the full [OII] curve or catalog redshift grids (potentially
-several thousand entries -- gsetc.c:2031, 2067, 2129) should slice their
+several thousand entries -- gsetc.c:2031, 2067, 2130) should slice their
 input arrays into `constants.Z_CHUNK`-sized pieces themselves if peak memory
 (dominated by `psf.spectro_mtf`'s `(Nz, 1000)` MTF array, transitively
 computed inside `get_signal`/`frac_trace`/`effective_area`) matters.
@@ -87,9 +87,9 @@ Preserved quirks (not "fixed" -- see task brief)
   equivalent direct `atmosphere.transmission(lambda, ...)` call rather than
   a literal (but pointless) 41-point loop -- see :func:`snr_single`.
 * `snr_continuum` evaluates each pixel's wavelength at the pixel's *left
-  edge* (`lmin + dl*ipix`, gsetc.c:1401), whereas `noise.compute_noise_arm`'s
+  edge* (`lmin + dl*ipix`, gsetc.c:1395), whereas `noise.compute_noise_arm`'s
   sky continuum grid uses the pixel *center* (`lmin + dl*(ipix+0.5)`,
-  gsetc.c:882) -- a genuine cross-function inconsistency in gsetc.c, kept
+  gsetc.c:877) -- a genuine cross-function inconsistency in gsetc.c, kept
   verbatim.
 * The [OII]/single-line curves' diagnostic `gsGeometricThroughput` printf
   columns in gsetc.c's `main` use `fieldang=0` for the OII curve
@@ -490,7 +490,8 @@ def snr_oii(
     snr_type : int
         0 = 1D optimal (brighter line), 1 = uniform matched filter
         (brighter line), 2 = combined 1D optimal of both lines (the only
-        `snrType` gsetc.c's `main` actually drives for [OII], gsetc.c:2022).
+        `snrType` gsetc.c's `main` actually drives for [OII], gsetc.c:2028,
+        2121).
 
     Returns
     -------
@@ -624,10 +625,10 @@ def snr_continuum(
     dl = spectro.dl[i_arm]
     lmin = spectro.lmin[i_arm]
 
-    # QUIRK (gsetc.c:1401), preserved verbatim -- not "fixed": each pixel's
+    # QUIRK (gsetc.c:1395), preserved verbatim -- not "fixed": each pixel's
     # wavelength here is its *left edge* (`lmin + dl*ipix`), unlike
     # `noise.compute_noise_arm`'s sky-continuum grid, which uses the pixel
-    # *center* (`lmin + dl*(ipix+0.5)`, gsetc.c:882) -- a genuine
+    # *center* (`lmin + dl*(ipix+0.5)`, gsetc.c:877) -- a genuine
     # cross-function inconsistency in gsetc.c itself. See module docstring.
     lam_pix = lmin + dl * np.arange(npix, dtype=np.float64)
 
