@@ -326,6 +326,79 @@ class TestRunMulti:
             assert table.meta["params"]["exp_time"] == float(value)
 
 
+class TestDegradeNonAccumulation:
+    """Pins the intentional v2.0 behavioral change documented in CLAUDE.md's
+    "Backward-compatibility layer" section: the pre-2.0 legacy wrapper's
+    field-angle obscuration correction (`corr` ~= 0.827 at the default
+    `FIELD_ANG=0.45`, `obscFoVDep='Y'`) was multiplied into
+    `self.params['degrade']` on *every* `run()`/`make_noise_model()`/
+    `make_snc()` call (see
+    `legacy/python_wrapper/pfsspecsim/pfsetc.py:254` (`run`), `:450`
+    (`make_noise_model`), `:541` (`make_snc`) -- each an independent
+    ``self.params['degrade'] = f'{float(self.params["degrade"]) * corr}'``),
+    so a chained `make_noise_model(); make_snc()` compounded the
+    correction (applied twice) rather than once. v2.0's `Etc` deliberately
+    does NOT replicate this: `_to_new_params` reads `self.params['degrade']`
+    fresh on every call and never writes it back, so `resolve_degrade`
+    (`pfsspecsim.etc.params`) applies the obscuration correction exactly
+    once, regardless of how many `make_noise_model()`/`make_snc()` calls
+    preceded it.
+    """
+
+    def test_degrade_dict_entry_is_never_mutated(
+        self, tmp_path, monkeypatch, etc_instance
+    ):
+        monkeypatch.chdir(tmp_path)
+        etc_instance.set_param("OUTFILE_SNL", "-")
+        etc_instance.set_param("OUTFILE_OII", "-")
+        degrade_before = etc_instance.params["degrade"]
+
+        etc_instance.make_noise_model()
+        assert etc_instance.params["degrade"] == degrade_before
+
+        etc_instance.make_snc()
+        assert etc_instance.params["degrade"] == degrade_before
+
+    def test_chained_calls_do_not_compound_the_obscuration_correction(
+        self, tmp_path, monkeypatch
+    ):
+        """Run the `make_noise_model(); make_snc()` chain *twice* in a row
+        on the same instance -- under the old bug this would apply `corr`
+        four times total (twice per chain) instead of the correct single
+        application every time -- then compare against a completely fresh
+        instance's single chain. All three snc_sncs arrays must be
+        bit-for-bit identical: the obscuration correction is applied
+        exactly once regardless of call history.
+        """
+        outdir_a = tmp_path / "a"
+        outdir_a.mkdir()
+        monkeypatch.chdir(outdir_a)
+        etc_a = _new_etc()
+        etc_a.set_param("OUTFILE_SNL", "-")
+        etc_a.set_param("OUTFILE_OII", "-")
+
+        etc_a.make_noise_model()
+        etc_a.make_snc()
+        first_chain_snc = etc_a.snc_sncs.copy()
+
+        etc_a.make_noise_model()
+        etc_a.make_snc()
+        second_chain_snc = etc_a.snc_sncs.copy()
+
+        np.testing.assert_allclose(second_chain_snc, first_chain_snc, rtol=0, atol=0)
+
+        outdir_b = tmp_path / "b"
+        outdir_b.mkdir()
+        monkeypatch.chdir(outdir_b)
+        etc_b = _new_etc()
+        etc_b.set_param("OUTFILE_SNL", "-")
+        etc_b.set_param("OUTFILE_OII", "-")
+        etc_b.make_noise_model()
+        etc_b.make_snc()
+
+        np.testing.assert_allclose(etc_b.snc_sncs, first_chain_snc, rtol=0, atol=0)
+
+
 class TestOldImportPathAliases:
     """Guard `pfsspecsim.__init__`'s `sys.modules` alias block: the
     pre-v2.0 public import paths (`pfsspecsim.pfsetc`/`.pfsspec`/
