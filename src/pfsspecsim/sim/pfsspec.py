@@ -150,7 +150,7 @@ class Pfsspec:
             "objId": 1,
             "fiberId": 1,
             "fiberMag": [22.5, 22.5, 22.5, 22.5, 22.5],
-            "filterName": ["hcs_g", "hcs_r", "hcs_i", "hcs_z", "hcs_y"],
+            "filterName": ["hsc_g", "hsc_r", "hsc_i", "hsc_z", "hsc_y"],
             "spectrograph": 1,
             "pfsConfigFull": "f",
             "writeFits": "t",

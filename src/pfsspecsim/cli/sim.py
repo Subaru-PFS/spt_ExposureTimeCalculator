@@ -88,7 +88,7 @@ def sim_command(
     filter_name: str | None = typer.Option(
         None,
         help="Comma-separated filter names for g,r,i,z,y "
-        "(default: 'hcs_g,hcs_r,hcs_i,hcs_z,hcs_y').",
+        "(default: 'hsc_g,hsc_r,hsc_i,hsc_z,hsc_y').",
     ),
     spectrograph: int | None = typer.Option(
         None, help="Spectrograph number (default: 1)."

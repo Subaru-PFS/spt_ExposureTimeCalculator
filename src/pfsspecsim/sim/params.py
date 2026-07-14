@@ -59,7 +59,7 @@ class SimSpecParams:
         default_factory=lambda: [22.5, 22.5, 22.5, 22.5, 22.5]
     )
     filter_name: list[str] = dataclasses.field(
-        default_factory=lambda: ["hcs_g", "hcs_r", "hcs_i", "hcs_z", "hcs_y"]
+        default_factory=lambda: ["hsc_g", "hsc_r", "hsc_i", "hsc_z", "hsc_y"]
     )
     # Spectrograph unit number (1-4); unrelated to `EtcParams.spectrograph`,
     # which is an 'ave'/'sm1'..'sm4' throughput-model tag.
