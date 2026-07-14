@@ -25,6 +25,11 @@ from typing import Any
 #: `load_params` (mirrors `pfsspecsim.etc.params._PATH_FIELDS`).
 _PATH_FIELDS = frozenset({"etc_file", "mag_file", "out_dir"})
 
+#: The sky-subtraction noise models `Pfsspec.make_sim_spec` implements
+#: (legacy/python_wrapper/pfsspecsim/pfsspec.py:380,452-473 and their port
+#: in `pfsspecsim.sim.pfsspec`); `validate()` rejects anything else.
+_SKY_SUB_MODES = frozenset({"random", "systematic", "wavecalib", "psfvar"})
+
 
 @dataclasses.dataclass
 class SimSpecParams:
@@ -70,6 +75,17 @@ class SimSpecParams:
 
     def validate(self) -> None:
         """Cross-field checks; raises `ValueError` on failure."""
+        if self.sky_sub_mode not in _SKY_SUB_MODES:
+            # The legacy `Pfsspec` surface deliberately keeps the pre-2.0
+            # behavior for unrecognized values (no error; flux is drawn with
+            # the systematic-free sigma1 but gets none of the named modes'
+            # residual injection, silently understating the reported ERROR
+            # -- pinned in tests/python/test_sim_spec.py::TestSkySubModes).
+            # The modern API rejects them loudly instead.
+            raise ValueError(
+                f"sky_sub_mode must be one of {sorted(_SKY_SUB_MODES)}, "
+                f"got {self.sky_sub_mode!r}"
+            )
         if (self.mag is None) == (self.mag_file is None):
             raise ValueError(
                 "Exactly one of `mag` (flat AB magnitude) or `mag_file` "

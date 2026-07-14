@@ -78,6 +78,19 @@ def test_mag_file_alone_is_valid():
     SimSpecParams(mag=None, mag_file=Path("mag.dat")).validate()
 
 
+@pytest.mark.parametrize("mode", ["random", "systematic", "wavecalib", "psfvar"])
+def test_known_sky_sub_modes_validate(mode):
+    SimSpecParams(sky_sub_mode=mode).validate()
+
+
+def test_unknown_sky_sub_mode_raises():
+    # The legacy Pfsspec surface deliberately preserves the pre-2.0
+    # accept-anything behavior (see test_sim_spec.py::TestSkySubModes);
+    # the modern API must reject typos loudly instead.
+    with pytest.raises(ValueError, match="sky_sub_mode"):
+        SimSpecParams(sky_sub_mode="not_a_real_mode").validate()
+
+
 def test_simspecparams_picklable():
     params = SimSpecParams()
     restored = pickle.loads(pickle.dumps(params))

@@ -428,8 +428,13 @@ class TestSkySubModes:
     def test_unrecognized_mode_does_not_raise_but_silently_understates_noise(
         self, synthetic_dir, tmp_path
     ):
-        """QUIRK, deliberately NOT fixed here (task brief: report, don't
-        patch). A typo'd/unrecognized `sky_sub_mode` value raises nothing.
+        """QUIRK, preserved on the legacy `Pfsspec` surface only: a
+        typo'd/unrecognized `sky_sub_mode` raises nothing there (pre-2.0
+        behavior -- legacy/python_wrapper/pfsspecsim/pfsspec.py:380,452-473
+        has the identical double dispatch -- kept verbatim). The modern API
+        is stricter: `SimSpecParams.validate()` rejects unknown modes with
+        `ValueError` (test_sim.py::test_unknown_sky_sub_mode_raises), so
+        this pin covers only the legacy path driven via `Pfsspec.set_param`.
 
         It is NOT a silent alias for "random": dispatch #1 above keys off
         `sky_sub_mode == "random"` by exact string match, so any other
