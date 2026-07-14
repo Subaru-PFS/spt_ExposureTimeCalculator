@@ -17,15 +17,15 @@ Extraction git SHA (repository HEAD at the time this archive was produced):
 
 ## Arrays
 
-| npz key | shape | dtype | source | units / notes |
-|---|---|---|---|---|
-| `uves_lambda` | (2816,) | float64 | `gsSKY_UVES_LAMBDA`, modeldata.h:12 | air nm |
-| `uves_int` | (2816,) | float64 | `gsSKY_UVES_INT`, modeldata.h:2830 | 1e-12 erg/m^2/s/arcsec^2 (== 1e-16 erg/cm^2/s/arcsec^2 as documented in modeldata.h) |
-| `oh_data` | (698, 2) | float64 | `OHDATA`, modeldata.h:5655 | columns: [vacuum nm, 1e-16 erg/cm^2/s/arcsec^2], normalized to 14.8 mag Vega/arcsec^2 in J band |
-| `atm_trans_kp` | (40001,) | float64 | `AtmTransKP`, modeldata.h:6356 | dimensionless transmission; grid = 500 nm + 0.025 nm * i (gsetc.c:444) |
-| `mk_trans_3mm` | (30001,) | float64 | `MKTrans_3mm`, modeldata.h:8360 | dimensionless transmission; grid = 900 nm + 0.02 nm * i (gsetc.c:463) |
-| `dust_norm` | (201,) | float64 | inline `norm[201]`, gsetc.c:347-368 | A_lambda / E(B-V); log-spaced grid, index = 100/ln(10) * ln(10/lambda_um), lambda in [0.1, 10] um |
-| `si_index_table` | (181,) | float64 | inline `si_table[181]`, gsetc.c:295-305 | real part of Si refractive index; linear grid = 200 nm + 5 nm * i, lambda in [200, 1100] nm |
+| npz key          | shape    | dtype   | source                                  | units / notes                                                                                     |
+| ---------------- | -------- | ------- | --------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `uves_lambda`    | (2816,)  | float64 | `gsSKY_UVES_LAMBDA`, modeldata.h:12     | air nm                                                                                            |
+| `uves_int`       | (2816,)  | float64 | `gsSKY_UVES_INT`, modeldata.h:2830      | 1e-12 erg/m^2/s/arcsec^2 (== 1e-16 erg/cm^2/s/arcsec^2 as documented in modeldata.h)              |
+| `oh_data`        | (698, 2) | float64 | `OHDATA`, modeldata.h:5655              | columns: [vacuum nm, 1e-16 erg/cm^2/s/arcsec^2], normalized to 14.8 mag Vega/arcsec^2 in J band   |
+| `atm_trans_kp`   | (40001,) | float64 | `AtmTransKP`, modeldata.h:6356          | dimensionless transmission; grid = 500 nm + 0.025 nm * i (gsetc.c:444)                            |
+| `mk_trans_3mm`   | (30001,) | float64 | `MKTrans_3mm`, modeldata.h:8360         | dimensionless transmission; grid = 900 nm + 0.02 nm * i (gsetc.c:463)                             |
+| `dust_norm`      | (201,)   | float64 | inline `norm[201]`, gsetc.c:347-368     | A_lambda / E(B-V); log-spaced grid, index = 100/ln(10) * ln(10/lambda_um), lambda in [0.1, 10] um |
+| `si_index_table` | (181,)   | float64 | inline `si_table[181]`, gsetc.c:295-305 | real part of Si refractive index; linear grid = 200 nm + 5 nm * i, lambda in [200, 1100] nm       |
 
 ## Upstream references
 
@@ -39,12 +39,12 @@ Extraction git SHA (repository HEAD at the time this archive was produced):
   ftp://ftp.astro.princeton.edu/draine/dust/mix/kext_albedo_WD_MW_3.1_60_D03.all
   (retrieved 2011-03-18; gsetc.c:340).
 - Silicon complex refractive index (`si_index_table`):
-  http://snap.lbl.gov/ccdweb/ccd_data/complex_index.dat (gsetc.c:282); see
+  <http://snap.lbl.gov/ccdweb/ccd_data/complex_index.dat> (gsetc.c:282); see
   also Don Groom, SPIE 1999, and D. F. Edwards in the Handbook of Optical
   Constants of Solids (1985) for lambda < 750 nm (gsetc.c:284-288).
 
 ## Regenerating
 
-```
+```bash
 uv run python tools/extract_modeldata.py
 ```
