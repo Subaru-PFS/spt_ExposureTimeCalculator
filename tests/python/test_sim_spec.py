@@ -19,9 +19,15 @@ mapping AND the fallback in one shot. A meta-sensitivity test then varies
 dict's own `EXP_NUM`, not anything in the columns) is what feeds the
 `nexp_etc` sky-systematics rescaling.
 
-FITS output (`writeFits='t'`, the pfs.datamodel path) is deliberately not
-exercised -- T14's brief says the datamodel output path is untouched, and
-`writeFits='f'` + `asciiTable` covers everything this task changed.
+FITS output (`writeFits='t'`, the pfs.datamodel path) was originally
+deliberately not exercised here -- T14's brief said the datamodel output
+path was untouched, and `writeFits='f'` + `asciiTable` covered everything
+that task changed. Task 6 (below, `TestFitsWritePath`) closes that gap with
+a dedicated end-to-end FITS-write test.
+
+Task 6 also adds coverage for the three previously-untested `sky_sub_mode`
+branches (`TestSkySubModes`) and the multi-object `mag_file` path
+(`TestMultiObjectPath`), both in `pfsspec.py`'s `make_sim_spec`.
 """
 
 from __future__ import annotations
@@ -32,6 +38,7 @@ from pathlib import Path
 
 import numpy as np
 import pytest
+from astropy.io import fits
 from astropy.table import Table
 from typer.testing import CliRunner
 
@@ -369,3 +376,173 @@ class TestCliRunAndPriority:
         )
         assert result.exit_code == 0, result.output
         assert (outdir / "fromtoml.dat").is_file()
+
+
+# --- Task 6: sky_sub_mode branches, FITS write path, multi-object path -----
+
+
+class TestSkySubModes:
+    """`Pfsspec.make_sim_spec` has *two* independent `sky_sub_mode`
+    dispatches, and only "random" (the default) had any test coverage:
+
+    1. `snr1`/`sigma1` (pfsspec.py:452-464): the sky-subtraction systematic
+       term (`nsv_sys_mtrx`) is folded into the noise used to draw the
+       simulated FLUX only when `sky_sub_mode == "random"` *exactly* --
+       every other string (including "systematic"/"wavecalib"/"psfvar",
+       and any unrecognized value) gets a smaller, systematic-free
+       `sigma1`. `snr2`/`sigma2` (the reported ERROR column) always folds
+       the systematic term in, regardless of `sky_sub_mode` -- so the
+       ERROR column is mode-*independent* by construction, a cheap,
+       deterministic invariant to pin.
+    2. The per-spectrum residual-injection loop (pfsspec.py:596-691):
+       "systematic"/"wavecalib"/"psfvar" each add their own structured
+       residual (drawn from `nexp` synthetic exposures, then averaged) on
+       top of that smaller `sigma1`'s noise draw; any other string
+       (including "random" itself) adds no residual.
+    """
+
+    @pytest.mark.parametrize("mode", ["random", "systematic", "wavecalib", "psfvar"])
+    def test_mode_runs_and_produces_finite_output(self, synthetic_dir, tmp_path, mode):
+        out = _run_sim(synthetic_dir / "snc.ecsv", tmp_path / mode, SKY_SUB_MODE=mode)
+        data = np.loadtxt(out)
+        assert data.shape == (_N, 6)
+        assert np.all(np.isfinite(data[:, 1]))  # flux
+        assert np.all(data[:, 2] > 0)  # error
+
+    @pytest.mark.parametrize("mode", ["systematic", "wavecalib", "psfvar"])
+    def test_mode_flux_differs_from_random_but_error_column_matches(
+        self, synthetic_dir, tmp_path, mode
+    ):
+        out_mode = _run_sim(
+            synthetic_dir / "snc.ecsv", tmp_path / f"{mode}_out", SKY_SUB_MODE=mode
+        )
+        out_random = _run_sim(synthetic_dir / "snc.ecsv", tmp_path / f"{mode}_random")
+        data_mode = np.loadtxt(out_mode)
+        data_random = np.loadtxt(out_random)
+
+        # Different residual-injection code path -> different flux draw.
+        assert not np.array_equal(data_mode[:, 1], data_random[:, 1])
+        # The reported error (sigma2) never depends on sky_sub_mode.
+        np.testing.assert_array_equal(data_mode[:, 2], data_random[:, 2])
+
+    def test_unrecognized_mode_does_not_raise_but_silently_understates_noise(
+        self, synthetic_dir, tmp_path
+    ):
+        """QUIRK, deliberately NOT fixed here (task brief: report, don't
+        patch). A typo'd/unrecognized `sky_sub_mode` value raises nothing.
+
+        It is NOT a silent alias for "random": dispatch #1 above keys off
+        `sky_sub_mode == "random"` by exact string match, so any other
+        value -- including a typo -- gets the smaller, systematic-free
+        `sigma1`, same as "systematic"/"wavecalib"/"psfvar" (hence its FLUX
+        differs from "random"'s). But it also never reaches any of the
+        three named branches in dispatch #2, so it gets none of their
+        compensating residual injection either -- it silently falls into
+        the same code as "random" there, just with the smaller `sigma1`.
+
+        Net effect: the simulated FLUX for an unrecognized mode is
+        scattered using a noise budget that omits the sky-subtraction
+        systematic term entirely, while the reported ERROR column still
+        reports the full (systematic-inclusive) uncertainty -- flux and
+        error silently go out of sync, with no warning or error raised.
+        """
+        out_bogus = _run_sim(
+            synthetic_dir / "snc.ecsv",
+            tmp_path / "bogus",
+            SKY_SUB_MODE="not_a_real_mode",
+        )
+        out_random = _run_sim(synthetic_dir / "snc.ecsv", tmp_path / "random")
+        data_bogus = np.loadtxt(out_bogus)
+        data_random = np.loadtxt(out_random)
+
+        # Not a silent alias for "random": flux differs (smaller sigma1)...
+        assert not np.array_equal(data_bogus[:, 1], data_random[:, 1])
+        # ...yet the reported error is identical (mode-independent by
+        # construction) -- the silent flux/error mismatch this test pins.
+        np.testing.assert_array_equal(data_bogus[:, 2], data_random[:, 2])
+
+
+class TestFitsWritePath:
+    """`writeFits='t'` (the default) drives `pfsDesign`/`pfsConfig`/
+    `pfsArm`/`pfsObject` `.write()` calls (pfsspec.py:710-736) that no test
+    exercised. Uses glob patterns matching each pfs.datamodel class's own
+    `fileNameFormat`/`filenameFormat` (verified interactively against the
+    installed `pfs.datamodel` package) rather than hardcoding a filename,
+    since e.g. `pfsDesignId`/`pfsVisitHash` are content hashes.
+    """
+
+    def test_writes_readable_nonempty_fits_outputs(self, synthetic_dir, tmp_path):
+        np.random.seed(1234)
+        sim = pfsspec.Pfsspec()
+        sim.set_param("etcFile", str(synthetic_dir / "snc.ecsv"))
+        sim.set_param("outDir", str(tmp_path))
+        sim.set_param("MAG_FILE", "21.0")
+        sim.set_param("EXP_NUM", "3")
+        # writeFits/writePfsArm both default to "t"; pfsObject is written
+        # unconditionally alongside them whenever writeFits is on.
+        assert sim.make_sim_spec() == 0
+
+        design_files = sorted(tmp_path.glob("pfsDesign-0x*.fits"))
+        config_files = sorted(tmp_path.glob("pfsConfig-0x*-*.fits"))
+        arm_files = sorted(tmp_path.glob("pfsArm-*.fits"))
+        object_files = sorted(tmp_path.glob("pfsObject-*.fits"))
+        assert len(design_files) == 1
+        assert len(config_files) == 1
+        assert len(arm_files) == 1  # only the "b" arm is present in the fixture
+        assert len(object_files) == 1
+
+        for path in design_files + config_files + arm_files + object_files:
+            with fits.open(path) as hdul:
+                hdul.verify("exception")  # re-readable, well-formed FITS
+
+        for path in arm_files + object_files:
+            with fits.open(path) as hdul:
+                flux = hdul["FLUX"].data
+                assert flux.size > 0
+                assert np.any(flux != 0)
+
+
+class TestMultiObjectPath:
+    """`make_sim_spec`'s `nobj > 1` branch (pfsspec.py:244-330), reached via
+    a multi-column `mag_file` table, was untested: `_replicate_ids`
+    (pfsspec.py:30-47) must give each of the `nobj` objects a distinct
+    `objId`, and objects with different input magnitudes must end up with
+    correspondingly different flux. `writeFits='f'` skips FITS I/O but
+    `make_sim_spec` still populates `self.pfsObjects` (one `PfsObject` per
+    input object) unconditionally, so that list is enough to check both
+    properties without needing any file output.
+    """
+
+    def test_multiple_objects_get_distinct_ids_and_differing_flux(
+        self, synthetic_dir, tmp_path
+    ):
+        # Magnitudes chosen bright enough (5/8/11, ~15.8x flux ratio per
+        # step) that the true per-object flux difference swamps the
+        # synthetic fixture's noise floor -- `sigma1`'s background/
+        # read-noise term is ~constant regardless of source magnitude
+        # (dominated by `noise_variance`, not object counts, whenever the
+        # source is faint relative to the sky/detector background), so
+        # fainter mags in this fixture (e.g. 18/20/22) would be swamped by
+        # noise and not reliably ordered.
+        mag_file = tmp_path / "multi_mag.dat"
+        mag_file.write_text("400.0 5.0 8.0 11.0\n1100.0 5.0 8.0 11.0\n")
+
+        np.random.seed(1234)
+        sim = pfsspec.Pfsspec()
+        sim.set_param("etcFile", str(synthetic_dir / "snc.ecsv"))
+        sim.set_param("outDir", str(tmp_path / "out"))
+        sim.set_param("writeFits", "f")
+        sim.set_param("MAG_FILE", str(mag_file))
+        sim.set_param("EXP_NUM", "3")
+        assert sim.make_sim_spec() == 0
+
+        assert len(sim.pfsObjects) == 3  # one PfsObject per input object
+        obj_ids = [obj.target.objId for obj in sim.pfsObjects]
+        assert len(set(obj_ids)) == 3  # _replicate_ids: distinct objIds
+
+        # Brighter (lower mag) objects must have higher mean flux: mag
+        # columns are 5/8/11 in objId order (1, 2, 3).
+        mean_flux_by_obj_id = {
+            obj.target.objId: float(np.mean(obj.flux)) for obj in sim.pfsObjects
+        }
+        assert mean_flux_by_obj_id[1] > mean_flux_by_obj_id[2] > mean_flux_by_obj_id[3]
