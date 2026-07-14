@@ -17,8 +17,9 @@ Use `uv` for everything (project targets Python **>=3.11**; `tomllib` is require
 
 ```bash
 uv sync                              # install package + dev group (pytest, black, ruff, ty)
-uv run pytest tests/python -q                     # fast suite (slow gates deselected)
-uv run pytest tests/python -m slow -q             # C-reference acceptance gates (~10s)
+uv run pytest tests/python -q                     # full suite incl. slow gates (~40s)
+uv run pytest tests/python -m "not slow" -q       # fast suite (skip the C-reference gates)
+uv run pytest tests/python -m slow -q             # C-reference acceptance gates only (~5s)
 uv run pytest tests/python -q -k "test_name"      # a single test / pattern
 uv run pytest tests/python/test_noise.py -q       # a single file
 uv run ruff check src tests/python                # lint (config in pyproject.toml)
@@ -165,8 +166,11 @@ The pre-2.0 top-level import paths (`pfsspecsim.pfsetc`/`.pfsspec`/
 `tests/python/` mirrors the module layout (`test_<module>.py`). The `slow`
 marker (see `pyproject.toml`) gates the two C-reference regression test files
 (`test_noise_reference.py`, `test_reference_outputs.py`), each parametrized
-over `conftest.REFERENCE_SETS`' four fixture sets for 20 slow tests total; the
-default `-m "not slow"` run stays fast. `tests/python/conftest.py::reference_params`
+over `conftest.REFERENCE_SETS`' four fixture sets for 20 slow tests total. A
+plain `pytest tests/python` run includes them (there is no `addopts`
+deselection — deliberate: the acceptance gates should be part of the default
+run); pass `-m "not slow"` explicitly to skip them while iterating.
+`tests/python/conftest.py::reference_params`
 builds the `EtcParams` matching `tests/gsetc_params.txt` (overridden per
 reference set with `instr_config`/`sky_type`) and is shared by both gate
 files. The hardest kernels (`psf`, `sky`, `snr`) additionally carry independent
