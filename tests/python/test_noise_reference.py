@@ -1,10 +1,12 @@
 """Slow regression gate for pfsspecsim.etc.noise (task T8).
 
 Compares `compute_noise` against the C engine's frozen reference output
-`tests/master_results/noise_omp.dat` (columns: output arm id, pixel,
+`tests/master_results/noise_<suffix>.dat` (columns: output arm id, pixel,
 lambda[nm], Noise variance, SkyMod), produced by the OpenMP C binary with
-the stdin parameters recorded in `tests/gsetc_params.txt`. Both files are
-protected fixtures -- never regenerate or edit them.
+the stdin parameters recorded in the matching `tests/gsetc_params*.txt`.
+Parametrized over `conftest.REFERENCE_SETS` (see `tests/README.md`): the
+original LR/sky_type=11005 run plus MR/11005, LR/11006, MR/11006 siblings.
+All fixtures are protected -- never regenerate or edit them.
 
 Acceptance criterion (task brief): rtol=1.5e-3 agreement on >= 99.9% of
 pixels, per column (col 3 = noise variance, col 4 = sky), across all arms.
@@ -15,29 +17,28 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from pfsspecsim.etc.config import load_spectrograph_config
+from pfsspecsim.etc.config import load_spectrograph_config, spectro_arm
 from pfsspecsim.etc.noise import compute_noise
 
-from conftest import CONFIG_FIXTURE, MASTER_RESULTS_DIR, reference_params
-
-REFERENCE_FIXTURE = MASTER_RESULTS_DIR / "noise_omp.dat"
+from conftest import MASTER_RESULTS_DIR, REFERENCE_SETS, reference_params
 
 RTOL = 1.5e-3
 MIN_PASS_FRACTION = 0.999
 
 
 @pytest.mark.slow
-def test_noise_matches_c_reference():
-    ref = np.loadtxt(REFERENCE_FIXTURE)
+@pytest.mark.parametrize("ref_set", REFERENCE_SETS, ids=lambda rs: rs.id)
+def test_noise_matches_c_reference(ref_set):
+    ref = np.loadtxt(MASTER_RESULTS_DIR / f"noise_{ref_set.suffix}.dat")
     arm_col = ref[:, 0].astype(int)
 
-    spectro = load_spectrograph_config(CONFIG_FIXTURE, degrade=1.0)
-    assert spectro.MR is False  # LR config: output arm id == internal ia.
-    result = compute_noise(reference_params(), spectro)
+    spectro = load_spectrograph_config(ref_set.config, degrade=1.0)
+    result = compute_noise(reference_params(sky_type=ref_set.sky_type), spectro)
 
     failures = []
     for ia in range(spectro.N_arms):
-        mask = arm_col == ia
+        arm_id = spectro_arm(ia, spectro.MR)
+        mask = arm_col == arm_id
         assert mask.sum() == spectro.npix[ia]
         arm = result[ia]
 

@@ -47,17 +47,29 @@ local cache thereafter.
 **Never modify these C-reference fixtures** — they are the acceptance criteria,
 produced by the original C+OpenMP binary and used by the regression gates:
 `tests/master_results/`, `tests/gsetc_params.txt`, `tests/PFS.20211220.dat`,
-`tests/mag_18.dat`, `tests/analyze_diff.py`. (A PreToolUse hook blocks edits to
-them.) The original C source vendored at `legacy/c_src/` (see Architecture)
-is likewise frozen and must never be edited.
+`tests/mag_18.dat`, `tests/analyze_diff.py`, `tests/gsetc_params_mr.txt`,
+`tests/gsetc_params_lr11006.txt`, `tests/gsetc_params_mr11006.txt`,
+`tests/PFS.redMR.20211220.dat`, `tests/PFS.20240714.dat`,
+`tests/PFS.redMR.20240714.dat`. (A PreToolUse hook blocks edits to them.) The
+original C source vendored at `legacy/c_src/` (see Architecture) is likewise
+frozen and must never be edited. See `tests/README.md` for full fixture
+provenance.
 
 **The slow gates are the arbiter of correctness.** `test_noise_reference.py`
-(noise only) and `test_reference_outputs.py` (full pipeline) compare every
-output column against the C reference at `rtol=1.5e-3` and require ≥99.9% of
-values to match. Any change to a numeric kernel
+(noise only) and `test_reference_outputs.py` (full pipeline) each run
+parametrized across four frozen C-reference sets (`conftest.REFERENCE_SETS`:
+LR/sky_type=11005, MR/11005, LR/11006, MR/11006 — see `tests/README.md`), for
+20 slow tests total. Every output column is compared against the matching C
+reference at `rtol=1.5e-3` and requires ≥99.9% of values to match. Any change
+to a numeric kernel
 (`constants/config/materials/extinction/atmosphere/psf/sky/noise/snr/engine`)
 **must** keep `uv run pytest tests/python -m slow` green. Current achieved max
-relative deviation: noise 1.4e-05, snc 3.2e-04, snl 4.3e-04, sno2 7.3e-04.
+relative deviation per reference set: `lr_11005` (original) noise 1.4e-05,
+snc 3.2e-04, snl 4.3e-04, sno2 7.3e-04; `mr_11005` noise 5.1e-06,
+snc 3.2e-04, snl 4.3e-04, sno2 7.3e-04; `lr_11006` noise 1.7e-05,
+snc 3.3e-04, snl 3.0e-04, sno2 8.2e-04; `mr_11006` noise 5.7e-06,
+snc 3.3e-04, snl 3.0e-04, sno2 8.2e-04 (all comfortably under the
+`rtol=1.5e-3` gate).
 
 **Do not "fix" the ported quirks.** `pfsspecsim.etc` is a faithful port of
 `gsetc.c` (vendored, frozen, at `legacy/c_src/gsetc.c`). Several intentional
@@ -151,10 +163,13 @@ The pre-2.0 top-level import paths (`pfsspecsim.pfsetc`/`.pfsspec`/
 ## Testing conventions
 
 `tests/python/` mirrors the module layout (`test_<module>.py`). The `slow`
-marker (see `pyproject.toml`) gates the two C-reference regression tests; the
+marker (see `pyproject.toml`) gates the two C-reference regression test files
+(`test_noise_reference.py`, `test_reference_outputs.py`), each parametrized
+over `conftest.REFERENCE_SETS`' four fixture sets for 20 slow tests total; the
 default `-m "not slow"` run stays fast. `tests/python/conftest.py::reference_params`
-builds the `EtcParams` matching `tests/gsetc_params.txt` and is shared by both
-gates. The hardest kernels (`psf`, `sky`, `snr`) additionally carry independent
+builds the `EtcParams` matching `tests/gsetc_params.txt` (overridden per
+reference set with `instr_config`/`sky_type`) and is shared by both gate
+files. The hardest kernels (`psf`, `sky`, `snr`) additionally carry independent
 **scalar-transcription oracle** tests: a direct Python transliteration of the C
 loop, compared against the vectorized implementation to ~1e-10 — when editing
 those modules, keep the oracle tests meaningful (they are the guard against

@@ -1,19 +1,23 @@
 """Full-pipeline acceptance gate against the C reference (task T11).
 
-Runs `engine.run_etc` exactly once (module-scoped fixture) with every
-output enabled -- noise, continuum SNR ("snc"), single-line SNR ("snl"),
-and the [OII]-doublet SNR-vs-redshift curve ("sno2") -- for the same
-observing conditions as T8's noise-only gate (`conftest.reference_params`,
-config `tests/PFS.20211220.dat`) plus the `tests/gsetc_params.txt` fields
-T8 didn't need: `mag_file=tests/mag_18.dat` (`mag=None`), `reff=0.3`,
-`line_flux=1e-17`, `line_width=70` (`sigma_v` km/s). The [OII] *catalog*
-output is not exercised here: `tests/gsetc_params.txt` sets
-`InFileOII='-'`, so the C reference run never produced one, and there is
+Runs `engine.run_etc` once per frozen reference set (module-scoped fixture,
+parametrized over `conftest.REFERENCE_SETS` -- see `tests/README.md`) with
+every output enabled -- noise, continuum SNR ("snc"), single-line SNR
+("snl"), and the [OII]-doublet SNR-vs-redshift curve ("sno2") -- for the
+same observing conditions as T8's noise-only gate (`conftest.reference_params`)
+plus the `tests/gsetc_params.txt` fields T8 didn't need:
+`mag_file=tests/mag_18.dat` (`mag=None`), `reff=0.3`, `line_flux=1e-17`,
+`line_width=70` (`sigma_v` km/s). The four reference sets are the original
+LR/sky_type=11005 run (config `tests/PFS.20211220.dat`) plus MR/11005,
+LR/11006, and MR/11006 siblings (configs `tests/PFS.redMR.20211220.dat`,
+`tests/PFS.20240714.dat`, `tests/PFS.redMR.20240714.dat`). The [OII]
+*catalog* output is not exercised here: `InFileOII='-'` in every
+`gsetc_params*.txt`, so no C reference run ever produced one, and there is
 no `tests/master_results/*.dat` to compare against.
 
 Each table is compared column-by-column against its frozen
-`tests/master_results/{noise,snc,snl,sno2}_omp.dat` (protected fixtures --
-never regenerate or edit them) under a combined tolerance,
+`tests/master_results/{noise,snc,snl,sno2}_<suffix>.dat` (protected
+fixtures -- never regenerate or edit them) under a combined tolerance,
 ``|python - C| <= atol + rtol * |C|`` (`rtol=1.5e-3` throughout, matching
 T8), with `atol` derived from each column's C `printf` precision
 (gsetc.c:2010 [noise], 2109 [snc], 2084 [snl], 2048 [sno2]): half the last
@@ -27,17 +31,19 @@ meaningless; every column passes at 100% of rows (>= the required 99.9%)
 well before `atol` needs to do any work for the bulk of "real signal" rows.
 
 Achieved max relative deviation per table, as measured during development
-(on rows whose C value is not itself swept into the `atol` floor, i.e.
-`|C| > 0.05` for the SNR columns -- below that, the print-quantization
-`atol` dominates and a plain relative deviation stops being meaningful):
-noise 1.4e-05, snc 3.2e-04, snl 4.3e-04, sno2 7.3e-04 (all comfortably
-under the `rtol=1.5e-3` gate; the `snX`/`snoY` curves' SNR columns carry
-the largest deviations of any table, consistent with T8's own noise-only
-margin of 1.4e-05 -- the extra ~20x is the `snr.py` SNR-formula chain
-built on top of that noise vector, not the noise vector itself). Every
-column below is currently at 100% of rows within tolerance (the print
-loop -- run with `-s`/`-v` -- shows the live max/pass-fraction per column
-if that ever regresses).
+against the original `lr_11005` reference set (on rows whose C value is not
+itself swept into the `atol` floor, i.e. `|C| > 0.05` for the SNR columns --
+below that, the print-quantization `atol` dominates and a plain relative
+deviation stops being meaningful): noise 1.4e-05, snc 3.2e-04, snl 4.3e-04,
+sno2 7.3e-04 (all comfortably under the `rtol=1.5e-3` gate; the `snX`/`snoY`
+curves' SNR columns carry the largest deviations of any table, consistent
+with T8's own noise-only margin of 1.4e-05 -- the extra ~20x is the
+`snr.py` SNR-formula chain built on top of that noise vector, not the noise
+vector itself). See CLAUDE.md for the achieved max deviations of the other
+three reference sets (`mr_11005`, `lr_11006`, `mr_11006`). Every column
+below is currently at 100% of rows within tolerance (the print loop -- run
+with `-s`/`-v` -- shows the live max/pass-fraction per column, per
+reference set, if that ever regresses).
 """
 
 from __future__ import annotations
@@ -51,9 +57,9 @@ from pfsspecsim.etc import engine
 from pfsspecsim.etc.config import load_spectrograph_config, spectro_arm
 
 from conftest import (
-    CONFIG_FIXTURE,
     MAG_FILE_FIXTURE,
     MASTER_RESULTS_DIR,
+    REFERENCE_SETS,
     reference_params,
 )
 
@@ -124,16 +130,19 @@ def _check_table(
             )
 
 
-@pytest.fixture(scope="module")
-def reference_results():
-    """Run the full pipeline once, with every C-comparable output enabled.
+@pytest.fixture(scope="module", params=REFERENCE_SETS, ids=lambda rs: rs.id)
+def reference_results(request):
+    """Run the full pipeline once per reference set, with every
+    C-comparable output enabled.
 
     `outfile_oii` (default `None`) is set to enable the [OII]-curve
     ("sno2") computation; `outfile_noise`/`outfile_snc`/`outfile_snl`
     already default to non-`None` paths. `run_etc` (not `run_etc_files`)
     is used, so nothing is written to disk -- the output paths only gate
-    which tables get computed.
+    which tables get computed. Parametrized over `conftest.REFERENCE_SETS`
+    (see `tests/README.md`): LR/11005, MR/11005, LR/11006, MR/11006.
     """
+    ref_set = request.param
     params = reference_params(
         mag=None,
         mag_file=MAG_FILE_FIXTURE,
@@ -141,19 +150,19 @@ def reference_results():
         line_flux=1.0e-17,
         line_width=70.0,
         min_snr=9.0,
-        instr_config=CONFIG_FIXTURE,
+        sky_type=ref_set.sky_type,
+        instr_config=ref_set.config,
         outfile_oii=Path("reference_oii_curve.ecsv"),
     )
-    spectro = load_spectrograph_config(CONFIG_FIXTURE, degrade=1.0)
-    assert spectro.MR is False  # LR config: output arm id == internal ia.
+    spectro = load_spectrograph_config(ref_set.config, degrade=1.0)
     results = engine.run_etc(params)
-    return results, spectro
+    return results, spectro, ref_set
 
 
 @pytest.mark.slow
 def test_noise_table_matches_c_reference(reference_results):
-    results, spectro = reference_results
-    ref = np.loadtxt(MASTER_RESULTS_DIR / "noise_omp.dat")
+    results, spectro, ref_set = reference_results
+    ref = np.loadtxt(MASTER_RESULTS_DIR / f"noise_{ref_set.suffix}.dat")
     arm_col = ref[:, 0].astype(int)
     table_arm = np.asarray(results.noise["arm"])
     table_pixel = np.asarray(results.noise["pixel"])
@@ -193,9 +202,9 @@ def test_noise_table_matches_c_reference(reference_results):
 
 @pytest.mark.slow
 def test_snc_table_matches_c_reference(reference_results):
-    results, spectro = reference_results
+    results, spectro, ref_set = reference_results
     assert results.snc is not None
-    ref = np.loadtxt(MASTER_RESULTS_DIR / "snc_omp.dat")
+    ref = np.loadtxt(MASTER_RESULTS_DIR / f"snc_{ref_set.suffix}.dat")
     arm_col = ref[:, 0].astype(int)
     table_arm = np.asarray(results.snc["arm"])
     table_pixel = np.asarray(results.snc["pixel"])
@@ -244,9 +253,9 @@ def test_snc_table_matches_c_reference(reference_results):
 
 @pytest.mark.slow
 def test_snl_table_matches_c_reference(reference_results):
-    results, spectro = reference_results
+    results, spectro, ref_set = reference_results
     assert results.snl is not None
-    ref = np.loadtxt(MASTER_RESULTS_DIR / "snl_omp.dat")
+    ref = np.loadtxt(MASTER_RESULTS_DIR / f"snl_{ref_set.suffix}.dat")
     assert len(results.snl) == ref.shape[0]
     row_idx = np.arange(ref.shape[0])
 
@@ -274,9 +283,9 @@ def test_snl_table_matches_c_reference(reference_results):
 
 @pytest.mark.slow
 def test_oii_curve_table_matches_c_reference(reference_results):
-    results, spectro = reference_results
+    results, spectro, ref_set = reference_results
     assert results.oii_curve is not None
-    ref = np.loadtxt(MASTER_RESULTS_DIR / "sno2_omp.dat")
+    ref = np.loadtxt(MASTER_RESULTS_DIR / f"sno2_{ref_set.suffix}.dat")
     assert len(results.oii_curve) == ref.shape[0]
     row_idx = np.arange(ref.shape[0])
 

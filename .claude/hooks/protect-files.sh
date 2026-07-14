@@ -19,7 +19,7 @@ basename=$(basename "$file_path")
 
 # Protected C-reference fixtures (exact files + the master_results directory).
 case "$rel" in
-    tests/master_results/*|tests/gsetc_params.txt|tests/PFS.20211220.dat|tests/mag_18.dat|tests/analyze_diff.py)
+    tests/master_results/*|tests/gsetc_params.txt|tests/PFS.20211220.dat|tests/mag_18.dat|tests/analyze_diff.py|tests/gsetc_params_mr.txt|tests/gsetc_params_lr11006.txt|tests/gsetc_params_mr11006.txt|tests/PFS.redMR.20211220.dat|tests/PFS.20240714.dat|tests/PFS.redMR.20240714.dat)
         echo "Blocked: $rel is a read-only C-reference acceptance fixture. The slow regression gates compare against it; it must never be modified. See CLAUDE.md." >&2
         exit 2
         ;;
