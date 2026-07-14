@@ -719,12 +719,9 @@ def run_etc(params: EtcParams) -> EtcResults:
     oii_n_targets = None
     if params.oii_cat_in is not None:
         warnings.warn(
-            "The [OII] emitter-catalog pathway (oii_cat_in) is covered by "
-            "unit and scalar-transcription oracle tests only; it has no "
-            "end-to-end regression gate against the original C implementation's "
-            "catalog output. See docs/review-c-to-python-port-2026-07-10.md "
-            "§6.2 for the fixture-generation procedure if validation is "
-            "ever needed.",
+            "The [OII] emitter-catalog pathway (oii_cat_in) is not covered "
+            "by the end-to-end C-reference regression tests; interpret its "
+            "outputs with care.",
             UserWarning,
             stacklevel=2,
         )

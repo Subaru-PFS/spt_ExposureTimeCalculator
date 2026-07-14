@@ -150,10 +150,10 @@ class TestRunEtcSmoke:
 
 
 class TestOiiCatalogValidationWarning:
-    """Task 8: the [OII] catalog pathway (`oii_cat_in`) has unit/oracle test
+    """The [OII] catalog pathway (`oii_cat_in`) has unit/oracle test
     coverage but no end-to-end C-reference regression gate (the C fixture
-    at `tests/gsetc_params.txt` was generated with `InFileOII='-'`) -- see
-    `docs/review-c-to-python-port-2026-07-10.md` §6.2. `run_etc` must warn
+    at `tests/gsetc_params.txt` was generated with `InFileOII='-'`, i.e.
+    no catalog). `run_etc` must warn
     once whenever the catalog pathway is actually entered, and must stay
     silent for ordinary runs (including ones that enable the separately-
     gated sno2/`outfile_oii` curve, which is *not* what this warning is
