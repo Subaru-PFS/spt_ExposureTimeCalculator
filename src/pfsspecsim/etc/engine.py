@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import dataclasses
 import math
+import warnings
 from pathlib import Path
 
 import numpy as np
@@ -717,6 +718,16 @@ def run_etc(params: EtcParams) -> EtcResults:
     oii_histogram = None
     oii_n_targets = None
     if params.oii_cat_in is not None:
+        warnings.warn(
+            "The [OII] emitter-catalog pathway (oii_cat_in) is covered by "
+            "unit and scalar-transcription oracle tests only; it has no "
+            "end-to-end regression gate against the original C implementation's "
+            "catalog output. See docs/review-c-to-python-port-2026-07-10.md "
+            "§6.2 for the fixture-generation procedure if validation is "
+            "ever needed.",
+            UserWarning,
+            stacklevel=2,
+        )
         oii_catalog, oii_histogram, oii_n_targets = _compute_oii_catalog(
             params, spectro, noise_arrays
         )

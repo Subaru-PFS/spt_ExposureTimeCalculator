@@ -187,6 +187,7 @@ Some caution again:
 
 1. `noise_reused` is only valid for the same observing condition (zenith angle, field angle, lunar condition, and exposure time). Please be careful when you use this option and do not reuse a noise file produced under different conditions.
 2. You can input your own spectra by using `mag_file`, but please note that the ETC does not convolve the instrument resolution into the input spectrum internally, so the resolution should already be considered in the input spectrum. Also note that the wavelength sampling should be finer than the pixel sampling of the PFS detector (~0.7A, ~0.8A, and ~0.8A for blue, red, and NIR arm, respectively).
+3. **The `[OII]` catalog pathway (`oii_cat_in`/`oii_cat_out`) has no C-reference regression gate.** It is covered by unit and scalar-transcription oracle tests only; its end-to-end output has not been verified against the original C implementation's catalog output (the `tests/gsetc_params.txt` reference run used `InFileOII='-'`, i.e. no catalog). A `UserWarning` is emitted at runtime whenever `oii_cat_in` is set, as a reminder.
 
 ## Spectral Simulator
 

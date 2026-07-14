@@ -14,6 +14,7 @@ test suites already exercise that at full size without a runtime problem.
 from __future__ import annotations
 
 import dataclasses
+import warnings
 from pathlib import Path
 
 import numpy as np
@@ -146,6 +147,43 @@ class TestRunEtcSmoke:
         assert results.aperture_factor_800_point == pytest.approx(expected_point)
         # A larger effective radius must not increase encircled energy.
         assert results.aperture_factor_800_target <= results.aperture_factor_800_point
+
+
+class TestOiiCatalogValidationWarning:
+    """Task 8: the [OII] catalog pathway (`oii_cat_in`) has unit/oracle test
+    coverage but no end-to-end C-reference regression gate (the C fixture
+    at `tests/gsetc_params.txt` was generated with `InFileOII='-'`) -- see
+    `docs/review-c-to-python-port-2026-07-10.md` §6.2. `run_etc` must warn
+    once whenever the catalog pathway is actually entered, and must stay
+    silent for ordinary runs (including ones that enable the separately-
+    gated sno2/`outfile_oii` curve, which is *not* what this warning is
+    about).
+    """
+
+    def test_warns_when_catalog_pathway_used(self, tmp_path, oii_cat_in):
+        params = _base_params(
+            tmp_path,
+            oii_cat_in=oii_cat_in,
+            oii_cat_out=tmp_path / "oii_cat_out.ecsv",
+        )
+        with pytest.warns(UserWarning, match="\\[OII\\] emitter-catalog pathway"):
+            engine.run_etc(params)
+
+    def test_no_warning_for_ordinary_run_without_catalog(self, tmp_path):
+        # sno2 curve (outfile_oii) is enabled by _base_params's defaults --
+        # it has its own (separately gated) C-reference test coverage and
+        # must not trip the catalog-only warning.
+        params = _base_params(tmp_path)
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            engine.run_etc(params)
+        catalog_warnings = [
+            w
+            for w in caught
+            if issubclass(w.category, UserWarning)
+            and "[OII] emitter-catalog pathway" in str(w.message)
+        ]
+        assert not catalog_warnings
 
 
 class TestNoiseComputeOrReload:
