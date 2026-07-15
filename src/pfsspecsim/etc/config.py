@@ -307,9 +307,7 @@ def load_spectrograph_config(path: str | Path, degrade: float) -> Spectrograph:
             adjust = ADJUST_THROUGHPUT_MR if MR else ADJUST_THROUGHPUT_LR
             while True:
                 if idx >= n_lines:
-                    raise ValueError(
-                        f"{path}: unexpected EOF at THRPUT grid point {i}"
-                    )
+                    raise ValueError(f"{path}: unexpected EOF at THRPUT grid point {i}")
                 thr_line = lines[idx]
                 idx += 1
                 if thr_line.startswith("D"):

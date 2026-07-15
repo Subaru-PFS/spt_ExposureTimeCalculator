@@ -327,12 +327,16 @@ def moon_continuum(
 
     # Solar spectrum rescaling (CFHT Redeye manual color model), normalized
     # to 550nm (gsetc.c:975-978).
-    scale_rs = (np.exp(2480.0 / 550.0) - 1.0) / (np.exp(2480.0 / lam) - 1.0) * (
-        lam / 550.0
-    ) ** -7.0
-    scale_ms = (np.exp(2480.0 / 550.0) - 1.0) / (np.exp(2480.0 / lam) - 1.0) * (
-        lam / 550.0
-    ) ** -4.3
+    scale_rs = (
+        (np.exp(2480.0 / 550.0) - 1.0)
+        / (np.exp(2480.0 / lam) - 1.0)
+        * (lam / 550.0) ** -7.0
+    )
+    scale_ms = (
+        (np.exp(2480.0 / 550.0) - 1.0)
+        / (np.exp(2480.0 / lam) - 1.0)
+        * (lam / 550.0) ** -4.3
+    )
 
     # V-band moonlight brightness model (gsetc.c:980-988).
     alpha = 360.0 * abs(lunarphase - 0.5)
@@ -351,10 +355,7 @@ def moon_continuum(
         (f1 * scale_rs + f2 * scale_ms)
         * i_star
         * 10.0 ** (-0.4 * kV / np.sqrt(1.0 - 0.96 * np.sin(moon_za_rad) ** 2))
-        * (
-            1.0
-            - 10.0 ** (-0.4 * kV / np.sqrt(1.0 - 0.96 * np.sin(target_za_rad) ** 2))
-        )
+        * (1.0 - 10.0 ** (-0.4 * kV / np.sqrt(1.0 - 0.96 * np.sin(target_za_rad) ** 2)))
     )
 
     # Continuum conversion at V band (gsetc.c:990-994): 3.408e10 = nanoLambert

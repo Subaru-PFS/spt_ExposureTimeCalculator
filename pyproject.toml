@@ -75,6 +75,7 @@ ignore = [
     "F401",   # module imported but unused
     "F841",   # local variable is assigned to but never used
     "E501",   # line too long, handled by black
+    "E741",   # ambiguous variable name (l = wavelength/ℓ, matches gsetc.c)
     "B008",   # do not perform function calls in argument defaults
     "C901",   # too complex
     "N802",   # function name should be lowercase

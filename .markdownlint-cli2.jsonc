@@ -1,0 +1,18 @@
+{
+  // markdownlint-cli2 file selection (globs + ignores). Lint *rules* live in
+  // .markdownlint.jsonc. Used by CI (`npx markdownlint-cli2`) and manual runs.
+  // The PostToolUse format hook passes an explicit file path, so it is
+  // unaffected by these globs (it only ever edits source docs, never the
+  // ignored dirs below).
+  "globs": ["**/*.md"],
+  "gitignore": true,
+  "ignores": [
+    "node_modules/**",
+    ".claude/**",
+    ".venv/**",
+    "build/**",
+    "dist/**",
+    "tmp/**",
+    "docs/superpowers/**"
+  ]
+}

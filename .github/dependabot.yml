@@ -1,0 +1,12 @@
+version: 2
+updates:
+  # Keep the SHA-pinned actions in .github/workflows/ current: Dependabot opens
+  # reviewed PRs that bump both the pinned commit SHA and the version comment.
+  # (Dependabot does not vet updates for safety — review each PR before merging.)
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      actions:
+        patterns: ["*"]

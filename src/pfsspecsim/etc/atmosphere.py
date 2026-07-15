@@ -82,9 +82,7 @@ def n_air(lam_vac_nm):
     lam = np.asarray(lam_vac_nm, dtype=np.float64)
     inv_lam2 = 1e6 / lam / lam
     result = (
-        1.000064328
-        + 0.0294981 / (146.0 - inv_lam2)
-        + 0.0002554 / (41.0 - inv_lam2)
+        1.000064328 + 0.0294981 / (146.0 - inv_lam2) + 0.0002554 / (41.0 - inv_lam2)
     )
     return result if result.ndim else float(result)
 
