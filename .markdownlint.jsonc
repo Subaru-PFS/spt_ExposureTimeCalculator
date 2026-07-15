@@ -1,0 +1,19 @@
+{
+  // markdownlint config for this repository.
+  // Rule reference: https://github.com/DavidAnson/markdownlint/blob/main/doc/Rules.md
+  "default": true,
+
+  // Line length: READMEs here keep prose and wide reference tables on single
+  // lines (GitHub soft-wraps them); hard-wrapping at 80 is not useful.
+  "MD013": false,
+
+  // Table column style: the parameter/migration tables are too wide to keep
+  // their pipes visually aligned; don't require it.
+  "MD060": false,
+
+  // Enforce one consistent flavor for the constructs that were previously mixed.
+  "MD003": { "style": "atx" },       // headings: # / ## / ### (not === / --- underlines)
+  "MD004": { "style": "dash" },      // unordered lists: -
+  "MD049": { "style": "asterisk" },  // emphasis: *italic*
+  "MD046": { "style": "fenced" }     // code blocks: ``` fences, not indentation
+}

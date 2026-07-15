@@ -3,17 +3,13 @@ tmp
 test
 build
 dist
+node_modules
 pfs*.fits
-python/pfsspecsim/__pycache__
-python/pfsspecsim/bin/gsetc.x
-python/pfsspecsim/bin/gsetc_omp.x
-python/pfsspecsim/_version.py
-src/gsetc.x
-src/gsetc_omp.x
-src/*.x
-*.o
-python/pfsspecsim/*.pyc
-python/pfsspecsim.egg-info
+src/pfsspecsim/__pycache__
+src/pfsspecsim/_version.py
+src/pfsspecsim/*.pyc
+pfsspecsim.egg-info
+src/pfsspecsim.egg-info
 example/notebooks/tmp
 example/notebooks/out
 example/notebooks/.ipynb_checkpoints
@@ -181,3 +177,14 @@ cython_debug/
 #.idea/
 
 tmp/
+
+# macOS
+.DS_Store
+
+# uv per-machine Python pin
+.python-version
+
+# Superpowers (Claude Code plugin) session artifacts: specs/plans are
+# ephemeral working documents; the durable outcome lives in README/CLAUDE.md
+# and the git history.
+docs/superpowers/

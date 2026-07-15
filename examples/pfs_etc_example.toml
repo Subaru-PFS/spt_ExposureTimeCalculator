@@ -1,0 +1,28 @@
+# Example `pfs-spec etc --config` file (see README.md "TOML configuration files").
+#
+#   pfs-spec etc --config examples/pfs_etc_example.toml
+#
+# TOML keys are the same snake_case names as the CLI options (with `-`
+# replaced by `_`). Any value can still be overridden on the command line,
+# e.g. `pfs-spec etc --config examples/pfs_etc_example.toml --mag 23.0`.
+
+seeing = 0.80
+zenith_ang = 35.00
+galactic_ext = 0.00
+moon_zenith_ang = 30.0
+moon_target_ang = 60.0
+moon_phase = 0.125
+exp_time = 900
+exp_num = 4
+field_ang = 0.45
+
+mag = 22.5          # or use mag_file = "path/to/spectrum.dat" instead (mutually exclusive)
+reff = 0.3
+line_flux = 1.0e-17
+line_width = 70
+
+mr_mode = false
+outdir = "out"
+outfile_noise = "ref.noise.ecsv"
+outfile_snc = "ref.snc.ecsv"
+outfile_snl = "ref.snl.ecsv"

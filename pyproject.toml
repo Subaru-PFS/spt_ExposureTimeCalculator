@@ -1,14 +1,13 @@
 [build-system]
 requires = ["setuptools>=64", "wheel", "setuptools-scm>=8.0"]
-build-backend = "_build_backend"
-backend-path = ["."]
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "pfsspecsim"
 dynamic = ["version"]
 description = "PFS ETC and spectral simulator"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.11"
 license = {text = "MIT"}
 authors = [
     {name = "Kiyoto Yabe", email = "kiyoto.yabe@ipmu.jp"}
@@ -21,58 +20,51 @@ dependencies = [
     "scipy",
     "matplotlib",
     "astropy",
+    "typer>=0.12",
     "pfs.datamodel @ git+https://github.com/Subaru-PFS/datamodel.git@w.2024.06",
 ]
 
-[project.optional-dependencies]
+[project.scripts]
+pfs-spec = "pfsspecsim.cli:app"
+pfs-run-etc = "pfsspecsim.scripts.run_etc:main"
+pfs-gen-sim-spec = "pfsspecsim.scripts.gen_sim_spec:main"
+
+# Single dev dependency group (`uv sync` includes it by default; other tools
+# can install it explicitly with `pip install --group dev` / `uv sync --group dev`).
+# Superseded the old duplicate [project.optional-dependencies] dev extra.
+[dependency-groups]
 dev = [
     "pytest>=7.0",
     "black>=23.7.0",
     "ruff>=0.5.0",
-    "ty>=0.0.8"
+    "ty>=0.0.8",
 ]
-
-[tool.uv]
-# Rebuild the project (and thus the C executables via _build_backend.py) when
-# the C sources, Makefiles, or the CC environment variable change; by default
-# uv only watches pyproject.toml/setup.py/setup.cfg and would skip make
-cache-keys = [
-    { file = "pyproject.toml" },
-    { file = "src/**/*.c" },
-    { file = "src/**/*.h" },
-    { file = "src/Makefile*" },
-    { env = "CC" },
-]
-
-[project.scripts]
-pfs-run-etc = "pfsspecsim.scripts.run_etc:main"
-pfs-gen-sim-spec = "pfsspecsim.scripts.gen_sim_spec:main"
 
 [tool.setuptools]
 zip-safe = false
 include-package-data = true
-packages = [
-    "pfsspecsim",
-    "pfsspecsim.scripts",
-]
 
-[tool.setuptools.package-dir]
-"" = "python"
-"pfsspecsim.scripts" = "scripts"
+[tool.setuptools.packages.find]
+where = ["src"]
 
 [tool.setuptools.package-data]
 pfsspecsim = [
     "config/*.dat",
-    "bin/gsetc.x",
-    "bin/gsetc_omp.x",
-    "bin/Makefile",
+    "etc/data/*.npz",
+    "etc/data/README.md",
 ]
 
 [tool.setuptools_scm]
 version_scheme = "guess-next-dev"
 local_scheme = "node-and-date"
-version_file = "python/pfsspecsim/_version.py"
+version_file = "src/pfsspecsim/_version.py"
 fallback_version = "0.0.0+unknown"
+
+[tool.pytest.ini_options]
+testpaths = ["tests/python"]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+]
 
 [tool.ruff]
 target-version = "py312"

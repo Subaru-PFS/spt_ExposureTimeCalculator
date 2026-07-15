@@ -5,7 +5,7 @@ EXP_NUM          8                  #  The number of exposures
 MAG_FILE         22.5               #  Magnitude or input spectrum  [ABmag] or <filename>
 countsMin        0.1                #  Minimum counts per pixel when calculating noise
 
-etcFile          out/ref.snc.ecsv   #  Input noise file for the simulator (from Chris Hirata's ETC)
+etcFile          out/ref.snc.dat    #  Input noise file for the simulator (from Chris Hirata's ETC)
 nrealize         1                  #  The number of realization
 outDir           out                #  Output directory
 asciiTable       None               #  Output ASCII table name without extension ("None" to omit writing table)

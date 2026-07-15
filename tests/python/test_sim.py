@@ -1,0 +1,255 @@
+"""Tests for pfsspecsim.sim: the modern snake_case Python API for the
+spectral simulator (`SimSpecParams`/`load_params`/`run_sim_spec`), mirroring
+`pfsspecsim.etc.params`'s architecture.
+"""
+
+from __future__ import annotations
+
+import pickle
+from pathlib import Path
+
+import numpy as np
+import pytest
+from astropy.table import Table
+
+from pfsspecsim.sim import SimSpecParams, load_params, pfsspec, run_sim_spec
+
+# --- SimSpecParams / validate() ---------------------------------------------
+
+
+def test_defaults_match_legacy_pfsspec_params():
+    """Guard against SimSpecParams's defaults silently drifting from
+    Pfsspec.__init__'s legacy defaults -- run_sim_spec sends every field
+    to Pfsspec.set_param (not just user-supplied overrides), so these two
+    default sets must stay in lockstep."""
+    from pfsspecsim.sim import SimSpecParams
+    from pfsspecsim.sim.engine import _LEGACY_KEY_MAP
+    from pfsspecsim.sim.pfsspec import Pfsspec
+
+    params = SimSpecParams()
+    legacy = Pfsspec().params
+
+    for field_name, legacy_key in _LEGACY_KEY_MAP.items():
+        value = getattr(params, field_name)
+        legacy_value = legacy[legacy_key]
+        if field_name == "mag":
+            # The legacy MAG_FILE default is the flat-mag string "22.5".
+            assert float(legacy_value) == pytest.approx(value)
+            continue
+        if field_name == "mag_file":
+            # SimSpecParams splits MAG_FILE into mag=22.5 (default) / mag_file=None;
+            # the legacy default "22.5" is a flat mag, so mag_file's default (None)
+            # has no direct legacy counterpart to compare -- skip.
+            continue
+        if field_name == "ascii_table":
+            assert value is None and legacy_value == "None"
+            continue
+        if field_name in ("write_fits", "write_pfs_arm", "pfs_config_full"):
+            assert isinstance(value, bool)
+            assert value == (legacy_value.lower() in ("1", "t", "true"))
+            continue
+        if isinstance(value, Path):
+            assert str(value) == str(legacy_value)
+            continue
+        if isinstance(value, float):
+            assert value == pytest.approx(float(legacy_value))
+            continue
+        if isinstance(value, int):
+            assert value == int(legacy_value)
+            continue
+        assert value == legacy_value
+
+
+def test_defaults_validate():
+    SimSpecParams().validate()
+
+
+def test_mag_xor_mag_file_both_none_raises():
+    with pytest.raises(ValueError, match="mutually exclusive"):
+        SimSpecParams(mag=None, mag_file=None).validate()
+
+
+def test_mag_xor_mag_file_both_set_raises():
+    with pytest.raises(ValueError, match="mutually exclusive"):
+        SimSpecParams(mag=22.5, mag_file=Path("mag.dat")).validate()
+
+
+def test_mag_file_alone_is_valid():
+    SimSpecParams(mag=None, mag_file=Path("mag.dat")).validate()
+
+
+@pytest.mark.parametrize("mode", ["random", "systematic", "wavecalib", "psfvar"])
+def test_known_sky_sub_modes_validate(mode):
+    SimSpecParams(sky_sub_mode=mode).validate()
+
+
+def test_unknown_sky_sub_mode_raises():
+    # The legacy Pfsspec surface deliberately preserves the pre-2.0
+    # accept-anything behavior (see test_sim_spec.py::TestSkySubModes);
+    # the modern API must reject typos loudly instead.
+    with pytest.raises(ValueError, match="sky_sub_mode"):
+        SimSpecParams(sky_sub_mode="not_a_real_mode").validate()
+
+
+def test_simspecparams_picklable():
+    params = SimSpecParams()
+    restored = pickle.loads(pickle.dumps(params))
+    assert restored == params
+
+
+# --- load_params: TOML + override priority ----------------------------------
+
+
+def test_load_params_defaults_only():
+    assert load_params() == SimSpecParams()
+
+
+def test_load_params_toml_overrides_defaults(tmp_path):
+    toml_path = tmp_path / "params.toml"
+    toml_path.write_text('nrealize = 2\nascii_table = "fromtoml"\n')
+    params = load_params(toml_path)
+    assert params.nrealize == 2
+    assert params.ascii_table == "fromtoml"
+    assert params.ra == SimSpecParams().ra  # untouched default
+
+
+def test_overrides_beat_toml(tmp_path):
+    toml_path = tmp_path / "params.toml"
+    toml_path.write_text("nrealize = 2\n")
+    params = load_params(toml_path, overrides={"nrealize": 7})
+    assert params.nrealize == 7
+
+
+def test_path_fields_coerced_to_path(tmp_path):
+    toml_path = tmp_path / "params.toml"
+    toml_path.write_text('out_dir = "somewhere"\n')
+    params = load_params(toml_path)
+    assert params.out_dir == Path("somewhere")
+
+
+def test_unknown_toml_key_raises(tmp_path):
+    toml_path = tmp_path / "bad.toml"
+    toml_path.write_text("not_a_real_field = 1\n")
+    with pytest.raises(ValueError, match="not_a_real_field"):
+        load_params(toml_path)
+
+
+def test_unknown_override_key_raises():
+    with pytest.raises(ValueError, match="bogus_field"):
+        load_params(overrides={"bogus_field": 1})
+
+
+def test_toml_only_mag_file_does_not_collide_with_mag_default(tmp_path):
+    """Regression: a TOML file that sets only `mag_file` (never mentioning
+    `mag`) must not spuriously collide with `SimSpecParams.mag`'s own
+    default (22.5) -- `load_params` must force `mag=None` in this case."""
+    mag_file = tmp_path / "mag.dat"
+    mag_file.write_text("400.0 20.0\n1100.0 20.0\n")
+    toml_path = tmp_path / "params.toml"
+    toml_path.write_text(f'mag_file = "{mag_file}"\n')
+    params = load_params(toml_path)
+    assert params.mag is None
+    assert params.mag_file == mag_file
+
+
+def test_toml_only_mag_does_not_collide_with_mag_file_default():
+    """Symmetric case: TOML sets only `mag` -- `mag_file` stays `None`
+    (already the default, but confirms `load_params` doesn't break it)."""
+    params = load_params(overrides={"mag": 19.0})
+    assert params.mag == 19.0
+    assert params.mag_file is None
+
+
+# --- run_sim_spec: translation + end-to-end tests ----------------------------
+
+_N = 128
+
+
+def _snc_arrays() -> dict[str, np.ndarray]:
+    """The 11 SNC columns, in the ETC's ECSV schema order (same fixture
+    shape as `tests/python/test_sim_spec.py::_snc_arrays`)."""
+    wav = np.linspace(400.0, 1100.0, _N)
+    return {
+        "arm": np.zeros(_N, dtype=int),
+        "pixel": np.arange(_N),
+        "wavelength": wav,
+        "snr": np.full(_N, 5.0),
+        "signal": np.full(_N, 100.0),
+        "noise_variance": np.linspace(50.0, 80.0, _N),
+        "noise_variance_tot": np.linspace(60.0, 90.0, _N),
+        "input_mag": np.full(_N, 22.5),
+        "conversion_factor": np.linspace(2.0e26, 3.0e26, _N),
+        "sampling_factor": np.ones(_N),
+        "sky": np.linspace(80.0, 120.0, _N),
+    }
+
+
+@pytest.fixture(scope="module")
+def snc_ecsv(tmp_path_factory) -> Path:
+    path = tmp_path_factory.mktemp("simspec_run_fixtures") / "snc.ecsv"
+    cols = _snc_arrays()
+    tbl = Table(list(cols.values()), names=list(cols.keys()))
+    tbl.meta["params"] = {"exp_num": 5}
+    tbl.write(path, format="ascii.ecsv")
+    return path
+
+
+class TestRunSimSpec:
+    def test_writes_ascii_table(self, snc_ecsv, tmp_path):
+        np.random.seed(1234)
+        params = SimSpecParams(
+            etc_file=snc_ecsv,
+            out_dir=tmp_path,
+            write_fits=False,
+            ascii_table="sim",
+            mag=21.0,
+            exp_num=3,
+        )
+        sim = run_sim_spec(params)
+        assert (tmp_path / "sim.dat").is_file()
+        assert Path(sim.outdir) == tmp_path
+
+    def test_mag_file_variant_is_accepted(self, snc_ecsv, tmp_path):
+        mag_file = tmp_path / "mag.dat"
+        mag_file.write_text("400.0 20.0\n1100.0 20.0\n")
+        np.random.seed(1234)
+        params = SimSpecParams(
+            etc_file=snc_ecsv,
+            out_dir=tmp_path / "out",
+            write_fits=False,
+            ascii_table="sim",
+            mag=None,
+            mag_file=mag_file,
+            exp_num=3,
+        )
+        sim = run_sim_spec(params)
+        assert (tmp_path / "out" / "sim.dat").is_file()
+
+    def test_matches_legacy_pfsspec_byte_for_byte(self, snc_ecsv, tmp_path):
+        """`run_sim_spec` must produce output identical to the equivalent
+        legacy `Pfsspec().set_param(...)` call chain -- proves the
+        snake_case -> legacy-dict translation is a pure relabeling."""
+        np.random.seed(1234)
+        params = SimSpecParams(
+            etc_file=snc_ecsv,
+            out_dir=tmp_path / "modern",
+            write_fits=False,
+            ascii_table="sim",
+            mag=21.0,
+            exp_num=3,
+        )
+        run_sim_spec(params)
+        modern_out = (tmp_path / "modern" / "sim.dat").read_bytes()
+
+        np.random.seed(1234)
+        legacy = pfsspec.Pfsspec()
+        legacy.set_param("etcFile", str(snc_ecsv))
+        legacy.set_param("outDir", str(tmp_path / "legacy"))
+        legacy.set_param("writeFits", "f")
+        legacy.set_param("asciiTable", "sim")
+        legacy.set_param("MAG_FILE", "21.0")
+        legacy.set_param("EXP_NUM", "3")
+        assert legacy.make_sim_spec() == 0
+        legacy_out = (tmp_path / "legacy" / "sim.dat").read_bytes()
+
+        assert modern_out == legacy_out
