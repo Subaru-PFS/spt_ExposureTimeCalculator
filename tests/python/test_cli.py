@@ -21,6 +21,8 @@ import pytest
 from astropy.table import Table
 from typer.testing import CliRunner
 
+from conftest import strip_ansi
+
 from pfsspecsim.cli import app
 from pfsspecsim.cli import etc as cli_etc
 from pfsspecsim.etc import engine
@@ -61,9 +63,10 @@ class TestHelpAndVersion:
     def test_help_exits_zero_and_lists_options(self):
         result = runner.invoke(app, ["etc", "--help"])
         assert result.exit_code == 0
-        assert "--seeing" in result.output
-        assert "--mag-file" in result.output
-        assert "--config" in result.output
+        output = strip_ansi(result.output)
+        assert "--seeing" in output
+        assert "--mag-file" in output
+        assert "--config" in output
 
     def test_version_exits_zero(self):
         result = runner.invoke(app, ["--version"])

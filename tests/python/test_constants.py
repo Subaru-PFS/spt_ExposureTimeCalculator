@@ -16,9 +16,7 @@ from pfsspecsim.etc import constants
 
 def test_photons_per_erg_1nm():
     # C literal: PHOTONS_PER_ERG_1NM = 5.03411747e8 (gsetc.c:19)
-    assert math.isclose(
-        constants.PHOTONS_PER_ERG_1NM, 5.03411747e8, rel_tol=1e-6
-    )
+    assert math.isclose(constants.PHOTONS_PER_ERG_1NM, 5.03411747e8, rel_tol=1e-6)
 
 
 def test_ab_zeropoint_cgs():
@@ -28,9 +26,7 @@ def test_ab_zeropoint_cgs():
 
 def test_arcsec_per_urad():
     # C literal: ARCSEC_PER_URAD = 0.206264806247097 (gsetc.c:17)
-    assert math.isclose(
-        constants.ARCSEC_PER_URAD, 0.206264806247097, rel_tol=1e-6
-    )
+    assert math.isclose(constants.ARCSEC_PER_URAD, 0.206264806247097, rel_tol=1e-6)
 
 
 def test_c_nm_per_s():

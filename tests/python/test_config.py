@@ -18,9 +18,7 @@ from pfsspecsim.etc.config import (
 )
 
 # Protected fixture; never modify (see task brief).
-PROTECTED_FIXTURE = (
-    Path(__file__).resolve().parents[2] / "tests" / "PFS.20211220.dat"
-)
+PROTECTED_FIXTURE = Path(__file__).resolve().parents[2] / "tests" / "PFS.20211220.dat"
 
 
 class TestLoadSpectrographConfig:

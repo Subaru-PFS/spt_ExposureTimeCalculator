@@ -209,7 +209,10 @@ class TestSkyContinuumVectorScalarConsistency:
         scalars = np.array(
             [sky_continuum(float(x), 1.15, 0.92, SKY_TYPE_DEFAULT) for x in lam]
         )
-        np.testing.assert_array_equal(vec, scalars)
+        # vectorized vs scalar differ by ~1 ULP across platforms (macOS arm64
+        # matches bit-for-bit, Linux x86_64 does not); exact equality is not
+        # portable. rtol=1e-12 still catches real vectorization errors.
+        np.testing.assert_allclose(vec, scalars, rtol=1e-12)
 
     def test_scalar_returns_float(self):
         assert isinstance(sky_continuum(700.0, 1.1, 0.9, SKY_TYPE_DEFAULT), float)
@@ -275,9 +278,7 @@ class TestMoonContinuumKVConsistency:
         kV = cont_opacity(550.0, SKY_TYPE_DEFAULT)
         assert kV == 0.12  # Mauna Kea median extinction at 550nm (T5)
 
-        expected = _scalar_moon_continuum(
-            lam, moon_za, moon_ang, phase, za, kV
-        )
+        expected = _scalar_moon_continuum(lam, moon_za, moon_ang, phase, za, kV)
         result = moon_continuum(lam, moon_za, moon_ang, phase, za, SKY_TYPE_DEFAULT)
         assert result == pytest.approx(expected, rel=1e-12)
 
@@ -292,7 +293,10 @@ class TestMoonContinuumVectorScalarConsistency:
                 for x in lam
             ]
         )
-        np.testing.assert_array_equal(vec, scalars)
+        # vectorized vs scalar differ by ~1 ULP across platforms (macOS arm64
+        # matches bit-for-bit, Linux x86_64 does not); exact equality is not
+        # portable. rtol=1e-12 still catches real vectorization errors.
+        np.testing.assert_allclose(vec, scalars, rtol=1e-12)
 
     def test_scalar_returns_float(self):
         assert isinstance(
@@ -337,12 +341,16 @@ def _scalar_moon_continuum(lam, moon_za_deg, moon_ang_deg, phase, za_deg, kV):
 
     lunarphase = phase - math.floor(phase)
 
-    scale_rs = (math.exp(2480.0 / 550.0) - 1.0) / (
-        math.exp(2480.0 / lam) - 1.0
-    ) * math.pow(lam / 550.0, -7.0)
-    scale_ms = (math.exp(2480.0 / 550.0) - 1.0) / (
-        math.exp(2480.0 / lam) - 1.0
-    ) * math.pow(lam / 550.0, -4.3)
+    scale_rs = (
+        (math.exp(2480.0 / 550.0) - 1.0)
+        / (math.exp(2480.0 / lam) - 1.0)
+        * math.pow(lam / 550.0, -7.0)
+    )
+    scale_ms = (
+        (math.exp(2480.0 / 550.0) - 1.0)
+        / (math.exp(2480.0 / lam) - 1.0)
+        * math.pow(lam / 550.0, -4.3)
+    )
 
     alpha = 360 * abs(lunarphase - 0.5)
     Istar = math.pow(10.0, -0.4 * (3.84 + 0.026 * alpha + 4e-9 * alpha**4))
@@ -361,9 +369,7 @@ def _scalar_moon_continuum(lam, moon_za_deg, moon_ang_deg, phase, za_deg, kV):
         * math.pow(10.0, -0.4 * kV / math.sqrt(1.0 - 0.96 * math.sin(moon_za_rad) ** 2))
         * (
             1.0
-            - math.pow(
-                10.0, -0.4 * kV / math.sqrt(1.0 - 0.96 * math.sin(za_rad) ** 2)
-            )
+            - math.pow(10.0, -0.4 * kV / math.sqrt(1.0 - 0.96 * math.sin(za_rad) ** 2))
         )
     )
     return Bmoon / 3.408e10 * 5.48e10 / 550.0

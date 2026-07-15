@@ -1,0 +1,77 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+# Cancel superseded runs on the same ref (e.g. rapid pushes to a PR branch).
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: lint (ruff + black)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990 # v8.3.2
+        with:
+          enable-cache: true
+
+      # ruff target-version is py312; lint on a single matching interpreter.
+      - name: Sync dependencies (incl. dev group)
+        run: uv sync --python 3.12
+
+      - name: ruff check
+        run: uv run --no-sync ruff check src tests/python
+
+      - name: black --check
+        run: uv run --no-sync black --check src tests/python
+
+  markdown-lint:
+    name: markdown-lint (markdownlint-cli2)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+          cache: npm
+
+      # Same markdownlint-cli2 version as the local format hook (package-lock.json).
+      - name: Install markdown tooling
+        run: npm ci
+
+      # Check-only (no --fix). File selection from .markdownlint-cli2.jsonc,
+      # rules from .markdownlint.jsonc.
+      - name: markdownlint
+        run: npx markdownlint-cli2
+
+  test:
+    name: test (py${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990 # v8.3.2
+        with:
+          enable-cache: true
+
+      - name: Sync dependencies (incl. dev group)
+        run: uv sync --python ${{ matrix.python-version }}
+
+      # Full suite, including the slow C-reference acceptance gates
+      # (the arbiter of correctness — see CLAUDE.md).
+      - name: Run tests
+        run: uv run --no-sync pytest tests/python

@@ -100,7 +100,7 @@ Package is **src-layout** (`src/pfsspecsim/`). The ETC engine lives in
 `src/pfsspecsim/etc/`, built in strict dependency order (each module only
 imports from earlier ones):
 
-```
+```text
 constants + _modeldata (npz loader)      ← physical constants, C data tables
   → materials, extinction, atmosphere    ← Si/dust/atmosphere physics
   → config (Spectrograph dataclass)      ← instrument .dat parser
