@@ -209,7 +209,10 @@ class TestSkyContinuumVectorScalarConsistency:
         scalars = np.array(
             [sky_continuum(float(x), 1.15, 0.92, SKY_TYPE_DEFAULT) for x in lam]
         )
-        np.testing.assert_array_equal(vec, scalars)
+        # vectorized vs scalar differ by ~1 ULP across platforms (macOS arm64
+        # matches bit-for-bit, Linux x86_64 does not); exact equality is not
+        # portable. rtol=1e-12 still catches real vectorization errors.
+        np.testing.assert_allclose(vec, scalars, rtol=1e-12)
 
     def test_scalar_returns_float(self):
         assert isinstance(sky_continuum(700.0, 1.1, 0.9, SKY_TYPE_DEFAULT), float)
@@ -290,7 +293,10 @@ class TestMoonContinuumVectorScalarConsistency:
                 for x in lam
             ]
         )
-        np.testing.assert_array_equal(vec, scalars)
+        # vectorized vs scalar differ by ~1 ULP across platforms (macOS arm64
+        # matches bit-for-bit, Linux x86_64 does not); exact equality is not
+        # portable. rtol=1e-12 still catches real vectorization errors.
+        np.testing.assert_allclose(vec, scalars, rtol=1e-12)
 
     def test_scalar_returns_float(self):
         assert isinstance(

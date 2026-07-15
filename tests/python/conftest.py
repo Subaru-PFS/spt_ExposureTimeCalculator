@@ -24,10 +24,26 @@ original.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from pathlib import Path
 
 from pfsspecsim.etc.params import EtcParams
+
+_ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
+
+
+def strip_ansi(text: str) -> str:
+    """Strip ANSI SGR escape sequences from CLI output.
+
+    Rich (via Typer) emits color codes when it detects a color-capable
+    environment (e.g. GitHub Actions sets one), which interleaves escapes
+    inside option strings like ``--seeing`` and breaks plain substring
+    checks. Local terminals without color pass regardless; strip so the
+    assertions are environment-independent.
+    """
+    return _ANSI_RE.sub("", text)
+
 
 #: Protected fixtures (see the task briefs); never modify.
 TESTS_DIR = Path(__file__).resolve().parents[1]

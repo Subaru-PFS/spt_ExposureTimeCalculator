@@ -42,7 +42,7 @@ from astropy.io import fits
 from astropy.table import Table
 from typer.testing import CliRunner
 
-from conftest import CONFIG_FIXTURE, reference_params
+from conftest import CONFIG_FIXTURE, reference_params, strip_ansi
 from pfsspecsim import sim as simspec
 from pfsspecsim.sim import pfsspec
 from pfsspecsim.cli import app
@@ -247,10 +247,11 @@ class TestCliHelpAndVersion:
     def test_help_exits_zero_and_lists_options(self):
         result = runner.invoke(app, ["sim", "--help"])
         assert result.exit_code == 0
-        assert "--etc-file" in result.output
-        assert "--mag-file" in result.output
-        assert "--config" in result.output
-        assert "--ascii-table" in result.output
+        output = strip_ansi(result.output)
+        assert "--etc-file" in output
+        assert "--mag-file" in output
+        assert "--config" in output
+        assert "--ascii-table" in output
 
     def test_version_exits_zero(self):
         result = runner.invoke(app, ["--version"])

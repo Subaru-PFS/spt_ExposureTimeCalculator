@@ -47,7 +47,10 @@ class TestVacAirConversion:
         lam = np.linspace(350.0, 1300.0, 97)
         vec = air2vac(lam)
         scalars = np.array([air2vac(float(x)) for x in lam])
-        np.testing.assert_array_equal(vec, scalars)
+        # vectorized vs scalar differ by ~1 ULP across platforms (macOS arm64
+        # matches bit-for-bit, Linux x86_64 does not); exact equality is not
+        # portable. rtol=1e-12 still catches real vectorization errors.
+        np.testing.assert_allclose(vec, scalars, rtol=1e-12)
 
 
 class TestAirmass:
@@ -81,7 +84,10 @@ class TestContOpacity:
         lam = np.linspace(305.0, 950.0, 101)
         vec = cont_opacity(lam, SKY_TYPE_DEFAULT)
         scalars = np.array([cont_opacity(float(x), SKY_TYPE_DEFAULT) for x in lam])
-        np.testing.assert_array_equal(vec, scalars)
+        # vectorized vs scalar differ by ~1 ULP across platforms (macOS arm64
+        # matches bit-for-bit, Linux x86_64 does not); exact equality is not
+        # portable. rtol=1e-12 still catches real vectorization errors.
+        np.testing.assert_allclose(vec, scalars, rtol=1e-12)
 
     def test_unimplemented_opacity_model_raises(self):
         with pytest.raises(NotImplementedError):
@@ -142,7 +148,10 @@ class TestTransmission:
         scalars = np.array(
             [transmission(float(x), 25.0, SKY_TYPE_DEFAULT) for x in lam]
         )
-        np.testing.assert_array_equal(vec, scalars)
+        # vectorized vs scalar differ by ~1 ULP across platforms (macOS arm64
+        # matches bit-for-bit, Linux x86_64 does not); exact equality is not
+        # portable. rtol=1e-12 still catches real vectorization errors.
+        np.testing.assert_allclose(vec, scalars, rtol=1e-12)
 
     def test_unrecognized_line_absorption_model_raises(self):
         # bits 12-15 = 0x2: opacity model stays implemented (0x0) so this
