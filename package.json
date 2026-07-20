@@ -4,6 +4,6 @@
   "description": "Markdown formatting/lint tooling for Claude Code hooks (see .claude/hooks/format-markdown.sh)",
   "devDependencies": {
     "prettier": "^3.9.5",
-    "markdownlint-cli2": "^0.23.0"
+    "markdownlint-cli2": "^0.23.1"
   }
 }
